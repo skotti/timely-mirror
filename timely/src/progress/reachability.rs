@@ -630,7 +630,7 @@ impl<T:Timestamp> Tracker<T> {
                             self.pushed_changes.update((location, time), diff);
                         }
                     }
-                    // Update to an operator output.
+                    // Update to an operator output.f
                     // Propagate any changes forward along outgoing edges.
                     Port::Source(port_index) => {
 

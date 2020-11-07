@@ -1,7 +1,7 @@
 extern crate timely;
 
 use timely::dataflow::{InputHandle, ProbeHandle};
-use timely::dataflow::operators::{Input, Exchange, Inspect, Probe, FpgaWrapper};
+use timely::dataflow::operators::{Input, Inspect, Probe, Filter, Exchange};
 
 fn main() {
     // initializes and runs a timely dataflow.
@@ -14,21 +14,22 @@ fn main() {
         // create a new input, exchange data, and inspect its output
         worker.dataflow(|scope| {
             scope.input_from(&mut input)
-                 .exchange(|x| *x)
-                 .inspect(move |x| println!("worker {}:\thello {}", index, x))
-                 .fpga_wrapper()
-                 .inspect(move |x| println!("worker {}:\thello {}", index, x))
-                 .probe_with(&mut probe);
+                .exchange(|x| *x)
+                .filter(|x| *x > 5)
+                .inspect(move |x| println!("worker {}:\thello {}", index, x))
+                .probe_with(&mut probe);
         });
 
         // introduce data and watch!
         for round in 0..10 {
             if index == 0 {
                 input.send(round);
+                input.send(round);
+                input.send(round);
+
             }
             input.advance_to(round + 1);
             while probe.less_than(input.time()) {
-                println!("{}", round);
                 worker.step();
             }
         }

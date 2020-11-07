@@ -19,8 +19,8 @@ use crate::dataflow::{Stream, Scope};
 use crate::dataflow::channels::pushers::Tee;
 use crate::dataflow::channels::pact::ParallelizationContract;
 use crate::dataflow::operators::generic::operator_info::OperatorInfo;
-
 /// Contains type-free information about the operator properties.
+#[derive(Clone)]
 pub struct OperatorShape {
     name: String,   // A meaningful name for the operator.
     notify: bool,   // Does the operator require progress notifications.
@@ -30,6 +30,7 @@ pub struct OperatorShape {
 }
 
 /// Core data for the structure of an operator, minus scope and logic.
+
 impl OperatorShape {
     fn new(name: String, peers: usize) -> Self {
         OperatorShape {
@@ -49,6 +50,28 @@ impl OperatorShape {
     /// The number of outputs of this operator
     pub fn outputs(&self) -> usize {
         self.outputs
+    }
+
+    /*pub fn set_inputs(&mut self, inputs: usize) {
+        self.inputs = inputs;
+    }
+
+    pub fn set_outputs(&mut self, outputs: usize) {
+        self.outputs = outputs;
+    }*/
+    /// The number of outputs of this operator
+    pub fn peers(&self) -> usize {
+        self.peers
+    }
+
+    /// Notify field of this operator
+    pub fn notify(&self) -> bool {
+        self.notify
+    }
+
+    /// Name of this operator
+    pub fn name(&self) -> &String {
+        &self.name
     }
 }
 
@@ -97,6 +120,23 @@ impl<G: Scope> OperatorBuilder<G> {
     pub fn shape(&self) -> &OperatorShape {
         &self.shape
     }
+
+    /// set shape
+    pub fn set_shape(&mut self, inputs: usize, outputs: usize) {
+        self.shape.inputs = inputs;
+        self.shape.outputs = outputs;
+    }
+
+    /// Return a reference to the operator's shape
+    pub fn address(&self) -> &Vec<usize> {
+        &self.address
+    }
+
+    /// Return a reference to the operator's shape
+    pub fn summary(&self) -> &Vec<Vec<Antichain<<G::Timestamp as Timestamp>::Summary>>> {
+        &self.summary
+    }
+
 
     /// Indicates whether the operator requires frontier information.
     pub fn set_notify(&mut self, notify: bool) {
@@ -150,6 +190,29 @@ impl<G: Scope> OperatorBuilder<G> {
         }
 
         (targets, stream)
+    }
+
+    /// Adds a new input to a generic operator builder, returning the `Push` implementor to use.
+    pub fn new_output_without_stream<D: Data>(&mut self) -> Tee<G::Timestamp, D> {
+
+        let connection = vec![Antichain::from_elem(Default::default()); self.shape.inputs];
+        self.new_output_connection_without_stream(connection)
+    }
+
+    /// Adds a new input to a generic operator builder, returning the `Push` implementor to use.
+    pub fn new_output_connection_without_stream<D: Data>(&mut self, connection: Vec<Antichain<<G::Timestamp as Timestamp>::Summary>>) -> Tee<G::Timestamp, D> {
+
+        let (targets, registrar) = Tee::<G::Timestamp,D>::new();
+        let source = Source::new(self.index, self.shape.outputs);
+        //let stream = Stream::new(source, registrar, self.scope.clone());
+
+        self.shape.outputs += 1;
+        assert_eq!(self.shape.inputs, connection.len());
+        for (summary, entry) in self.summary.iter_mut().zip(connection.into_iter()) {
+            summary.push(entry);
+        }
+
+        targets
     }
 
     /// Creates an operator implementation from supplied logic constructor.

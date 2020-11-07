@@ -66,6 +66,15 @@ pub trait Scope: ScopeParent {
     /// The two indices are the scope-local operator index, and a worker-unique index used for e.g. logging.
     fn add_operator_with_indices(&mut self, operator: Box<dyn Operate<Self::Timestamp>>, local: usize, global: usize);
 
+    /// Adds a child `Operate` to the builder's scope using supplied indices.
+    ///
+    /// The two indices are the scope-local operator index, and a worker-unique index used for e.g. logging.
+    /// This child is not added to the scheduled operators
+    fn add_operator_with_indices_no_path(&mut self, operator: Box<dyn Operate<Self::Timestamp>>, local: usize, global: usize);
+
+    /// Add device side operator's indexes
+    fn add_fpga_operator(&mut self, wrapper: usize, ghost: Vec<usize>, ghost_edges: Vec<(usize, usize)>);
+
     /// Creates a dataflow subgraph.
     ///
     /// This method allows the user to create a nested scope with any timestamp that

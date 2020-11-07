@@ -101,6 +101,14 @@ where
         self.subgraph.borrow_mut().add_child(operator, local, global);
     }
 
+    fn add_operator_with_indices_no_path(&mut self, operator: Box<dyn Operate<Self::Timestamp>>, local: usize, global: usize) {
+        self.subgraph.borrow_mut().add_child_no_path(operator, local, global);
+    }
+
+    fn add_fpga_operator(&mut self, wrapper: usize, ghost: Vec<usize>, ghost_edges: Vec<(usize, usize)>) {
+        self.subgraph.borrow_mut().add_fpga_operator(wrapper, ghost, ghost_edges);
+    }
+
     fn allocate_operator_index(&mut self) -> usize {
         self.subgraph.borrow_mut().allocate_child_id()
     }

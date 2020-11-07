@@ -12,6 +12,7 @@ fn main() {
 
         let mut input = InputHandle::new();
         let mut probe = ProbeHandle::new();
+        let index = worker.index();
 
         // define a distribution function for strings.
         let exchange = Exchange::new(|x: &(String, i64)| (x.0).len() as u64);
@@ -51,7 +52,7 @@ fn main() {
 
                         queues.retain(|_key, val| !val.is_empty());
                     }})
-                 .inspect(|x| println!("seen: {:?}", x))
+                 .inspect(move |x| println!("seen: {:?}, index {}", x, index))
                  .probe_with(&mut probe);
         });
 

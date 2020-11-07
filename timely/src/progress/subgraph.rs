@@ -7,7 +7,7 @@
 
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::collections::BinaryHeap;
+use std::collections::{BinaryHeap, HashMap};
 use std::cmp::Reverse;
 
 use crate::logging::TimelyLogger as Logger;
@@ -51,7 +51,10 @@ where
     children: Vec<PerOperatorState<TInner>>,
     child_count: usize,
 
+
     edge_stash: Vec<(Source, Target)>,
+
+    ghost_edge_stash: Vec<(Source, Target)>,
 
     // shared state written to by the datapath, counting records entering this subgraph instance.
     input_messages: Vec<Rc<RefCell<ChangeBatch<TInner>>>>,
@@ -61,6 +64,15 @@ where
 
     /// Logging handle
     logging: Option<Logger>,
+
+    /// Wrapper operators + ghost operators tracking
+    wrapper_ghost: Rc<RefCell<HashMap<usize, Vec<usize>>>>,
+
+    ghost_wrapper: Rc<RefCell<HashMap<usize, usize>>>,
+
+    wrapper_ghost_edges: Rc<RefCell<HashMap<usize, Vec<(usize, usize)>>>>,
+
+    test_vector: Rc<RefCell<Vec<(usize, usize)>>>,
 }
 
 impl<TOuter, TInner> SubgraphBuilder<TOuter, TInner>
@@ -109,9 +121,14 @@ where
             children,
             child_count: 1,
             edge_stash: Vec::new(),
+            ghost_edge_stash: Vec::new(),
             input_messages: Vec::new(),
             output_capabilities: Vec::new(),
             logging,
+            wrapper_ghost: Rc::new(RefCell::new(HashMap::new())),
+            wrapper_ghost_edges: Rc::new(RefCell::new(HashMap::new())),
+            ghost_wrapper: Rc::new(RefCell::new(HashMap::new())),
+            test_vector: Rc::new(RefCell::new(Vec::new())),
         }
     }
 
@@ -132,8 +149,67 @@ where
                 name: child.name().to_owned(),
             }));
         }
-        self.children.push(PerOperatorState::new(child, index, self.path.clone(), identifier, self.logging.clone()))
+        self.children.push(PerOperatorState::new(child, index, self.path.clone(), identifier,
+                                                 self.logging.clone(), true, self.wrapper_ghost.clone(),
+                                                 self.wrapper_ghost_edges.clone()))
     }
+
+    /// Adds a new child to the subgraph.
+    pub fn add_child_no_path(&mut self, child: Box<dyn Operate<TInner>>, index: usize, identifier: usize) {
+        {
+            let mut child_path = self.path.clone();
+            self.logging.as_mut().map(|l| l.log(crate::logging::OperatesEvent {
+                id: identifier,
+                addr: child_path,
+                name: child.name().to_owned(),
+            }));
+        }
+        self.children.push(PerOperatorState::new(child, index, self.path.clone(), identifier, self.logging.clone(), false,
+                                                 self.wrapper_ghost.clone(),
+                                                 self.wrapper_ghost_edges.clone()))
+    }
+
+    /// Add device side operators to subgraph
+    pub fn add_fpga_operator(&mut self, wrapper: usize, ghost: Vec<usize>, ghost_edges: Vec<(usize, usize)>) {
+        for g in ghost.iter() {
+            self.ghost_wrapper.borrow_mut().insert(*g, wrapper);
+        }
+        self.wrapper_ghost.borrow_mut().insert(wrapper, ghost);
+        self.wrapper_ghost_edges.borrow_mut().insert(wrapper, ghost_edges);
+
+    }
+
+    /// Reorganize edges
+    pub fn reorganize_edges(&mut self) {
+        let mut start_source = Source { node: 0, port: 0 };
+        let mut end_target = Target { node: 0, port: 0 };
+        for (source, target) in self.edge_stash.iter() {
+            if self.wrapper_ghost.borrow().contains_key(&target.node) {
+                start_source = *source;
+            } else if self.wrapper_ghost.borrow().contains_key(&source.node) {
+                end_target = *target;
+            } else {
+                self.ghost_edge_stash.push((*source, *target));
+            }
+        }
+
+        for (wrapper, vector) in self.wrapper_ghost.borrow().iter() {
+            let start_target = Target::new(vector[0], 0);
+            let end_source = Source::new(vector[vector.len() - 1], 0);
+            self.ghost_edge_stash.push((start_source, start_target));
+            self.ghost_edge_stash.push((end_source, end_target));
+
+            self.wrapper_ghost_edges.borrow_mut().get_mut(&wrapper).unwrap().push((start_source.node, start_target.node));
+            self.wrapper_ghost_edges.borrow_mut().get_mut(&wrapper).unwrap().push((end_source.node, end_target.node));
+
+            /*let edges_vector = self.wrapper_ghost_edges.get(&wrapper);
+            for edge in edges_vector.iter() {
+                self.edge_stash.push(edge);
+            }*/
+        }
+
+    }
+
 
     /// Now that initialization is complete, actually build a subgraph.
     pub fn build<A: crate::worker::AsWorker>(mut self, worker: &mut A) -> Subgraph<TOuter, TInner> {
@@ -157,11 +233,21 @@ where
         // Child 0 has `inputs` outputs and `outputs` inputs, not yet connected.
         builder.add_node(0, outputs, inputs, vec![vec![Antichain::new(); inputs]; outputs]);
         for (index, child) in self.children.iter().enumerate().skip(1) {
-            builder.add_node(index, child.inputs, child.outputs, child.internal_summary.clone());
+            if !self.wrapper_ghost.borrow().contains_key(&index) {
+                builder.add_node(index, child.inputs, child.outputs, child.internal_summary.clone());
+            }
         }
 
+        self.reorganize_edges();
+
+        // hopefully there is no order in the output edges, so
+        // if I push my edges not in the correct order to the output port - nothing will break
         for (source, target) in self.edge_stash {
             self.children[source.node].edges[source.port].push(target);
+        }
+
+        for (source, target) in self.ghost_edge_stash {
+            self.children[source.node].ghost_edges[source.port].push(target);
             builder.add_edge(source, target);
         }
 
@@ -170,8 +256,13 @@ where
         let progcaster = Progcaster::new(worker, &self.path, self.logging.clone());
 
         let mut incomplete = vec![true; self.children.len()];
+        for x in 0..self.children.len() {
+            if !self.children[x].count_for_incomplete {
+                incomplete[x] = false;
+            }
+        }
         incomplete[0] = false;
-        let incomplete_count = incomplete.len() - 1;
+        let incomplete_count = incomplete.len() - 2;
 
         let activations = worker.activations().clone();
 
@@ -199,6 +290,11 @@ where
             scope_summary,
 
             eager_progress_send: ::std::env::var("DEFAULT_PROGRESS_MODE") != Ok("DEMAND".to_owned()),
+            wrapper_ghost: self.wrapper_ghost.clone(),
+
+            wrapper_ghost_edges: self.wrapper_ghost_edges.clone(),
+
+            ghost_wrapper: self.ghost_wrapper.clone(),
         }
     }
 }
@@ -250,6 +346,11 @@ where
     scope_summary: Vec<Vec<Antichain<TInner::Summary>>>,
 
     eager_progress_send: bool,
+    wrapper_ghost: Rc<RefCell<HashMap<usize, Vec<usize>>>>,
+
+    ghost_wrapper: Rc<RefCell<HashMap<usize, usize>>>,
+
+    wrapper_ghost_edges: Rc<RefCell<HashMap<usize, Vec<(usize, usize)>>>>,
 }
 
 impl<TOuter, TInner> Schedule for Subgraph<TOuter, TInner>
@@ -336,12 +437,15 @@ where
         }
 
         if !incomplete {
+            //TODO: another place to consider
             // Consider shutting down the child, if neither capabilities nor input frontier.
             let child_state = self.pointstamp_tracker.node_state(child_index);
-            let frontiers_empty = child_state.targets.iter().all(|x| x.implications.is_empty());
-            let no_capabilities = child_state.sources.iter().all(|x| x.pointstamps.is_empty());
-            if frontiers_empty && no_capabilities {
-                child.shut_down();
+            if !self.wrapper_ghost.borrow().contains_key(&child_index) {
+                let frontiers_empty = child_state.targets.iter().all(|x| x.implications.is_empty());
+                let no_capabilities = child_state.sources.iter().all(|x| x.pointstamps.is_empty());
+                if frontiers_empty && no_capabilities {
+                    child.shut_down();
+                }
             }
         }
         else {
@@ -387,7 +491,7 @@ where
             let source = Location::new_source(0, input);
             let mut borrowed = self.input_messages[input].borrow_mut();
             for (time, delta) in borrowed.drain() {
-                for target in &self.children[0].edges[input] {
+                for target in &self.children[0].ghost_edges[input] {
                     self.local_pointstamp.update((Location::from(*target), time.clone()), delta);
                 }
                 self.local_pointstamp.update((source, time), -delta);
@@ -446,6 +550,10 @@ where
         self.pointstamp_tracker.propagate_all();
 
         // Drain propagated information into shared progress structure.
+
+        // FPGA: here we need to transfer frontier changes back to the wrapper, as ghost node
+        // will not be executed
+
         for ((location, time), diff) in self.pointstamp_tracker.pushed().drain() {
             // Targets are actionable, sources are not.
             if let crate::progress::Port::Target(port) = location.port {
@@ -455,11 +563,24 @@ where
                 // TODO: This logic could also be guarded by `.notify`, but
                 // we want to be a bit careful to make sure all related logic
                 // agrees with this (e.g. initialization, operator logic, etc.)
-                self.children[location.node]
-                    .shared_progress
-                    .borrow_mut()
-                    .frontiers[port]
-                    .update(time, diff);
+
+                if self.ghost_wrapper.borrow().contains_key(&location.node) {
+                    // Currently I will do only for one operator
+                    let gw = self.ghost_wrapper.borrow();
+
+                    let location_node = gw.get(&location.node).unwrap();
+                    self.children[*location_node]
+                        .shared_progress
+                        .borrow_mut()
+                        .frontiers[port]
+                        .update(time, diff);
+                } else {
+                    self.children[location.node]
+                        .shared_progress
+                        .borrow_mut()
+                        .frontiers[port]
+                        .update(time, diff);
+                }
             }
         }
 
@@ -528,8 +649,12 @@ where
         // Each child has expressed initial capabilities (their `shared_progress.internals`).
         // We introduce these into the progress tracker to determine the scope's initial
         // internal capabilities.
+
+        // this should not happen for ghost_child
         for child in self.children.iter_mut() {
-            child.extract_progress(&mut self.final_pointstamp, &mut self.temp_active);
+            if !self.ghost_wrapper.borrow().contains_key(&child.index) {
+                child.extract_progress(&mut self.final_pointstamp, &mut self.temp_active);
+            }
         }
 
         self.propagate_pointstamps();  // Propagate expressed capabilities to output frontiers.
@@ -557,16 +682,22 @@ struct PerOperatorState<T: Timestamp> {
     notify: bool,
     inputs: usize,      // number of inputs to the operator
     outputs: usize,     // number of outputs from the operator
+    count_for_incomplete: bool,
 
     operator: Option<Box<dyn Operate<T>>>,
 
     edges: Vec<Vec<Target>>,    // edges from the outputs of the operator
+
+    ghost_edges: Vec<Vec<Target>>,
 
     shared_progress: Rc<RefCell<SharedProgress<T>>>,
 
     internal_summary: Vec<Vec<Antichain<T::Summary>>>,   // cached result from get_internal_summary.
 
     logging: Option<Logger>,
+
+    wrapper_ghost: Rc<RefCell<HashMap<usize, Vec<usize>>>>,
+    wrapper_ghost_edges: Rc<RefCell<HashMap<usize, Vec<(usize, usize)>>>>,
 }
 
 impl<T: Timestamp> PerOperatorState<T> {
@@ -574,6 +705,7 @@ impl<T: Timestamp> PerOperatorState<T> {
     fn empty(inputs: usize, outputs: usize) -> PerOperatorState<T> {
         PerOperatorState {
             name:       "External".to_owned(),
+            count_for_incomplete: true,
             operator:   None,
             index:      0,
             id:         usize::max_value(),
@@ -583,11 +715,14 @@ impl<T: Timestamp> PerOperatorState<T> {
             outputs,
 
             edges: vec![Vec::new(); outputs],
+            ghost_edges: vec![Vec::new(); outputs],
 
             logging: None,
 
             shared_progress: Rc::new(RefCell::new(SharedProgress::new(inputs,outputs))),
             internal_summary: Vec::new(),
+            wrapper_ghost: Rc::new(RefCell::new(HashMap::new())),
+            wrapper_ghost_edges: Rc::new(RefCell::new(HashMap::new())),
         }
     }
 
@@ -596,7 +731,10 @@ impl<T: Timestamp> PerOperatorState<T> {
         index: usize,
         mut _path: Vec<usize>,
         identifier: usize,
-        logging: Option<Logger>
+        logging: Option<Logger>,
+        incomplete: bool,
+        wrapper_ghost: Rc<RefCell<HashMap<usize, Vec<usize>>>>,
+        wrapper_ghost_edges: Rc<RefCell<HashMap<usize, Vec<(usize, usize)>>>>,
     ) -> PerOperatorState<T>
     {
         let local = scope.local();
@@ -607,10 +745,12 @@ impl<T: Timestamp> PerOperatorState<T> {
         let (internal_summary, shared_progress) = scope.get_internal_summary();
 
         assert_eq!(internal_summary.len(), inputs);
+
         assert!(!internal_summary.iter().any(|x| x.len() != outputs));
 
         PerOperatorState {
             name:               scope.name().to_owned(),
+            count_for_incomplete: incomplete,
             operator:           Some(scope),
             index,
             id:                 identifier,
@@ -619,11 +759,13 @@ impl<T: Timestamp> PerOperatorState<T> {
             inputs,
             outputs,
             edges:              vec![vec![]; outputs],
-
+            ghost_edges:              vec![vec![]; outputs],
             logging,
 
             shared_progress,
             internal_summary,
+            wrapper_ghost,
+            wrapper_ghost_edges,
         }
     }
 
@@ -682,28 +824,76 @@ impl<T: Timestamp> PerOperatorState<T> {
     fn extract_progress(&mut self, pointstamps: &mut ChangeBatch<(Location, T)>, temp_active: &mut BinaryHeap<Reverse<usize>>) {
 
         let shared_progress = &mut *self.shared_progress.borrow_mut();
+        if self.wrapper_ghost.borrow().contains_key(&self.index) {
+            // then we need to restructure progress updates
+            // for now I will just write code for one ghost operator, further will add for more
 
-        // Migrate consumeds, internals, produceds into progress statements.
-        for (input, consumed) in shared_progress.consumeds.iter_mut().enumerate() {
-            let target = Location::new_target(self.index, input);
-            for (time, delta) in consumed.drain() {
-                pointstamps.update((target, time), -delta);
-            }
-        }
-        for (output, internal) in shared_progress.internals.iter_mut().enumerate() {
-            let source = Location::new_source(self.index, output);
-            for (time, delta) in internal.drain() {
-                pointstamps.update((source, time.clone()), delta);
-            }
-        }
-        for (output, produced) in shared_progress.produceds.iter_mut().enumerate() {
-            for (time, delta) in produced.drain() {
-                for target in &self.edges[output] {
-                    pointstamps.update((Location::from(*target), time.clone()), delta);
-                    temp_active.push(Reverse(target.node));
+            let wrapper_struct = self.wrapper_ghost.borrow();
+            let ghost_index = wrapper_struct.get(&self.index).unwrap();
+            for (input, consumed) in shared_progress.consumeds.iter_mut().enumerate() {
+                let target = Location::new_target(ghost_index[0], input);
+                for (time, delta) in consumed.drain() {
+                    pointstamps.update((target, time), -delta);
                 }
             }
+            for (output, internal) in shared_progress.internals.iter_mut().enumerate() {
+                let source = Location::new_source(ghost_index[0], output);
+                for (time, delta) in internal.drain() {
+                    pointstamps.update((source, time.clone()), delta);
+                }
+            }
+
+            // the problem here is that I can't add to edges array edges of the wrapper operator,
+            // as then this array is used somewhere else in progress tracking and we just iterate over this array there.
+            // so I need to add to wrapper_ghost edges somewhere an edge between the last ghost edge and the output
+            // or the wrapper edge and the output
+            // and initialize per operator state with wrapper ghost as well.
+
+            // so like a trick
+            // to last wrapper edges are edges to and from wrapper, so here we need only edges from wrapper
+            //let arraylength  = self.wrapper_ghost_edges.borrow().get(&self.index).unwrap().len();
+            //let edge_from = self.wrapper_ghost_edges.borrow().get(&self.index).unwrap()[arraylength - 1];
+            //let target = Target::new(edge_from.1, 0);
+            for (output, produced) in shared_progress.produceds.iter_mut().enumerate() {
+                for (time, delta) in produced.drain() {
+                    //pointstamps.update((Location::from(target), time.clone()), delta);
+                    //temp_active.push(Reverse(target.node));
+                    for target in &self.edges[output] {
+                        pointstamps.update((Location::from(*target), time.clone()), delta);
+                        temp_active.push(Reverse(target.node));
+                    }
+                }
+            }
+
+            // here we transferred progress updates from wrapper to ghost, now progress tracker can work with them
+            // now we need to transfer results of progress tracker's work to wrapper operator,
+            // so that it could send them to the fpga
         }
+
+        // Migrate consumeds, internals, produceds into progress statements.
+            for (input, consumed) in shared_progress.consumeds.iter_mut().enumerate() {
+                let target = Location::new_target(self.index, input);
+                for (time, delta) in consumed.drain() {
+                    pointstamps.update((target, time), -delta);
+                }
+            }
+            for (output, internal) in shared_progress.internals.iter_mut().enumerate() {
+                let source = Location::new_source(self.index, output);
+                for (time, delta) in internal.drain() {
+                    pointstamps.update((source, time.clone()), delta);
+                }
+            }
+            for (output, produced) in shared_progress.produceds.iter_mut().enumerate() {
+                for (time, delta) in produced.drain() {
+                    for target in &self.edges[output] {
+                        temp_active.push(Reverse(target.node));
+
+                    }
+                    for target in &self.ghost_edges[output] {
+                        pointstamps.update((Location::from(*target), time.clone()), delta);
+                    }
+                }
+            }
     }
 
     /// Test the validity of `self.shared_progress`.
