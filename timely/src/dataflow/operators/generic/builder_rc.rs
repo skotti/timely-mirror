@@ -85,13 +85,13 @@ impl<G: Scope> OperatorBuilder<G> {
         new_input_handle(input, self.internal.clone(), self.logging.clone())
     }
 
-    /// Adds a new output to a generic operator builder, returning the `Pull` implementor to use.
+    /// Adds a new output to a generic operator builder, returning the `Push` implementor to use.
     pub fn new_output<D: Data>(&mut self) -> (OutputWrapper<G::Timestamp, D, Tee<G::Timestamp, D>>, Stream<G, D>) {
         let connection = vec![Antichain::from_elem(Default::default()); self.builder.shape().inputs()];
         self.new_output_connection(connection)
     }
 
-    /// Adds a new output with connection information to a generic operator builder, returning the `Pull` implementor to use.
+    /// Adds a new output with connection information to a generic operator builder, returning the `Push` implementor to use.
     ///
     /// The `connection` parameter contains promises made by the operator for each of the existing *inputs*, that any timestamp
     /// appearing at the input, any output timestamp will be greater than or equal to the input timestamp subjected to a `Summary`
@@ -118,6 +118,23 @@ impl<G: Scope> OperatorBuilder<G> {
         B: FnOnce(Vec<Capability<G::Timestamp>>) -> L,
         L: FnMut(&[MutableAntichain<G::Timestamp>])+'static
     {
+        self.build_reschedule(|caps| {
+            let mut logic = constructor(caps);
+            move |frontier| { logic(frontier); false }
+        })
+    }
+
+    /// Creates an operator implementation from supplied logic constructor.
+    ///
+    /// Unlike `build`, the supplied closure can indicate if the operator
+    /// should be considered incomplete. The `build` method indicates that
+    /// the operator is never incomplete and can be shut down at the system's
+    /// discretion.
+    pub fn build_reschedule<B, L>(self, constructor: B)
+    where
+        B: FnOnce(Vec<Capability<G::Timestamp>>) -> L,
+        L: FnMut(&[MutableAntichain<G::Timestamp>])->bool+'static
+    {
         // create capabilities, discard references to their creation.
         let mut capabilities = Vec::new();
         for output_index in 0  .. self.internal.borrow().len() {
@@ -143,7 +160,7 @@ impl<G: Scope> OperatorBuilder<G> {
             }
 
             // invoke supplied logic
-            logic(&self_frontier[..]);
+            let result = logic(&self_frontier[..]);
 
             // move batches of consumed changes.
             for index in 0 .. progress.consumeds.len() {
@@ -162,7 +179,7 @@ impl<G: Scope> OperatorBuilder<G> {
                 self_produced[index].borrow_mut().drain_into(&mut progress.produceds[index]);
             }
 
-            false
+            result
         };
 
         self.builder.build(raw_logic);

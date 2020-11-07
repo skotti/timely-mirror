@@ -910,9 +910,9 @@ impl<T: Timestamp> PerOperatorState<T> {
             for (time, diff) in internal.iter() {
                 if *diff > 0 {
                     let consumed = shared_progress.consumeds.iter_mut().any(|x| x.iter().any(|(t,d)| *d > 0 && t.less_equal(time)));
-                    let internal = child_state.sources[output].pointstamps.less_equal(time);
-                    let external = child_state.targets.iter().any(|x| x.implications.less_equal(time));
-                    if !consumed && !internal && !external {
+                    let internal = child_state.sources[output].implications.less_equal(time);
+                    if !consumed && !internal {
+                        println!("Increment at {:?}, not supported by\n\tconsumed: {:?}\n\tinternal: {:?}", time, shared_progress.consumeds, child_state.sources[output].implications);
                         panic!("Progress error; internal {:?}", self.name);
                     }
                 }
@@ -922,9 +922,9 @@ impl<T: Timestamp> PerOperatorState<T> {
             for (time, diff) in produced.iter() {
                 if *diff > 0 {
                     let consumed = shared_progress.consumeds.iter_mut().any(|x| x.iter().any(|(t,d)| *d > 0 && t.less_equal(time)));
-                    let internal = child_state.sources[output].pointstamps.less_equal(time);
-                    let external = child_state.targets.iter().any(|x| x.implications.less_equal(time));
-                    if !consumed && !internal && !external {
+                    let internal = child_state.sources[output].implications.less_equal(time);
+                    if !consumed && !internal {
+                        println!("Increment at {:?}, not supported by\n\tconsumed: {:?}\n\tinternal: {:?}", time, shared_progress.consumeds, child_state.sources[output].implications);
                         panic!("Progress error; produced {:?}", self.name);
                     }
                 }
