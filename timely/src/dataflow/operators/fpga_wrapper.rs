@@ -1,4 +1,6 @@
 //! Funtionality to run operators on FPGA
+pub extern crate libc;
+
 
 use crate::Data;
 use crate::dataflow::{Stream, Scope, ScopeParent};
@@ -20,6 +22,14 @@ use crate::logging::TimelyEvent::Operates;
 use crate::progress::frontier::MutableAntichain;
 
 // something like compound operator
+//
+
+#[link(name = "fpgalibrary")]
+extern "C" {
+    fn run() -> *mut u32;
+}
+
+
 
 struct FpgaOperator<T, L>
     where
@@ -237,6 +247,11 @@ impl<S: Scope, D: Data> FpgaWrapper<S, D> for Stream<S, D> {
                         RefOrMut::Mut(reference) => (&reference.time, RefOrMut::Mut(&mut reference.data)),
                     };
                     data.swap(&mut vector);
+                    // I should call my fpga function here with vector as an input
+                    unsafe {
+                        let result = run();
+                    }
+
                     output_wrapper.session(time).give_vec(&mut vector);
                 }
                 output_wrapper.cease();
