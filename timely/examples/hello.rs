@@ -2,6 +2,17 @@ extern crate timely;
 
 use timely::dataflow::{InputHandle, ProbeHandle};
 use timely::dataflow::operators::{Input, Exchange, Inspect, Probe, FpgaWrapper};
+use timely::dataflow::operators::fpga_wrapper::HardwareCommon;
+//#[path = "../hardware.rs"]
+//pub mod hardware;
+
+
+#[link(name = "fpgalibrary")]
+extern "C" {
+    fn initialize() -> * mut HardwareCommon;
+    fn closeHardware(hc: * mut HardwareCommon);
+}
+
 
 fn main() {
     // initializes and runs a timely dataflow.
@@ -11,12 +22,16 @@ fn main() {
         let mut input = InputHandle::new();
         let mut probe = ProbeHandle::new();
 
+        let hc;
+        unsafe {
+            hc = initialize();
+        }
         // create a new input, exchange data, and inspect its output
         worker.dataflow(|scope| {
             scope.input_from(&mut input)
                  .exchange(|x| *x)
                  .inspect(move |x| println!("worker {}:\thello {}", index, x))
-                 .fpga_wrapper()
+                 .fpga_wrapper(hc)
                  .inspect(move |x| println!("worker {}:\thello {}", index, x))
                  .probe_with(&mut probe);
         });
@@ -31,6 +46,10 @@ fn main() {
                 println!("{}", round);
                 worker.step();
             }
+        }
+
+        unsafe {
+            closeHardware(hc);
         }
     }).unwrap();
 }

@@ -24,6 +24,7 @@ use crate::progress::broadcast::Progcaster;
 use crate::progress::reachability;
 use crate::progress::timestamp::Refines;
 
+
 // IMPORTANT : by convention, a child identifier of zero is used to indicate inputs and outputs of
 // the Subgraph itself. An identifier greater than zero corresponds to an actual child, which can
 // be found at position (id - 1) in the `children` field of the Subgraph.
@@ -238,6 +239,7 @@ where
             }
         }
 
+
         self.reorganize_edges();
 
         // hopefully there is no order in the output edges, so
@@ -255,6 +257,7 @@ where
 
         let progcaster = Progcaster::new(worker, &self.path, self.logging.clone());
 
+        // TODO : fix this in order not to subtract 2 further
         let mut incomplete = vec![true; self.children.len()];
         for x in 0..self.children.len() {
             if !self.children[x].count_for_incomplete {
@@ -351,6 +354,8 @@ where
     ghost_wrapper: Rc<RefCell<HashMap<usize, usize>>>,
 
     wrapper_ghost_edges: Rc<RefCell<HashMap<usize, Vec<(usize, usize)>>>>,
+
+    // c structure
 }
 
 impl<TOuter, TInner> Schedule for Subgraph<TOuter, TInner>

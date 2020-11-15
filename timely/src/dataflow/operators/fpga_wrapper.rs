@@ -1,6 +1,7 @@
 //! Funtionality to run operators on FPGA
 pub extern crate libc;
 
+use std::sync::{Arc, Mutex};
 
 use crate::Data;
 use crate::dataflow::{Stream, Scope, ScopeParent};
@@ -21,14 +22,28 @@ use std::ops::Deref;
 use crate::logging::TimelyEvent::Operates;
 use crate::progress::frontier::MutableAntichain;
 
-// something like compound operator
-//
+//#[path = "../../../hardware.rs"]
+//pub mod hardware;
+
+use std::ffi::c_void;
+
+#[repr(C)]
+///gg
+pub struct HardwareCommon {
+    fd: u32,
+    cnfg_reg: * mut c_void,
+    ctrl_reg: * mut c_void,
+    buffer: * mut c_void,
+    hMem: * mut c_void
+}
+
+unsafe impl Send for HardwareCommon{}
+unsafe impl Sync for HardwareCommon{}
 
 #[link(name = "fpgalibrary")]
 extern "C" {
-    fn run() -> *mut u32;
+    fn run(hc: * mut HardwareCommon);
 }
-
 
 
 struct FpgaOperator<T, L>
@@ -163,14 +178,17 @@ impl<T, L> Operate<T> for FakeOperator<T, L>
 pub trait FpgaWrapper<S: Scope, D: Data> {
 
     /// Wrapper function
-    fn fpga_wrapper(&self) -> Stream<S, D>;
+    fn fpga_wrapper(&self, hc: * mut HardwareCommon) -> Stream<S, D>;
 
 }
+
 
 // return value should be the value of the last operator
 
 impl<S: Scope, D: Data> FpgaWrapper<S, D> for Stream<S, D> {
-    fn fpga_wrapper(&self) -> Stream<S, D> {
+
+
+    fn fpga_wrapper(&self, hc: * mut HardwareCommon) -> Stream<S, D> {
 
         // создание второстепенного оператора
         //он никогда не вызовется но значения для него будут положены в progress tracking
@@ -249,7 +267,7 @@ impl<S: Scope, D: Data> FpgaWrapper<S, D> for Stream<S, D> {
                     data.swap(&mut vector);
                     // I should call my fpga function here with vector as an input
                     unsafe {
-                        let result = run();
+                        let result = run(hc);
                     }
 
                     output_wrapper.session(time).give_vec(&mut vector);
