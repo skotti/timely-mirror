@@ -42,7 +42,7 @@ unsafe impl Sync for HardwareCommon{}
 
 #[link(name = "fpgalibrary")]
 extern "C" {
-    fn run(hc: * mut HardwareCommon);
+    fn run(hc: * mut HardwareCommon, input: * mut i64) -> * mut i64;
 }
 
 
@@ -259,6 +259,8 @@ impl<S: Scope, D: Data> FpgaWrapper<S, D> for Stream<S, D> {
                 use crate::communication::message::RefOrMut;
 
                 let mut vector = Vec::new();
+                let mut vector2 = Vec::new();
+                let mut fpga_data = Vec::new();
                 while let Some(message) = input_wrapper.next() {
                     let (time, data) = match message.as_ref_or_mut() {
                         RefOrMut::Ref(reference) => (&reference.time, RefOrMut::Ref(&reference.data)),
@@ -267,9 +269,20 @@ impl<S: Scope, D: Data> FpgaWrapper<S, D> for Stream<S, D> {
                     data.swap(&mut vector);
                     // I should call my fpga function here with vector as an input
                     unsafe {
-                        let result = run(hc);
+                        let ptr = vector.as_mut_ptr();
+                        let input = ptr as * mut i64;
+                        fpga_data = Vec::from_raw_parts( run(hc, input), 16, 16);
                     }
 
+                    let start_iter_pos = 1 + 1 + 2 + 2 * 3;
+                    let length = 16;
+
+                    // process data, we forward data only with 1st bit set.
+                    for i in start_iter_pos .. length {
+                        if (fpga_data[i] & 1) != 0 {
+                            vector2.push(fpga_data[i]);
+                        }
+                    }
                     output_wrapper.session(time).give_vec(&mut vector);
                 }
                 output_wrapper.cease();
