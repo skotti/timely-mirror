@@ -18,19 +18,15 @@ fn main() {
     // initializes and runs a timely dataflow.
     timely::execute_from_args(std::env::args(), |worker| {
 
-        /*let hc;
+        let hc;
         unsafe {
             hc = initialize();
-        }*/
+        }
 
         let index = worker.index();
         let mut input = InputHandle::new();
         let mut probe = ProbeHandle::new();
 
-        let hc;
-        unsafe {
-            hc = initialize();
-        }
         // create a new input, exchange data, and inspect its output
         worker.dataflow(|scope| {
             scope.input_from(&mut input)

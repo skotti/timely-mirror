@@ -34,7 +34,7 @@ pub struct HardwareCommon {
     cnfg_reg: * mut c_void,
     ctrl_reg: * mut c_void,
     buffer: * mut c_void,
-    hMem: * mut c_void
+    hMem: * mut i64
 }
 
 unsafe impl Send for HardwareCommon{}
@@ -42,7 +42,7 @@ unsafe impl Sync for HardwareCommon{}
 
 #[link(name = "fpgalibrary")]
 extern "C" {
-    fn run(hc: * mut HardwareCommon, input: * mut i64) -> * mut i64;
+    fn run(hc: * mut HardwareCommon, input: * mut u64) -> * mut u64;
 }
 
 
@@ -175,20 +175,20 @@ impl<T, L> Operate<T> for FakeOperator<T, L>
 }
 
 /// Wrapper to run on FPGA
-pub trait FpgaWrapper<S: Scope, D: Data> {
+pub trait FpgaWrapper<S: Scope/*, D: Data*/> {
 
     /// Wrapper function
-    fn fpga_wrapper(&self, hc: * mut HardwareCommon) -> Stream<S, D>;
+    fn fpga_wrapper(&self, hc: * mut HardwareCommon) -> Stream<S, u64>;
 
 }
 
 
 // return value should be the value of the last operator
 
-impl<S: Scope, D: Data> FpgaWrapper<S, D> for Stream<S, D> {
+impl<S: Scope> FpgaWrapper<S> for Stream<S, u64> {
 
 
-    fn fpga_wrapper(&self, hc: * mut HardwareCommon) -> Stream<S, D> {
+    fn fpga_wrapper(&self, hc: * mut HardwareCommon) -> Stream<S, u64> {
 
         // создание второстепенного оператора
         //он никогда не вызовется но значения для него будут положены в progress tracking
@@ -260,7 +260,6 @@ impl<S: Scope, D: Data> FpgaWrapper<S, D> for Stream<S, D> {
 
                 let mut vector = Vec::new();
                 let mut vector2 = Vec::new();
-                let mut fpga_data = Vec::new();
                 while let Some(message) = input_wrapper.next() {
                     let (time, data) = match message.as_ref_or_mut() {
                         RefOrMut::Ref(reference) => (&reference.time, RefOrMut::Ref(&reference.data)),
@@ -268,22 +267,37 @@ impl<S: Scope, D: Data> FpgaWrapper<S, D> for Stream<S, D> {
                     };
                     data.swap(&mut vector);
                     // I should call my fpga function here with vector as an input
+
+                    let fpga_data;
+                    let mut produced = 0;
+                    let mut consumed = 0;
+
                     unsafe {
-                        let ptr = vector.as_mut_ptr();
-                        let input = ptr as * mut i64;
-                        fpga_data = Vec::from_raw_parts( run(hc, input), 16, 16);
-                    }
 
-                    let start_iter_pos = 1 + 1 + 2 + 2 * 3;
-                    let length = 16;
+                        fpga_data = run(hc, vector.as_mut_ptr());// changes should be reflected in hc
+                        let output = Vec::from_raw_parts(fpga_data, 16, 16);
 
-                    // process data, we forward data only with 1st bit set.
-                    for i in start_iter_pos .. length {
-                        if (fpga_data[i] & 1) != 0 {
-                            vector2.push(fpga_data[i]);
+                        for i in 0 .. 15 {
+                            println!("{} element = {}", i, output[i]);
                         }
+
+                        let val = output[10] as u64;
+                        let shifted_val = val >> 1;
+                        println!("shifted val = {}", shifted_val);
+                        if val != 0 {
+                            vector2.push(shifted_val);
+                        }
+                        consumed = output[7] as i64;
+                        produced = output[8] as i64;
                     }
-                    output_wrapper.session(time).give_vec(&mut vector);
+
+
+                    output_wrapper.session(time).give_vec(&mut vector2);
+
+                    let mut cb = ChangeBatch::new_from(time.clone(), consumed);
+                    let mut cb1 = ChangeBatch::new_from(time.clone(), produced);
+                    cb.drain_into(&mut progress.consumeds[0]);
+                    cb1.drain_into(&mut progress.produceds[0]);
                 }
                 output_wrapper.cease();
 
@@ -295,9 +309,12 @@ impl<S: Scope, D: Data> FpgaWrapper<S, D> for Stream<S, D> {
                 }*/
 
                 // extract what we know about progress from the input and output adapters.
-                input_wrapper.consumed().borrow_mut().drain_into(&mut progress.consumeds[0]);
-                output_wrapper.inner().produced().borrow_mut().drain_into(&mut progress.produceds[0]);
+                //input_wrapper.consumed().borrow_mut().drain_into(&mut progress.consumeds[0]);
+                //output_wrapper.inner().produced().borrow_mut().drain_into(&mut progress.produceds[0]);
 
+                //let tt = 5 as S::Timestamp;
+                //let mut cb = ChangeBatch::new_from(time, 10);
+                //cb.drain_into(&mut progress.consumeds[0]);
 
                 false
             };
