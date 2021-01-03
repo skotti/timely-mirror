@@ -26,8 +26,9 @@ use crate::progress::frontier::MutableAntichain;
 //pub mod hardware;
 
 use std::ffi::c_void;
+use std::collections::HashMap;
 
-#[repr(C)]
+/*#[repr(C)]
 ///gg
 pub struct HardwareCommon {
     fd: u32,
@@ -43,7 +44,7 @@ unsafe impl Sync for HardwareCommon{}
 #[link(name = "fpgalibrary")]
 extern "C" {
     fn run(hc: * mut HardwareCommon, input: * mut u64) -> * mut u64;
-}
+}*/
 
 
 struct FpgaOperator<T, L>
@@ -57,6 +58,9 @@ struct FpgaOperator<T, L>
     shared_progress: Rc<RefCell<SharedProgress<T>>>,
     activations: Rc<RefCell<Activations>>,
     summary: Vec<Vec<Antichain<T::Summary>>>,
+
+    //TODO: add here number of operators?
+    ghost_indexes: Vec<(usize, usize)>,
 }
 impl<T, L> Schedule for FpgaOperator<T, L>
     where
@@ -86,11 +90,14 @@ impl<T, L> Operate<T> for FpgaOperator<T, L>
         self.activations.borrow_mut().activate(&self.address[..]);
 
         // by default, we reserve a capability for each output port at `Default::default()`.
-        self.shared_progress
-            .borrow_mut()
-            .internals
-            .iter_mut()
-            .for_each(|output| output.update(T::minimum(), self.shape.peers() as i64));
+        for (i, j) in self.ghost_indexes.iter() {
+            self.shared_progress
+                .borrow_mut()
+                .wrapper_internals.get_mut(j).unwrap()
+                .iter_mut()
+                .for_each(|output| output.update(T::minimum(), self.shape.peers() as i64));
+        }
+
 
         (self.summary.clone(), self.shared_progress.clone())
     }
@@ -178,7 +185,7 @@ impl<T, L> Operate<T> for FakeOperator<T, L>
 pub trait FpgaWrapper<S: Scope/*, D: Data*/> {
 
     /// Wrapper function
-    fn fpga_wrapper(&self, hc: * mut HardwareCommon) -> Stream<S, u64>;
+    fn fpga_wrapper(&self/*, hc: * mut HardwareCommon*/) -> Stream<S, u64>;
 
 }
 
@@ -188,10 +195,16 @@ pub trait FpgaWrapper<S: Scope/*, D: Data*/> {
 impl<S: Scope> FpgaWrapper<S> for Stream<S, u64> {
 
 
-    fn fpga_wrapper(&self, hc: * mut HardwareCommon) -> Stream<S, u64> {
+    fn fpga_wrapper(&self/*, hc: * mut HardwareCommon*/) -> Stream<S, u64> {
+
+        // this should correspond to the way the data will be read on the fpga
+        let mut ghost_indexes = Vec::new();
+        let mut ghost_indexes2 = Vec::new();
+        let mut current_index = 0;
 
         // создание второстепенного оператора
         //он никогда не вызовется но значения для него будут положены в progress tracking
+
         //--------------------------------
         let mut builder_filter = OperatorBuilder::new("Filter".to_owned(), self.scope()); // scope comes from stream
         builder_filter.set_notify(false);
@@ -228,6 +241,8 @@ impl<S: Scope> FpgaWrapper<S> for Stream<S, u64> {
 
 
         self.scope().add_operator_with_indices_no_path(Box::new(operator), builder_filter.index(), builder_filter.global());
+        ghost_indexes.push((current_index, builder_filter.index()));
+        ghost_indexes2.push((current_index, builder_filter.index()));
 
 
         let mut builder_wrapper = OperatorBuilder::new("Wrapper".to_owned(), self.scope()); // scope comes from stream
@@ -238,7 +253,7 @@ impl<S: Scope> FpgaWrapper<S> for Stream<S, u64> {
         let mut output_wrapper = PushBuffer::new(PushCounter::new(tee_wrapper));
 
 
-        let frontier = Rc::new(RefCell::new(MutableAntichain::new()));
+        let frontier = Rc::new(RefCell::new(vec![MutableAntichain::new(); ghost_indexes.len()]));
         let mut started = false;
 
         let raw_logic =
@@ -246,12 +261,17 @@ impl<S: Scope> FpgaWrapper<S> for Stream<S, u64> {
 
                 let mut borrow = frontier.borrow_mut();
 
-                borrow.update_iter(progress.frontiers[0].drain());
+                for (i, j) in ghost_indexes.iter() {
+                    borrow[*i].update_iter(progress.wrapper_frontiers.get_mut(j).unwrap()[0].drain());
+                }
+                //borrow.update_iter(progress.frontiers[0].drain()); // drain = removes elements from vector
 
                 if !started {
                     // discard initial capability.
-                    progress.internals[0].update(S::Timestamp::minimum(), -1);
-                    started = true;
+                    for (i, j) in ghost_indexes.iter() {
+                        progress.wrapper_internals.get_mut(j).unwrap()[0].update(S::Timestamp::minimum(), -1);
+                        started = true;
+                    }
                 }
 
 
@@ -259,6 +279,7 @@ impl<S: Scope> FpgaWrapper<S> for Stream<S, u64> {
                 use crate::communication::message::RefOrMut;
 
                 let mut vector = Vec::new();
+                let mut input_vector = Vec::new();
                 let mut vector2 = Vec::new();
                 while let Some(message) = input_wrapper.next() {
                     let (time, data) = match message.as_ref_or_mut() {
@@ -268,36 +289,114 @@ impl<S: Scope> FpgaWrapper<S> for Stream<S, u64> {
                     data.swap(&mut vector);
                     // I should call my fpga function here with vector as an input
 
-                    let fpga_data;
-                    let mut produced = 0;
-                    let mut consumed = 0;
+                    //let fpga_data;
+                    let mut produced = HashMap::new();
+                    let mut consumed = HashMap::new();
+                    let mut internals = HashMap::new();
+                    let mut info_length =  2 + ghost_indexes.len() + 3 * ghost_indexes.len();
+                    let mut all_length = (((info_length + vector.len()) / 8) + 1) as i64;
+                    let mut current_length = 0;
+                    let mut max_length = 16;
+                    let mut data_start_index = 0;
+                    let mut progress_start_index = 0;
 
                     unsafe {
 
-                        fpga_data = run(hc, vector.as_mut_ptr());// changes should be reflected in hc
-                        let output = Vec::from_raw_parts(fpga_data, 16, 16);
-
-                        for i in 0 .. 15 {
-                            println!("{} element = {}", i, output[i]);
+                        input_vector.push(all_length);
+                        current_length += 1;
+                        data_start_index += 1;
+                        progress_start_index += 1;
+                        input_vector.push(1/*time as i64*/);
+                        current_length += 1;
+                        data_start_index += 1;
+                        progress_start_index += 1;
+                        //TODO: what from antichain should we push
+                        // For now I know that frontier wil be one number , when this won't be the case,
+                        // we could again just allocate the max number of elements it can take.
+                        for i in 0 .. borrow.len() {
+                            let frontier = borrow[i].borrow().frontier();
+                            for val in frontier.iter() {
+                                input_vector.push(9/*val as i64*/);
+                                current_length += 1;
+                                data_start_index += 1;
+                                progress_start_index += 1;
+                            }
+                        }
+                        for i in  0 .. ghost_indexes.len() {
+                            input_vector.push(0);
+                            input_vector.push(0);
+                            input_vector.push(0);
+                            current_length += 3;
+                            data_start_index += 3;
+                        }
+                        for val in vector.iter() {
+                            input_vector.push(*val as i64);
+                            current_length += 1;
                         }
 
-                        let val = output[10] as u64;
-                        let shifted_val = val >> 1;
-                        println!("shifted val = {}", shifted_val);
-                        if val != 0 {
-                            vector2.push(shifted_val);
+                        for i in current_length .. max_length {
+                            input_vector.push(0);
                         }
-                        consumed = output[7] as i64;
-                        produced = output[8] as i64;
+
+                        for (i, elem) in vector.iter().enumerate() {
+                            println!("{} input element = {}", i, *elem);
+                        }
+
+                        println!("all_length = {}", all_length);
+                        println!("current_length = {}", current_length);
+                        println!("data_start_index = {}", data_start_index);
+                        println!("progress_start_index = {}", progress_start_index);
+
+
+                        /*fpga_data = run(hc, vector.as_mut_ptr());// changes should be reflected in hc
+                        let output = Vec::from_raw_parts(fpga_data, all_length as usize, all_length as usize);
+                        */
+                        let mut output = Vec::new();
+                        output.push(input_vector[0]); // all length
+                        output.push(input_vector[1]); // time
+                        output.push(input_vector[2]); // frontier
+                        output.push(1); // consumed
+                        output.push(0); // internals
+                        output.push(1); // produceds
+                        output.push(3); // data
+                        output.push(0); output.push(0); output.push(0);
+                        output.push(0); output.push(0); output.push(0);
+                        output.push(0); output.push(0); output.push(0);
+
+                        for (i, elem) in output.iter().enumerate() {
+                            println!("{} output element = {}", i, elem);
+                        }
+
+                        for i in data_start_index .. max_length {
+                            let val = output[i] as u64;
+                            let shifted_val = val >> 1;
+                            println!("shifted val = {}", shifted_val);
+                            if val != 0 {
+                                vector2.push(shifted_val);
+                            }
+                        }
+                        for (i, j) in ghost_indexes.iter() {
+                            println!("consumed = {}", output[progress_start_index]);
+                            println!("internal = {}", output[progress_start_index + 1]);
+                            println!("produced = {}", output[progress_start_index + 2]);
+
+                            consumed.insert(*j, output[progress_start_index] as i64);
+                            internals.insert(*j, (output[progress_start_index + 1]) as i64);
+                            produced.insert(*j, (output[progress_start_index + 2]) as i64);
+
+                        }
                     }
 
 
                     output_wrapper.session(time).give_vec(&mut vector2);
 
-                    let mut cb = ChangeBatch::new_from(time.clone(), consumed);
-                    let mut cb1 = ChangeBatch::new_from(time.clone(), produced);
-                    cb.drain_into(&mut progress.consumeds[0]);
-                    cb1.drain_into(&mut progress.produceds[0]);
+                    for (i, j) in ghost_indexes.iter() {
+                        let mut cb = ChangeBatch::new_from(time.clone(), *consumed.get(j).unwrap());
+                        let mut cb1 = ChangeBatch::new_from(time.clone(), *produced.get(j).unwrap());
+                        cb.drain_into(&mut progress.wrapper_consumeds.get_mut(j).unwrap()[0]);
+                        cb1.drain_into(&mut progress.wrapper_produceds.get_mut(j).unwrap()[0]);
+                    }
+
                 }
                 output_wrapper.cease();
 
@@ -319,22 +418,25 @@ impl<S: Scope> FpgaWrapper<S> for Stream<S, u64> {
                 false
             };
 
+        let mut ghost_operators = Vec::new();
+        let mut ghost_edges = Vec::new();
+
+        ghost_operators.push(builder_filter.index());
+
         builder_wrapper.set_notify(false);
         let operator = FpgaOperator {
             shape: builder_wrapper.shape().clone(),
             address: builder_wrapper.address().clone(),
             activations: self.scope().activations().clone(),
             logic: raw_logic,
-            shared_progress: Rc::new(RefCell::new(SharedProgress::new(builder_wrapper.shape().inputs(), builder_wrapper.shape().outputs()))),
+            shared_progress: Rc::new(RefCell::new(SharedProgress::new_ghosts(builder_wrapper.shape().inputs(), builder_wrapper.shape().outputs(), ghost_operators.clone()))),
             summary: builder_wrapper.summary().to_vec(),
+            ghost_indexes: ghost_indexes2
         };
 
         self.scope().add_operator_with_indices(Box::new(operator), builder_wrapper.index(), builder_wrapper.global());
 
-        let mut ghost_operators = Vec::new();
-        let mut ghost_edges = Vec::new();
 
-        ghost_operators.push(builder_filter.index());
 
         // we also need to create a map from ghost to wrapper
 

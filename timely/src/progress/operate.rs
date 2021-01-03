@@ -5,6 +5,7 @@ use std::cell::RefCell;
 
 use crate::scheduling::Schedule;
 use crate::progress::{Timestamp, ChangeBatch, Antichain};
+use std::collections::HashMap;
 
 /// Methods for describing an operators topology, and the progress it makes.
 pub trait Operate<T: Timestamp> : Schedule {
@@ -69,6 +70,16 @@ pub struct SharedProgress<T: Timestamp> {
     pub internals: Vec<ChangeBatch<T>>,
     /// Produced message changes reported by the child operator.
     pub produceds: Vec<ChangeBatch<T>>,
+
+    // TODO: there is a better solution but it requires changes all over the code
+    /// haha
+    pub wrapper_frontiers: HashMap<usize, Vec<ChangeBatch<T>>>,
+    /// haha
+    pub wrapper_consumeds: HashMap<usize, Vec<ChangeBatch<T>>>,
+    /// haha
+    pub wrapper_internals: HashMap<usize, Vec<ChangeBatch<T>>>,
+    /// haha
+    pub wrapper_produceds: HashMap<usize, Vec<ChangeBatch<T>>>,
 }
 
 impl<T: Timestamp> SharedProgress<T> {
@@ -79,6 +90,35 @@ impl<T: Timestamp> SharedProgress<T> {
             consumeds: vec![ChangeBatch::new(); inputs],
             internals: vec![ChangeBatch::new(); outputs],
             produceds: vec![ChangeBatch::new(); outputs],
+            wrapper_frontiers: HashMap::new(),
+            wrapper_consumeds: HashMap::new(),
+            wrapper_internals: HashMap::new(),
+            wrapper_produceds: HashMap::new(),
         }
     }
+
+    /// haha
+    pub fn new_ghosts(inputs: usize, outputs: usize, ghosts: Vec<usize>) -> Self {
+        let mut wfrontiers = HashMap::new();
+        let mut wconsumeds = HashMap::new();
+        let mut winternals = HashMap::new();
+        let mut wproduceds = HashMap::new();
+        for ghost in ghosts.iter() {
+            wfrontiers.insert(*ghost, vec![ChangeBatch::new(); inputs]);
+            wconsumeds.insert(*ghost, vec![ChangeBatch::new(); inputs]);
+            winternals.insert(*ghost, vec![ChangeBatch::new(); outputs]);
+            wproduceds.insert(*ghost, vec![ChangeBatch::new(); outputs]);
+        }
+        SharedProgress {
+            frontiers: vec![ChangeBatch::new(); inputs],
+            consumeds: vec![ChangeBatch::new(); inputs],
+            internals: vec![ChangeBatch::new(); outputs],
+            produceds: vec![ChangeBatch::new(); outputs],
+            wrapper_frontiers: wfrontiers,
+            wrapper_consumeds: wconsumeds,
+            wrapper_internals: winternals,
+            wrapper_produceds: wproduceds,
+        }
+    }
+
 }

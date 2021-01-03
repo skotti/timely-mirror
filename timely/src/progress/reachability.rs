@@ -590,6 +590,7 @@ impl<T:Timestamp> Tracker<T> {
             }
         }
 
+
         // Step 2: Circulate implications of changes to `self.pointstamps`.
         //
         // TODO: The argument that this always terminates is subtle, and should be made.

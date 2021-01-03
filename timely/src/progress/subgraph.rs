@@ -184,22 +184,38 @@ where
     pub fn reorganize_edges(&mut self) {
         let mut start_source = Source { node: 0, port: 0 };
         let mut end_target = Target { node: 0, port: 0 };
+
+        // iterate through every edge
         for (source, target) in self.edge_stash.iter() {
+
+            // if wrapper_ghost contains target node, it means that we have edge
+            // from normal node to wrapper node
             if self.wrapper_ghost.borrow().contains_key(&target.node) {
                 start_source = *source;
+            // if wrapper_ghost contains source node, it means that we have edge
+            // from wrapper node to normal node
             } else if self.wrapper_ghost.borrow().contains_key(&source.node) {
                 end_target = *target;
             } else {
+                // we push all edges except edges to and from wrapper.
+                // edges will then be used by progress tracking algo,
+                // so we want only edges between executable nodes (either on fpga or on cpu)
                 self.ghost_edge_stash.push((*source, *target));
             }
         }
 
         for (wrapper, vector) in self.wrapper_ghost.borrow().iter() {
+            // first node in ghost nodes
             let start_target = Target::new(vector[0], 0);
+            // last node in ghost nodes
             let end_source = Source::new(vector[vector.len() - 1], 0);
+
+            // pushed two additional edges between normal nodes and ghost node
             self.ghost_edge_stash.push((start_source, start_target));
             self.ghost_edge_stash.push((end_source, end_target));
 
+
+            // here we have only edges related to ghost and wrapper
             self.wrapper_ghost_edges.borrow_mut().get_mut(&wrapper).unwrap().push((start_source.node, start_target.node));
             self.wrapper_ghost_edges.borrow_mut().get_mut(&wrapper).unwrap().push((end_source.node, end_target.node));
 
@@ -208,6 +224,9 @@ where
                 self.edge_stash.push(edge);
             }*/
         }
+
+        // TODO: should we push here edges between ghost operators?
+        // wrapper_ghost edges will already contain
 
     }
 
@@ -573,11 +592,18 @@ where
                     // Currently I will do only for one operator
                     let gw = self.ghost_wrapper.borrow();
 
+                    // TODO: we can add here an array of ghost frontiers
                     let location_node = gw.get(&location.node).unwrap();
-                    self.children[*location_node]
+                    /*self.children[*location_node]
                         .shared_progress
                         .borrow_mut()
                         .frontiers[port]
+                        .update(time, diff);*/
+
+                    self.children[*location_node]
+                        .shared_progress
+                        .borrow_mut()
+                        .wrapper_frontiers.get_mut(&location.node).unwrap()[port]
                         .update(time, diff);
                 } else {
                     self.children[location.node]
@@ -703,6 +729,7 @@ struct PerOperatorState<T: Timestamp> {
 
     wrapper_ghost: Rc<RefCell<HashMap<usize, Vec<usize>>>>,
     wrapper_ghost_edges: Rc<RefCell<HashMap<usize, Vec<(usize, usize)>>>>,
+
 }
 
 impl<T: Timestamp> PerOperatorState<T> {
@@ -829,13 +856,48 @@ impl<T: Timestamp> PerOperatorState<T> {
     fn extract_progress(&mut self, pointstamps: &mut ChangeBatch<(Location, T)>, temp_active: &mut BinaryHeap<Reverse<usize>>) {
 
         let shared_progress = &mut *self.shared_progress.borrow_mut();
+        // я посто беру shred_progress  wrapper-а и переношу и использую эти ззначения как progress
+        // узла ghost
+        // Нужно: создать shared progress wrapper -а, где для каждого узла будет
         if self.wrapper_ghost.borrow().contains_key(&self.index) {
             // then we need to restructure progress updates
             // for now I will just write code for one ghost operator, further will add for more
 
             let wrapper_struct = self.wrapper_ghost.borrow();
-            let ghost_index = wrapper_struct.get(&self.index).unwrap();
+            for ghost in wrapper_struct.get(&self.index).unwrap().iter() {
+
+                println! ("extract progress for node {}", ghost);
+
+                // здесь мы проходимся по узлам и всем им раздаем progress
+                for (input, consumed) in shared_progress.wrapper_consumeds.get_mut(ghost).unwrap().iter_mut().enumerate() {
+                    // ghost - это номер нашего оператора на fpga
+                    let target = Location::new_target(*ghost, input);
+                    for (time, delta) in consumed.drain() {
+                        pointstamps.update((target, time), -delta);
+                    }
+                }
+                for (output, internal) in shared_progress.wrapper_internals.get_mut(ghost).unwrap().iter_mut().enumerate() {
+                    let source = Location::new_source(*ghost, output);
+                    for (time, delta) in internal.drain() {
+                        pointstamps.update((source, time.clone()), delta);
+                    }
+                }
+
+                for (output, produced) in shared_progress.wrapper_produceds.get_mut(ghost).unwrap().iter_mut().enumerate() {
+                    for (time, delta) in produced.drain() {
+                        //pointstamps.update((Location::from(target), time.clone()), delta);
+                        //temp_active.push(Reverse(target.node));
+                        for target in &self.edges[output] {
+                            pointstamps.update((Location::from(*target), time.clone()), delta);
+                            temp_active.push(Reverse(target.node));
+                        }
+                    }
+                }
+
+            }
+            /*let ghost_index = wrapper_struct.get(&self.index).unwrap();
             for (input, consumed) in shared_progress.consumeds.iter_mut().enumerate() {
+                // ghost_index[0] - это номер нашего оператора на fpga
                 let target = Location::new_target(ghost_index[0], input);
                 for (time, delta) in consumed.drain() {
                     pointstamps.update((target, time), -delta);
@@ -846,10 +908,12 @@ impl<T: Timestamp> PerOperatorState<T> {
                 for (time, delta) in internal.drain() {
                     pointstamps.update((source, time.clone()), delta);
                 }
-            }
+            }*/
+
+            // нужно пройтись теперь по всем операторам на fpga начиная с этого
 
             // the problem here is that I can't add to edges array edges of the wrapper operator,
-            // as then this array is used somewhere else in progress tracking and we just iterate over this array there.
+            // as then th is array is used somewhere else in progress tracking and we just iterate over this array there.
             // so I need to add to wrapper_ghost edges somewhere an edge between the last ghost edge and the output
             // or the wrapper edge and the output
             // and initialize per operator state with wrapper ghost as well.
@@ -859,7 +923,7 @@ impl<T: Timestamp> PerOperatorState<T> {
             //let arraylength  = self.wrapper_ghost_edges.borrow().get(&self.index).unwrap().len();
             //let edge_from = self.wrapper_ghost_edges.borrow().get(&self.index).unwrap()[arraylength - 1];
             //let target = Target::new(edge_from.1, 0);
-            for (output, produced) in shared_progress.produceds.iter_mut().enumerate() {
+            /*for (output, produced) in shared_progress.produceds.iter_mut().enumerate() {
                 for (time, delta) in produced.drain() {
                     //pointstamps.update((Location::from(target), time.clone()), delta);
                     //temp_active.push(Reverse(target.node));
@@ -868,7 +932,7 @@ impl<T: Timestamp> PerOperatorState<T> {
                         temp_active.push(Reverse(target.node));
                     }
                 }
-            }
+            }*/
 
             // here we transferred progress updates from wrapper to ghost, now progress tracker can work with them
             // now we need to transfer results of progress tracker's work to wrapper operator,
