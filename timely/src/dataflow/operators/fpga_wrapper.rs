@@ -28,7 +28,7 @@ use crate::progress::frontier::MutableAntichain;
 use std::ffi::c_void;
 use std::collections::HashMap;
 
-/*#[repr(C)]
+#[repr(C)]
 ///gg
 pub struct HardwareCommon {
     fd: u32,
@@ -44,7 +44,7 @@ unsafe impl Sync for HardwareCommon{}
 #[link(name = "fpgalibrary")]
 extern "C" {
     fn run(hc: * mut HardwareCommon, input: * mut u64) -> * mut u64;
-}*/
+}
 
 
 struct FpgaOperator<T, L>
@@ -185,7 +185,7 @@ impl<T, L> Operate<T> for FakeOperator<T, L>
 pub trait FpgaWrapper<S: Scope/*, D: Data*/> {
 
     /// Wrapper function
-    fn fpga_wrapper(&self/*, hc: * mut HardwareCommon*/) -> Stream<S, u64>;
+    fn fpga_wrapper(&self, hc: * mut HardwareCommon) -> Stream<S, u64>;
 
 }
 
@@ -195,7 +195,7 @@ pub trait FpgaWrapper<S: Scope/*, D: Data*/> {
 impl<S: Scope> FpgaWrapper<S> for Stream<S, u64> {
 
 
-    fn fpga_wrapper(&self/*, hc: * mut HardwareCommon*/) -> Stream<S, u64> {
+    fn fpga_wrapper(&self, hc: * mut HardwareCommon) -> Stream<S, u64> {
 
         // this should correspond to the way the data will be read on the fpga
         let mut ghost_indexes = Vec::new();
@@ -289,12 +289,12 @@ impl<S: Scope> FpgaWrapper<S> for Stream<S, u64> {
                     data.swap(&mut vector);
                     // I should call my fpga function here with vector as an input
 
-                    //let fpga_data;
+                    let fpga_data;
                     let mut produced = HashMap::new();
                     let mut consumed = HashMap::new();
                     let mut internals = HashMap::new();
                     let mut info_length =  2 + ghost_indexes.len() + 3 * ghost_indexes.len();
-                    let mut all_length = (((info_length + vector.len()) / 8) + 1) as i64;
+                    let mut all_length = 2;//(((info_length + vector.len()) / 8) + 1) as i64;
                     let mut current_length = 0;
                     let mut max_length = 16;
                     let mut data_start_index = 0;
@@ -302,7 +302,7 @@ impl<S: Scope> FpgaWrapper<S> for Stream<S, u64> {
 
                     unsafe {
 
-                        input_vector.push(all_length);
+                        input_vector.push(all_length as u64);
                         current_length += 1;
                         data_start_index += 1;
                         progress_start_index += 1;
@@ -330,7 +330,7 @@ impl<S: Scope> FpgaWrapper<S> for Stream<S, u64> {
                             data_start_index += 3;
                         }
                         for val in vector.iter() {
-                            input_vector.push(*val as i64);
+                            input_vector.push(((*val << 1) | 1u64) as u64);
                             current_length += 1;
                         }
 
@@ -348,10 +348,10 @@ impl<S: Scope> FpgaWrapper<S> for Stream<S, u64> {
                         println!("progress_start_index = {}", progress_start_index);
 
 
-                        /*fpga_data = run(hc, vector.as_mut_ptr());// changes should be reflected in hc
-                        let output = Vec::from_raw_parts(fpga_data, all_length as usize, all_length as usize);
-                        */
-                        let mut output = Vec::new();
+                        fpga_data = run(hc, input_vector.as_mut_ptr());// changes should be reflected in hc
+                        let output = Vec::from_raw_parts(fpga_data, max_length as usize, max_length as usize);
+                        
+                        /*let mut output = Vec::new();
                         output.push(input_vector[0]); // all length
                         output.push(input_vector[1]); // time
                         output.push(input_vector[2]); // frontier
@@ -362,7 +362,7 @@ impl<S: Scope> FpgaWrapper<S> for Stream<S, u64> {
                         output.push(0); output.push(0); output.push(0);
                         output.push(0); output.push(0); output.push(0);
                         output.push(0); output.push(0); output.push(0);
-
+			*/
                         for (i, elem) in output.iter().enumerate() {
                             println!("{} output element = {}", i, elem);
                         }
@@ -377,12 +377,12 @@ impl<S: Scope> FpgaWrapper<S> for Stream<S, u64> {
                         }
                         for (i, j) in ghost_indexes.iter() {
                             println!("consumed = {}", output[progress_start_index]);
-                            println!("internal = {}", output[progress_start_index + 1]);
-                            println!("produced = {}", output[progress_start_index + 2]);
+                            println!("internal = {}", output[progress_start_index + 2]);
+                            println!("produced = {}", output[progress_start_index + 1]);
 
                             consumed.insert(*j, output[progress_start_index] as i64);
-                            internals.insert(*j, (output[progress_start_index + 1]) as i64);
-                            produced.insert(*j, (output[progress_start_index + 2]) as i64);
+                            internals.insert(*j, (output[progress_start_index + 2]) as i64);
+                            produced.insert(*j, (output[progress_start_index + 1]) as i64);
 
                         }
                     }
