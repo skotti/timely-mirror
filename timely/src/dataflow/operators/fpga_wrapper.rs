@@ -29,7 +29,7 @@ use std::ffi::c_void;
 use std::collections::HashMap;
 
 #[repr(C)]
-///gg
+/// Data structure to store FPGA related data
 pub struct HardwareCommon {
     fd: u32,
     cnfg_reg: * mut c_void,
@@ -46,7 +46,7 @@ extern "C" {
     fn run(hc: * mut HardwareCommon, input: * mut u64) -> * mut u64;
 }
 
-
+/// Wrapper operator to store ghost operators
 struct FpgaOperator<T, L>
     where
         T: Timestamp,
@@ -59,7 +59,6 @@ struct FpgaOperator<T, L>
     activations: Rc<RefCell<Activations>>,
     summary: Vec<Vec<Antichain<T::Summary>>>,
 
-    //TODO: add here number of operators?
     ghost_indexes: Vec<(usize, usize)>,
 }
 impl<T, L> Schedule for FpgaOperator<T, L>
@@ -83,7 +82,8 @@ impl<T, L> Operate<T> for FpgaOperator<T, L>
     fn inputs(&self) -> usize { self.shape.inputs() }
     fn outputs(&self) -> usize { self.shape.outputs() }
 
-    // announce internal topology as fully connected, and hold all default capabilities.
+    // we need a different get_internal_summary function for FpgaOperator, as we need to use wrapper_internals
+    // to pass initial frontier values to each ghost operator
     fn get_internal_summary(&mut self) -> (Vec<Vec<Antichain<T::Summary>>>, Rc<RefCell<SharedProgress<T>>>) {
 
         // Request the operator to be scheduled at least once.
@@ -111,6 +111,7 @@ impl<T, L> Operate<T> for FpgaOperator<T, L>
     fn notify_me(&self) -> bool { self.shape.notify() }
 }
 
+/// Ghost operator, resides on the FPGA side
 struct FakeOperator<T, L>
     where
         T: Timestamp,
@@ -131,6 +132,8 @@ impl<T, L> Schedule for FakeOperator<T, L>
 {
     fn name(&self) -> &str { self.shape.name()}
     fn path(&self) -> &[usize] { &self.address[..] }
+
+    // we need to return false from this function in case of ghost operator.
     fn schedule(&mut self) -> bool {
         let shared_progress = &mut *self.shared_progress.borrow_mut();
         (self.logic)(shared_progress);
@@ -151,7 +154,7 @@ impl<T, L> Operate<T> for FakeOperator<T, L>
     // announce internal topology as fully connected, and hold all default capabilities.
     fn get_internal_summary(&mut self) -> (Vec<Vec<Antichain<T::Summary>>>, Rc<RefCell<SharedProgress<T>>>) {
 
-        // Request the operator to be scheduled at least once.
+        // we don't need to activate ghost operator
         //self.activations.borrow_mut().activate(&self.address[..]);
 
         // by default, we reserve a capability for each output port at `Default::default()`.
@@ -189,7 +192,6 @@ pub trait FpgaWrapper<S: Scope/*, D: Data*/> {
 
 }
 
-
 // return value should be the value of the last operator
 
 impl<S: Scope> FpgaWrapper<S> for Stream<S, u64> {
@@ -200,32 +202,13 @@ impl<S: Scope> FpgaWrapper<S> for Stream<S, u64> {
         // this should correspond to the way the data will be read on the fpga
         let mut ghost_indexes = Vec::new();
         let mut ghost_indexes2 = Vec::new();
+        // TODO: should get rid of ghost indexes
         let mut current_index = 0;
 
-        // создание второстепенного оператора
-        //он никогда не вызовется но значения для него будут положены в progress tracking
-
-        //--------------------------------
+        // creating ghost operator
         let mut builder_filter = OperatorBuilder::new("Filter".to_owned(), self.scope()); // scope comes from stream
         builder_filter.set_notify(false);
         builder_filter.set_shape(1, 1);
-        //let mut input = PullCounter::new(builder_filter.new_input(self, Pipeline)); // builder.new_input -> creates new Input and new input connection in builder_raw.rs
-        //let tee: Tee<<S as ScopeParent>::Timestamp, D> = builder_filter.new_output_without_stream();
-        // this stream is returned every time, Rust will probably complain.
-        // create new_output_connection function without returning the stream?
-        //let mut output = PushBuffer::new(PushCounter::new(tee));
-
-        // создание главного оператора
-        //--------------
-        // we can initialize data for every operator this way
-
-
-
-
-        // it is good that we allocted index here, this helps when we see structures in timely which rely on the order of children
-        // actually one awful thing is that edges are indexed by operator indexes in the subgraph. It means that there are no possibility
-        // to skip indexes when creating child operators
-        //  it would be better  to make a map in order to allow wholes in indexes
 
         let operator_logic =
          move |progress: &mut SharedProgress<S::Timestamp>| { false};
@@ -244,6 +227,7 @@ impl<S: Scope> FpgaWrapper<S> for Stream<S, u64> {
         ghost_indexes.push((current_index, builder_filter.index()));
         ghost_indexes2.push((current_index, builder_filter.index()));
 
+        // create wrapper operator
 
         let mut builder_wrapper = OperatorBuilder::new("Wrapper".to_owned(), self.scope()); // scope comes from stream
         let mut input_wrapper = PullCounter::new(builder_wrapper.new_input(self, Pipeline)); // builder.new_input -> creates new Input and new input connection in builder_raw.rs
@@ -350,7 +334,8 @@ impl<S: Scope> FpgaWrapper<S> for Stream<S, u64> {
 
                         fpga_data = run(hc, input_vector.as_mut_ptr());// changes should be reflected in hc
                         let output = Vec::from_raw_parts(fpga_data, max_length as usize, max_length as usize);
-                        
+
+                        // TODO: I will leave this code for testing purposes without FPGA
                         /*let mut output = Vec::new();
                         output.push(input_vector[0]); // all length
                         output.push(input_vector[1]); // time
@@ -400,21 +385,6 @@ impl<S: Scope> FpgaWrapper<S> for Stream<S, u64> {
                 }
                 output_wrapper.cease();
 
-                // move batches of internal changes.
-                /*let self_internal_borrow = self_internal.borrow_mut();
-                for index in 0 .. self_internal_borrow.len() {
-                    let mut borrow = self_internal_borrow[index].borrow_mut();
-                    progress.internals[index].extend(borrow.drain());
-                }*/
-
-                // extract what we know about progress from the input and output adapters.
-                //input_wrapper.consumed().borrow_mut().drain_into(&mut progress.consumeds[0]);
-                //output_wrapper.inner().produced().borrow_mut().drain_into(&mut progress.produceds[0]);
-
-                //let tt = 5 as S::Timestamp;
-                //let mut cb = ChangeBatch::new_from(time, 10);
-                //cb.drain_into(&mut progress.consumeds[0]);
-
                 false
             };
 
@@ -443,122 +413,5 @@ impl<S: Scope> FpgaWrapper<S> for Stream<S, u64> {
         self.scope().add_fpga_operator(builder_wrapper.index(), ghost_operators, ghost_edges);
 
         return stream_wrapper;
-
-       /* let mut builder_wrapper = OperatorBuilder::new("FPGA".to_owned(), self.scope()); // scope comes from stream
-        let mut input = PullCounter::new(builder_wrapper.new_input(self, Pipeline)); // builder.new_input -> creates new Input and new input connection in builder_raw.rs
-        let (tee, stream) = builder_wrapper.new_output();
-        // this stream is returned every time, Rust will probably complain.
-        // create new_output_connection function without returning the stream?
-        let mut output = PushBuffer::new(PushCounter::new(tee));
-
-        logic
-        // we can still work without normal input / output handles like in probe, these handles just add maybe unnecessary checks
-        // all operators return stream
-
-        let operator = OperatorCore {
-            shape: self.shape,
-            address: self.address,
-            activations: self.scope().activations().clone(),
-            logic,
-            shared_progress: Rc::new(RefCell::new(SharedProgress::new(inputs, outputs))),
-            summary: self.summary,
-        };
-
-        self.scope().add_operator_with_indices(Box::new(operator), self.index, self.global);
-
-
-        stream;
-
-
-        // запушить апдейты надо в свои структуры  shared_progress
-*/
     }
 }
-
-// damn, OperatorCore is private Type, we can't use it to create operator structure
-// need to create our own type
-
-// schedule будет вызывать наш оператор с logic
-
-// в идеале мы должны иметь shared_progress для каждого оператора , но результаты будут приходить только в первый оператор
-// а потом он должен распределять апейты по структурам других операторов.
-
-// consumed - можем получить из input, produced можем получить из output
-// frontier - просто new Mutable Antichain
-// internal - можем тоже инициализировать как массив
-
-
-//если мы оставляем operator core то отдельный schedule нам не нужен
-// в логике оператора будет прописано куда чего он кладет
-
-// все операторы в начличии и в графе но в path не добавляются
-/*impl<T:Timestamp> Schedule for Operator<T, D> {
-
-    fn name(&self) -> &str { &self.name }
-
-    fn path(&self) -> &[usize] { &self.address[..] }
-
-    fn schedule(&mut self) -> bool {
-        let shared_progress = &mut *self.shared_progress.borrow_mut();
-        (self.logic)(shared_progress);
-        self.progress.borrow_mut().drain_into(&mut shared_progress.internals[0]);
-        self.messages.borrow_mut().drain_into(&mut shared_progress.produceds[0]);
-        false
-    }
-}*/
-
-// готовый schedule вызывается с той логикой, которую предлагает окончательный метод build,
-// это логика по загонке frontier внутрь оператора, по исполнению логики непосредственно оператора,
-// и потом по помещению результатов в shared Progress. Логика нам нужна, а вот загонка не очень
-
-// проблема оставить текущий build в том, что тогда будут операторы внутри fpga включаться в path
-
-// то есть я не могу вызвать builder.build потому что это приведет
-
-// все операторы типа unary, binary они используют сначала builder_rc, который около основной логики
-// оператора вставляет логику по загонке значений, есть операторы которые сразу используют raw_builder,
-// там не вставляется ниакой логики вокруг а просто добавляется оператор в список.
-// но я не могу просто добавить оператор в список потому что он будет добавлен в path -> то что исполняется.
-
-// можно самой вручную добавить , add_operator_with_indices в конце концов трансформируется в add_child
-// добавить еще одну функцию add_operator_with_indicies и еще одну add-child
-
-
-// schedule берет ту логику которую мы подали в operatorcore, поэтому можно написать свою логику и подать ее в
-// в OperatorCore
-// logic это по идее просто лямбда функция
-// тогда можно не писать schedule
-
-
-// нужно создать new_input, new_output
-// в probe используется build_raw как раз потому что он там хотел создать свою логику внутри build, так как builder_raw
-// не навешивает ничего лишнего
-/*impl<T:Timestamp> Operate<T> for Operator<T, D> {
-
-    fn inputs(&self) -> usize { 0 }
-    fn outputs(&self) -> usize { 1 }
-
-    fn get_internal_summary(&mut self) -> (Vec<Vec<Antichain<<T as Timestamp>::Summary>>>, Rc<RefCell<SharedProgress<T>>>) {
-        self.shared_progress.borrow_mut().internals[0].update(T::minimum(), self.copies as i64);
-        (Vec::new(), self.shared_progress.clone())
-    }
-
-    fn notify_me(&self) -> bool { false }
-}*/
-
-// connection ля new_input - вектор из ANtichain длиной в outputs
-// то есть это connection этого input к каждому output
-
-// connection в new_output - вектор из Antichain длиной в inputs
-// connection этого output к каждому input
-
-// shape.outputs векторов добавили в вектор
-
-//fn add_edge(&self, source: Source, target: Target) {
-//    self.subgraph.borrow_mut().connect(source, target);
-//}
-
-// we can use this function as this just added edges to an intermediate edges array in subgraph.
-// This array is usd afterwards to only add edges to the progress tracking builder,
-// what we actually need
-
