@@ -5,21 +5,21 @@ use timely::dataflow::operators::{Input, Exchange, Inspect, Probe, FpgaWrapper};
 use timely::dataflow::operators::fpga_wrapper::HardwareCommon;
 
 
-#[link(name = "fpgalibrary")]
+/*#[link(name = "fpgalibrary")]
 extern "C" {
     fn initialize() -> * mut HardwareCommon;
     fn closeHardware(hc: * mut HardwareCommon);
-}
+}*/
 
 
 fn main() {
     // initializes and runs a timely dataflow.
     timely::execute_from_args(std::env::args(), |worker| {
 
-        let hc;
+        /*let hc;
         unsafe {
             hc = initialize();
-        }
+        }*/
 
         let index = worker.index();
         let mut input = InputHandle::new();
@@ -30,7 +30,7 @@ fn main() {
             scope.input_from(&mut input)
                  .exchange(|x| *x)
                  .inspect(move |x| println!("worker {}:\thello {}", index, x))
-                 .fpga_wrapper(hc)
+                 .fpga_wrapper(/*hc*/)
                  .inspect(move |x| println!("worker {}:\thello {}", index, x))
                  .probe_with(&mut probe);
         });
@@ -47,8 +47,8 @@ fn main() {
             }
         }
 
-        unsafe {
+        /*unsafe {
             closeHardware(hc);
-        }
+        }*/
     }).unwrap();
 }
