@@ -214,15 +214,19 @@ where
             self.ghost_edge_stash.push((start_source, start_target));
             self.ghost_edge_stash.push((end_source, end_target));
 
+            //let edges_vector = self.wrapper_ghost_edges.borrow_mut().get_mut(&wrapper).unwrap();
+            for edge in self.wrapper_ghost_edges.borrow_mut().get_mut(&wrapper).unwrap().iter() {
+                let target = Target::new(edge.1, 0);
+                // last node in ghost nodes
+                let source = Source::new(edge.0, 0);
+                self.ghost_edge_stash.push((source, target));
+            }
 
             // here we have only edges related to ghost and wrapper
             self.wrapper_ghost_edges.borrow_mut().get_mut(&wrapper).unwrap().push((start_source.node, start_target.node));
             self.wrapper_ghost_edges.borrow_mut().get_mut(&wrapper).unwrap().push((end_source.node, end_target.node));
 
-            /*let edges_vector = self.wrapper_ghost_edges.get(&wrapper);
-            for edge in edges_vector.iter() {
-                self.edge_stash.push(edge);
-            }*/
+
         }
 
         // TODO: should we push here edges between ghost operators?
@@ -285,7 +289,7 @@ where
         }
         incomplete[0] = false;
         // TODO: fix this
-        let incomplete_count = incomplete.len() - 2;
+        let incomplete_count = incomplete.len() - 4;
 
         let activations = worker.activations().clone();
 
@@ -579,9 +583,11 @@ where
         // FPGA: here we need to transfer frontier changes back to the wrapper, as ghost node
         // will not be executed
 
+        let mut wrapper_pushed = false;
         for ((location, time), diff) in self.pointstamp_tracker.pushed().drain() {
             // Targets are actionable, sources are not.
             if let crate::progress::Port::Target(port) = location.port {
+
                 if self.children[location.node].notify {
                     self.temp_active.push(Reverse(location.node));
                 }
@@ -590,11 +596,16 @@ where
                 // agrees with this (e.g. initialization, operator logic, etc.)
 
                 if self.ghost_wrapper.borrow().contains_key(&location.node) {
+
                     // Currently I will do only for one operator
                     let gw = self.ghost_wrapper.borrow();
 
                     // TODO: we can add here an array of ghost frontiers
                     let location_node = gw.get(&location.node).unwrap();
+                    if !wrapper_pushed {
+                        self.temp_active.push(Reverse(*location_node));
+                    }
+                    wrapper_pushed = true;
 
                     self.children[*location_node]
                         .shared_progress
@@ -879,13 +890,15 @@ impl<T: Timestamp> PerOperatorState<T> {
                     for (time, delta) in produced.drain() {
                         //pointstamps.update((Location::from(target), time.clone()), delta);
                         //temp_active.push(Reverse(target.node));
-                        for target in &self.edges[output] {
-                            pointstamps.update((Location::from(*target), time.clone()), delta);
-                            temp_active.push(Reverse(target.node));
+                        for target in self.wrapper_ghost_edges.borrow().get(&self.index).unwrap().iter() {
+                            if target.0 == *ghost {
+                                let tt = Target::new(target.1, 0);
+                                pointstamps.update((Location::from(tt), time.clone()), delta);
+                                temp_active.push(Reverse(tt.node));
+                            }
                         }
                     }
                 }
-
             }
         }
 
