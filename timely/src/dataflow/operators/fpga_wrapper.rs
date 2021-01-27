@@ -291,6 +291,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         let raw_logic =
             move |progress: &mut SharedProgress<S::Timestamp>| {
 
+
+                println! ("SHEDULED!!!");
+
                 let mut borrow = frontier.borrow_mut();
 
                 for (i, j) in ghost_indexes.iter() {
@@ -394,17 +397,20 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                         output.push(input_vector[1]); // time
                         output.push(input_vector[2]); // frontier 1
                         output.push(input_vector[3]); // frontier 2
-                        output.push(input_vector[4]); // frontier 3
+                        //output.push(input_vector[4]); // frontier 3
                         output.push(1); // consumed 1
                         output.push(0); // internals 1
                         output.push(1); // produceds 1
                         output.push(1); // consumed 2
                         output.push(0); // internals 2
                         output.push(1); // produceds 2
-                        output.push(1); // consumed 3
-                        output.push(0); // internals 3
-                        output.push(1); // produceds 3
+                        //output.push(1); // consumed 3
+                        //output.push(0); // internals 3
+                        //output.push(1); // produceds 3
                         output.push(3); // data
+                        output.push(0);
+                        output.push(0);
+                        output.push(0);
                         output.push(0); /*output.push(0); output.push(0);
                         output.push(0); output.push(0); output.push(0);
                         output.push(0); output.push(0); output.push(0);*/
@@ -456,7 +462,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         let mut prev_ghost = 0;
         for ghost in ghost_indexes2.iter() {
 
-            if (ghost.0 > 0) {
+            if ghost.0 > 0 {
                 ghost_edges.push((prev_ghost, ghost.1));
             }
             prev_ghost = ghost.1;

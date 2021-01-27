@@ -289,7 +289,7 @@ where
         }
         incomplete[0] = false;
         // TODO: fix this
-        let incomplete_count = incomplete.len() - 4;
+        let incomplete_count = incomplete.len() - 3;
 
         let activations = worker.activations().clone();
 
@@ -590,13 +590,17 @@ where
 
                 if self.children[location.node].notify {
                     self.temp_active.push(Reverse(location.node));
+                    // if we already scheduled wrapper here
+                    if self.ghost_wrapper.borrow().contains_key(&location.node) {
+
+                        wrapper_pushed = true;
+                    }
                 }
                 // TODO: This logic could also be guarded by `.notify`, but
                 // we want to be a bit careful to make sure all related logic
                 // agrees with this (e.g. initialization, operator logic, etc.)
 
                 if self.ghost_wrapper.borrow().contains_key(&location.node) {
-
                     // Currently I will do only for one operator
                     let gw = self.ghost_wrapper.borrow();
 
