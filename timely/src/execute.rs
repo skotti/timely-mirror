@@ -6,6 +6,14 @@ use crate::worker::Worker;
 
 use crate::dataflow::operators::fpga_wrapper::HardwareCommon;
 
+
+#[link(name = "fpgalibrary")]
+extern "C" {
+    fn initialize() -> * const HardwareCommon;
+    fn closeHardware(hc: * const HardwareCommon);
+}
+
+
 /// Executes a single-threaded timely dataflow computation.
 ///
 /// The `example` method takes a closure on a `Scope` which it executes to initialize and run a
@@ -147,7 +155,7 @@ where
 /// // the extracted data should have data (0..10) thrice at timestamp 0.
 /// assert_eq!(recv.extract()[0].1, (0..30).map(|x| x / 3).collect::<Vec<_>>());
 /// ```
-pub fn execute<T, F>(mut config: Configuration, hc: * const HardwareCommon, func: F) -> Result<WorkerGuards<T>,String>
+pub fn execute<T, F>(mut config: Configuration, func: F) -> Result<WorkerGuards<T>,String>
 where
     T:Send+'static,
     F: Fn(&mut Worker<Allocator>, *const HardwareCommon)->T+Send+Sync+'static {
@@ -187,6 +195,11 @@ where
 
     initialize_from(allocators, other, move |allocator| {
 
+        let hwcommon;
+        unsafe {
+            hwcommon = initialize();
+        }
+
         let mut worker = Worker::new(allocator);
 
         // If an environment variable is set, use it as the default timely logging.
@@ -209,8 +222,12 @@ where
             }
         }
 
-        let result = func(&mut worker, hc);
+        let result = func(&mut worker, hwcommon);
         while worker.step_or_park(None) { }
+        unsafe {
+            closeHardware(hwcommon);
+        }
+
         result
     })
 }
@@ -267,12 +284,12 @@ where
 /// host2:port
 /// host3:port
 /// ```
-pub fn execute_from_args<I, T, F>(iter: I,  hc: *const HardwareCommon, func: F) -> Result<WorkerGuards<T>,String>
+pub fn execute_from_args<I, T, F>(iter: I, func: F) -> Result<WorkerGuards<T>,String>
     where I: Iterator<Item=String>,
           T:Send+'static,
           F: Fn(&mut Worker<Allocator>, *const HardwareCommon)->T+Send+Sync+'static, {
     let configuration = Configuration::from_args(iter)?;
-    execute(configuration, hc, func)
+    execute(configuration, func)
 }
 
 /// Executes a timely dataflow from supplied allocators and logging.

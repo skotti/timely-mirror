@@ -3,24 +3,24 @@ extern crate hdrhist;
 
 use timely::dataflow::{InputHandle, ProbeHandle};
 use timely::dataflow::operators::{Input, Exchange, Inspect, Probe, FpgaWrapper};
-use timely::dataflow::operators::fpga_wrapper::HardwareCommon;
+//use timely::dataflow::operators::fpga_wrapper::HardwareCommon;
 use std::time::{Duration, Instant};
 
 
-#[link(name = "fpgalibrary")]
+/*#[link(name = "fpgalibrary")]
 extern "C" {
     fn initialize() -> * const HardwareCommon;
     fn closeHardware(hc: * const HardwareCommon);
-}
+}*/
 
 
 fn main() {
     // initializes and runs a timely dataflow.
-    let hwcommon;
+    /*let hwcommon;
     unsafe {
         hwcommon = initialize();
-    }
-    timely::execute_from_args(std::env::args(), hwcommon, |worker, hc| {
+    }*/
+    timely::execute_from_args(std::env::args(),  |worker, hc| {
 
        // let hc;
        // unsafe {
@@ -73,8 +73,8 @@ fn main() {
         //    closeHardware(hc);
         //}
     }).unwrap();
-    unsafe {
+    /*unsafe {
     	closeHardware(hwcommon);
-    }
+    }*/
 	
 }
