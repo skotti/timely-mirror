@@ -289,7 +289,7 @@ where
         }
         incomplete[0] = false;
         // TODO: fix this
-        let incomplete_count = incomplete.len() - 3;
+        let incomplete_count = incomplete.len() - 4;
 
         let activations = worker.activations().clone();
 
@@ -873,8 +873,6 @@ impl<T: Timestamp> PerOperatorState<T> {
 
             // go over all ghost nodes
             for ghost in wrapper_struct.get(&self.index).unwrap().iter() {
-
-                println! ("extract progress for node {}", ghost);
 
                 for (input, consumed) in shared_progress.wrapper_consumeds.get_mut(ghost).unwrap().iter_mut().enumerate() {
                     // ghost - это номер нашего оператора на fpga

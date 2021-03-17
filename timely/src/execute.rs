@@ -4,6 +4,8 @@ use crate::communication::{initialize_from, Configuration, Allocator, allocator:
 use crate::dataflow::scopes::Child;
 use crate::worker::Worker;
 
+use crate::dataflow::operators::fpga_wrapper::HardwareCommon;
+
 /// Executes a single-threaded timely dataflow computation.
 ///
 /// The `example` method takes a closure on a `Scope` which it executes to initialize and run a
@@ -145,10 +147,10 @@ where
 /// // the extracted data should have data (0..10) thrice at timestamp 0.
 /// assert_eq!(recv.extract()[0].1, (0..30).map(|x| x / 3).collect::<Vec<_>>());
 /// ```
-pub fn execute<T, F>(mut config: Configuration, func: F) -> Result<WorkerGuards<T>,String>
+pub fn execute<T, F>(mut config: Configuration, hc: * const HardwareCommon, func: F) -> Result<WorkerGuards<T>,String>
 where
     T:Send+'static,
-    F: Fn(&mut Worker<Allocator>)->T+Send+Sync+'static {
+    F: Fn(&mut Worker<Allocator>, *const HardwareCommon)->T+Send+Sync+'static {
 
     if let Configuration::Cluster { ref mut log_fn, .. } = config {
 
@@ -207,7 +209,7 @@ where
             }
         }
 
-        let result = func(&mut worker);
+        let result = func(&mut worker, hc);
         while worker.step_or_park(None) { }
         result
     })
@@ -265,12 +267,12 @@ where
 /// host2:port
 /// host3:port
 /// ```
-pub fn execute_from_args<I, T, F>(iter: I, func: F) -> Result<WorkerGuards<T>,String>
+pub fn execute_from_args<I, T, F>(iter: I,  hc: *const HardwareCommon, func: F) -> Result<WorkerGuards<T>,String>
     where I: Iterator<Item=String>,
           T:Send+'static,
-          F: Fn(&mut Worker<Allocator>)->T+Send+Sync+'static, {
+          F: Fn(&mut Worker<Allocator>, *const HardwareCommon)->T+Send+Sync+'static, {
     let configuration = Configuration::from_args(iter)?;
-    execute(configuration, func)
+    execute(configuration, hc, func)
 }
 
 /// Executes a timely dataflow from supplied allocators and logging.
