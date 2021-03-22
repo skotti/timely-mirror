@@ -45,13 +45,13 @@ fn main() {
         let mut epoch_start = Instant::now();
         let mut hist = hdrhist::HDRHist::new();
 
-        for round in 0..50 {
+        for round in 0..1000 {
             if index == 0 {
                 input.send(round);
             }
             input.advance_to(round + 1);
             while probe.less_than(input.time()) {
-                println!("scheduled in step");
+                //println!("scheduled in step");
                 let start = Instant::now();
                 worker.step();
 
@@ -64,7 +64,7 @@ fn main() {
         }
 
         let total_nanos = (Instant::now() - start).as_nanos();
-        let epoch_throughput = (50 as f64) / (total_nanos as f64) * 1_000_000_000f64; // epochs/sec
+        let epoch_throughput = (1000 as f64) / (total_nanos as f64) * 1_000_000_000f64; // epochs/sec
 
         println!("total time (nanos): {}, throughput: {}", total_nanos, epoch_throughput);
         println!("epoch latency (nanos):\n{}", hist.summary_string());

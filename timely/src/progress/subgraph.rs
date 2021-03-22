@@ -172,6 +172,7 @@ where
 
     /// Add device side operators to subgraph
     pub fn add_fpga_operator(&mut self, wrapper: usize, ghost: Vec<usize>, ghost_edges: Vec<(usize, usize)>) {
+	//println!("wrapper index = {}", wrapper);
         for g in ghost.iter() {
             self.ghost_wrapper.borrow_mut().insert(*g, wrapper);
         }
@@ -392,6 +393,7 @@ where
     fn path(&self) -> &[usize] { &self.path }
 
     fn schedule(&mut self) -> bool {
+	//println!("SCHEDULE SUBGRAPH");
 
         // This method performs several actions related to progress tracking
         // and child operator scheduling. The actions have been broken apart
@@ -439,6 +441,7 @@ where
         // A subgraph is incomplete if any child is incomplete, or there are outstanding messages.
         let incomplete = self.incomplete_count > 0;
         let tracking = self.pointstamp_tracker.tracking_anything();
+	//println!("END OF SCHEDULE SUBGRAPH");
 
         incomplete || tracking
     }
@@ -584,14 +587,18 @@ where
         // will not be executed
 
         let mut wrapper_pushed = false;
+	//println!("start to add nodes in temp active");
         for ((location, time), diff) in self.pointstamp_tracker.pushed().drain() {
             // Targets are actionable, sources are not.
             if let crate::progress::Port::Target(port) = location.port {
 
                 if self.children[location.node].notify {
+		    //println!("add operator");
+		    //println!("location node={}", location.node);
                     self.temp_active.push(Reverse(location.node));
                     // if we already scheduled wrapper here
                     if self.ghost_wrapper.borrow().contains_key(&location.node) {
+			//println!("this was wrapper");
 
                         wrapper_pushed = true;
                     }
@@ -603,10 +610,12 @@ where
                 if self.ghost_wrapper.borrow().contains_key(&location.node) {
                     // Currently I will do only for one operator
                     let gw = self.ghost_wrapper.borrow();
+		    //println!("ghost wrapper contains location node={}", location.node);
 
                     // TODO: we can add here an array of ghost frontiers
                     let location_node = gw.get(&location.node).unwrap();
                     if !wrapper_pushed {
+			//println!("add_wrapper {}", location_node);
                         self.temp_active.push(Reverse(*location_node));
                     }
                     wrapper_pushed = true;
@@ -625,6 +634,7 @@ where
                 }
             }
         }
+	//println!("temp active length = {}", self.temp_active.len());
 
         // Extract child zero frontier changes and report as internal capability changes.
         for (output, internal) in self.shared_progress.borrow_mut().internals.iter_mut().enumerate() {

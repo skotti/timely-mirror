@@ -223,7 +223,7 @@ where
         }
 
         let result = func(&mut worker, hwcommon);
-        while worker.step_or_park(None) { }
+        while worker.step_or_park(None) {}
         unsafe {
             closeHardware(hwcommon);
         }
