@@ -36,7 +36,7 @@ fn main() {
         worker.dataflow(|scope| {
             scope.input_from(&mut input)
                  .fpga_wrapper(hc)
-                 .inspect(move |x| println!("worker {}:\thello {}", index, x))
+                 //.inspect(move |x| println!("worker {}:\thello {}", index, x))
                  .probe_with(&mut probe);
         });
 	
@@ -45,18 +45,10 @@ fn main() {
         let mut epoch_start = Instant::now();
         let mut hist = hdrhist::HDRHist::new();
 
-        for round in 0..10 {
+        for round in 0..1000 {
             
 	    for j in 0..8 {
-		if (round == 0) {
-            	    input.send(0);// max = 0
-		} else if (round == 1) {
-		    input.send(1); input.send(2); input.send(3); input.send(2); input.send(5); input.send(1); input.send(2); input.send(3); // max = 5
-                } else if (round == 2) {
-		    input.send(1); input.send(2); input.send(3); input.send(2); input.send(1); input.send(1); input.send(2); input.send(3); // no max
-                } else {
-		    input.send(round);	
-	        }
+                input.send(round);// max = 0
 	    }
             
             input.advance_to(round + 1);
@@ -73,8 +65,8 @@ fn main() {
         let epoch_end = Instant::now();
 
         let total_nanos = (Instant::now() - start).as_nanos();
-        let epoch_latency = (total_nanos as f64) / 1_000_000_000f64 / (10 as f64); // sec
-        let epoch_throughput = (10 as f64) / (total_nanos as f64) * 1_000_000_000f64; // epochs/sec
+        let epoch_latency = (total_nanos as f64) / 1_000_000_000f64 / (1000 as f64); // sec
+        let epoch_throughput = (1000 as f64) / (total_nanos as f64) * 1_000_000_000f64; // epochs/sec
 	println!("epoch time: {}", epoch_latency); 
 
         println!("total time (nanos): {}, throughput: {}", total_nanos, epoch_throughput);

@@ -276,7 +276,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         ghost_indexes.push((current_index, builder_aggregate.index()));
         ghost_indexes2.push((current_index, builder_aggregate.index()));
         current_index += 1;
-
+        
         // create wrapper operator
 
         let mut builder_wrapper = OperatorBuilder::new("Wrapper".to_owned(), self.scope()); // scope comes from stream
@@ -337,9 +337,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                     let mut consumed = HashMap::new();
                     let mut internals = HashMap::new();
                     let mut info_length =  24;//2 + ghost_indexes.len() + 4 * ghost_indexes.len();
-                    let mut all_length = 5;//(((info_length + vector.len()) / 8) + 1) as i64;
+                    let mut all_length = 4;//(((info_length + vector.len()) / 8) + 1) as i64;
                     let mut current_length = 0;
-                    let mut max_length = 40;
+                    let mut max_length = 32;
                     let mut data_start_index = 24;
                     let mut progress_start_index = 0;
 
@@ -500,9 +500,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                     let mut consumed = HashMap::new();
                     let mut internals = HashMap::new();
                     let mut info_length =  24;//2 + ghost_indexes.len() + 4 * ghost_indexes.len();
-                    let mut all_length = 5;//(((info_length + vector.len()) / 8) + 1) as i64;
+                    let mut all_length = 4;//(((info_length + vector.len()) / 8) + 1) as i64;
                     let mut current_length = 0;
-                    let mut max_length = 40;
+                    let mut max_length = 32;
                     let mut data_start_index = 24;
                     let mut progress_start_index = 0;
 
