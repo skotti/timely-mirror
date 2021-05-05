@@ -34,10 +34,11 @@ use std::collections::HashMap;
 /// Data structure to store FPGA related data
 pub struct HardwareCommon {
     fd: u32,
+    cpid: u32,
     cnfg_reg: * mut c_void,
     ctrl_reg: * mut c_void,
     buffer: * mut c_void,
-    hMem: * mut i64
+    //hMem: * mut i64
 }
 
 unsafe impl Send for HardwareCommon{}
