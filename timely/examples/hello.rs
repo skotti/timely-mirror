@@ -36,7 +36,7 @@ fn main() {
         worker.dataflow(|scope| {
             scope.input_from(&mut input)
                  .fpga_wrapper(hc)
-                 //.inspect(move |x| println!("worker {}:\thello {}", index, x))
+                 .inspect(move |x| println!("worker {}:\thello {}", index, x))
                  .probe_with(&mut probe);
         });
 	
