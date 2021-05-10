@@ -39,7 +39,7 @@ pub struct HardwareCommon {
     wr_cmd_cnt: u32,
     cnfg_reg: * mut c_void,
     ctrl_reg: * mut c_void,
-    hMem: * mut i64
+    //hMem: * mut i64
 }
 
 unsafe impl Send for HardwareCommon{}

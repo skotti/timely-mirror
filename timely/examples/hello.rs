@@ -36,7 +36,7 @@ fn main() {
         worker.dataflow(|scope| {
             scope.input_from(&mut input)
                  .fpga_wrapper(hc)
-                 .inspect(move |x| println!("worker {}:\thello {}", index, x))
+                 //.inspect(move |x| println!("worker {}:\thello {}", index, x))
                  .probe_with(&mut probe);
         });
 	
@@ -47,9 +47,9 @@ fn main() {
 
         for round in 0..1000 {
             
-	    for j in 0..8 {
+	        for j in 0..8 {
                 input.send(round);// max = 0
-	    }
+	        }
             
             input.advance_to(round + 1);
 
@@ -67,7 +67,7 @@ fn main() {
         let total_nanos = (Instant::now() - start).as_nanos();
         let epoch_latency = (total_nanos as f64) / 1_000_000_000f64 / (1000 as f64); // sec
         let epoch_throughput = (1000 as f64) / (total_nanos as f64) * 1_000_000_000f64; // epochs/sec
-	println!("epoch time: {}", epoch_latency); 
+	    println!("epoch time: {}", epoch_latency); 
 
         println!("total time (nanos): {}, throughput: {}", total_nanos, epoch_throughput);
         println!("epoch latency (nanos):\n{}", hist.summary_string());
