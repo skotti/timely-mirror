@@ -12,6 +12,7 @@ pub use self::enterleave::{Enter, EnterAt, Leave};
 // pub use self::queue::*;
 pub use self::input::Input;
 pub use self::fpga_wrapper::FpgaWrapper;
+pub use self::fpga_wrapper_simulation::FpgaWrapperSimulation;
 pub use self::unordered_input::UnorderedInput;
 pub use self::feedback::{Feedback, LoopVariable, ConnectLoop};
 pub use self::concat::{Concat, Concatenate};
@@ -52,6 +53,7 @@ pub mod to_stream;
 pub mod capture;
 pub mod branch;
 pub mod fpga_wrapper;
+pub mod fpga_wrapper_simulation;
 pub mod ok_err;
 
 pub mod aggregation;

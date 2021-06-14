@@ -4,7 +4,7 @@ use crate::communication::{initialize_from, Configuration, Allocator, allocator:
 use crate::dataflow::scopes::Child;
 use crate::worker::Worker;
 
-use crate::dataflow::operators::fpga_wrapper::HardwareCommon;
+use crate::dataflow::operators::fpga_wrapper_simulation::HardwareCommon;
 
 
 #[link(name = "fpgalibrary")]

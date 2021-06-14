@@ -37,24 +37,25 @@ pub struct HardwareCommon {
     cpid: i32,
     rd_cmd_cnt: u32,
     wr_cmd_cnt: u32,
-    cnfg_reg: * mut c_void,
-    ctrl_reg: * mut c_void,
+    cnfg_reg: *mut c_void,
+    ctrl_reg: *mut c_void,
     //hMem: * mut i64
 }
 
-unsafe impl Send for HardwareCommon{}
-unsafe impl Sync for HardwareCommon{}
+unsafe impl Send for HardwareCommon {}
+
+unsafe impl Sync for HardwareCommon {}
 
 #[link(name = "fpgalibrary")]
 extern "C" {
-    fn run(hc: * const HardwareCommon, input: * mut u64) -> * mut i64;
+    fn run(hc: *const HardwareCommon, input: *mut u64) -> *mut i64;
 }
 
 /// Wrapper operator to store ghost operators
 struct FpgaOperator<T, L>
     where
         T: Timestamp,
-        L: FnMut(&mut SharedProgress<T>)->bool+'static,
+        L: FnMut(&mut SharedProgress<T>) -> bool + 'static,
 {
     shape: OperatorShape,
     address: Vec<usize>,
@@ -65,12 +66,13 @@ struct FpgaOperator<T, L>
 
     ghost_indexes: Vec<(usize, usize)>,
 }
+
 impl<T, L> Schedule for FpgaOperator<T, L>
     where
         T: Timestamp,
-        L: FnMut(&mut SharedProgress<T>)->bool+'static,
+        L: FnMut(&mut SharedProgress<T>) -> bool + 'static,
 {
-    fn name(&self) -> &str { self.shape.name()}
+    fn name(&self) -> &str { self.shape.name() }
     fn path(&self) -> &[usize] { &self.address[..] }
     fn schedule(&mut self) -> bool {
         let shared_progress = &mut *self.shared_progress.borrow_mut();
@@ -81,7 +83,7 @@ impl<T, L> Schedule for FpgaOperator<T, L>
 impl<T, L> Operate<T> for FpgaOperator<T, L>
     where
         T: Timestamp,
-        L: FnMut(&mut SharedProgress<T>)->bool+'static,
+        L: FnMut(&mut SharedProgress<T>) -> bool + 'static,
 {
     fn inputs(&self) -> usize { self.shape.inputs() }
     fn outputs(&self) -> usize { self.shape.outputs() }
@@ -119,7 +121,7 @@ impl<T, L> Operate<T> for FpgaOperator<T, L>
 struct FakeOperator<T, L>
     where
         T: Timestamp,
-        L: FnMut(&mut SharedProgress<T>)->bool+'static,
+        L: FnMut(&mut SharedProgress<T>) -> bool + 'static,
 {
     shape: OperatorShape,
     address: Vec<usize>,
@@ -132,9 +134,9 @@ struct FakeOperator<T, L>
 impl<T, L> Schedule for FakeOperator<T, L>
     where
         T: Timestamp,
-        L: FnMut(&mut SharedProgress<T>)->bool+'static,
+        L: FnMut(&mut SharedProgress<T>) -> bool + 'static,
 {
-    fn name(&self) -> &str { self.shape.name()}
+    fn name(&self) -> &str { self.shape.name() }
     fn path(&self) -> &[usize] { &self.address[..] }
 
     // we need to return false from this function in case of ghost operator.
@@ -150,7 +152,7 @@ impl<T, L> Schedule for FakeOperator<T, L>
 impl<T, L> Operate<T> for FakeOperator<T, L>
     where
         T: Timestamp,
-        L: FnMut(&mut SharedProgress<T>)->bool+'static,
+        L: FnMut(&mut SharedProgress<T>) -> bool + 'static,
 {
     fn inputs(&self) -> usize { self.shape.inputs() }
     fn outputs(&self) -> usize { self.shape.outputs() }
@@ -190,17 +192,13 @@ impl<T, L> Operate<T> for FakeOperator<T, L>
 
 /// Wrapper to run on FPGA
 pub trait FpgaWrapper<S: Scope/*, D: Data*/> {
-
     /// Wrapper function
     fn fpga_wrapper(&self, hc: *const HardwareCommon) -> Stream<S, u64>;
-
 }
 
 // return value should be the value of the last operator
 
-impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
-
-
+impl<S: Scope<Timestamp=u64>> FpgaWrapper<S> for Stream<S, u64> {
     fn fpga_wrapper(&self, hc: *const HardwareCommon) -> Stream<S, u64> {
 
         // this should correspond to the way the data will be read on the fpga
@@ -215,7 +213,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         builder_filter.set_shape(1, 1);
 
         let operator_logic_filter =
-         move |progress: &mut SharedProgress<S::Timestamp>| { false};
+            move |progress: &mut SharedProgress<S::Timestamp>| { false };
 
         let operator_filter = FakeOperator {
             shape: builder_filter.shape().clone(),
@@ -239,7 +237,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         builder_map.set_shape(1, 1);
 
         let operator_logic_map =
-            move |progress: &mut SharedProgress<S::Timestamp>| { false};
+            move |progress: &mut SharedProgress<S::Timestamp>| { false };
 
         let operator_map = FakeOperator {
             shape: builder_map.shape().clone(),
@@ -262,7 +260,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         builder_aggregate.set_shape(1, 1);
 
         let operator_logic_aggregate =
-            move |progress: &mut SharedProgress<S::Timestamp>| { false};
+            move |progress: &mut SharedProgress<S::Timestamp>| { false };
 
         let operator_aggregate = FakeOperator {
             shape: builder_aggregate.shape().clone(),
@@ -278,7 +276,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         ghost_indexes.push((current_index, builder_aggregate.index()));
         ghost_indexes2.push((current_index, builder_aggregate.index()));
         current_index += 1;
-        
+
         // create wrapper operator
 
         let mut builder_wrapper = OperatorBuilder::new("Wrapper".to_owned(), self.scope()); // scope comes from stream
@@ -294,9 +292,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
 
         let raw_logic =
             move |progress: &mut SharedProgress<S::Timestamp>| {
-
-
-		let start1 = Instant::now();
+                let start1 = Instant::now();
                 //println! ("SHEDULED!!!");
 
                 let mut borrow = frontier.borrow_mut();
@@ -321,9 +317,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                 let mut vector = Vec::new();
                 let mut input_vector = Vec::new();
                 let mut vector2 = Vec::new();
-   
+
                 let mut has_data = false;
-                
+
                 while let Some(message) = input_wrapper.next() {
                     has_data = true;
                     //println!("INSIDE DATA PROCESSING");
@@ -338,7 +334,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                     let mut produced = HashMap::new();
                     let mut consumed = HashMap::new();
                     let mut internals = HashMap::new();
-                    let mut info_length =  24;//2 + ghost_indexes.len() + 4 * ghost_indexes.len();
+                    let mut info_length = 24;//2 + ghost_indexes.len() + 4 * ghost_indexes.len();
                     let mut all_length = 4;//(((info_length + vector.len()) / 8) + 1) as i64;
                     let mut current_length = 0;
                     let mut max_length = 32;
@@ -346,41 +342,40 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                     let mut progress_start_index = 0;
 
                     unsafe {
-
                         current_length += 1;
                         //data_start_index += 1;
                         progress_start_index += 1;
                         input_vector.push(all_length as u64);
- 			//println!("increase length");
+                        //println!("increase length");
 
                         current_length += 1;
                         //data_start_index += 1;
                         progress_start_index += 1;
                         input_vector.push(*time);
-			//println!("increase length");
+                        //println!("increase length");
 
                         // TODO: check that N values are pushed
 
-                        for i in 0 .. borrow.len() {
+                        for i in 0..borrow.len() {
                             let frontier = borrow[i].borrow().frontier();
-			    //println!("frontier={:?}", frontier);
-			    if frontier.len() == 0 {
-				//println!("$$$$$$$$$$$$$$$$EMPTY FRONTIER$$$$$$$$$$$$$$");
-			    	current_length += 1;
+                            //println!("frontier={:?}", frontier);
+                            if frontier.len() == 0 {
+                                //println!("$$$$$$$$$$$$$$$$EMPTY FRONTIER$$$$$$$$$$$$$$");
+                                current_length += 1;
                                 //data_start_index += 1;
                                 progress_start_index += 1;
                                 input_vector.push(0);
-			    } else {
+                            } else {
                                 for val in frontier.iter() {
                                     current_length += 1;
                                     //data_start_index += 1;
                                     progress_start_index += 1;
                                     input_vector.push((*val << 1) | 1u64);
-				    //println!("increase length by frontier");
-                            	}
-			    }
+                                    //println!("increase length by frontier");
+                                }
+                            }
                         }
-                        for i in  0 .. ghost_indexes.len() {
+                        for i in 0..ghost_indexes.len() {
                             current_length += 4;
                             //data_start_index += 4;
                             input_vector.push(0);
@@ -388,43 +383,41 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                             input_vector.push(0);
                             input_vector.push(0);
                             //println!("increase length by progress");
-
                         }
-			for i in current_length .. info_length {
-			    current_length += 1;
+                        for i in current_length..info_length {
+                            current_length += 1;
                             input_vector.push(0);
-			    
                         }
 
-			if vector.len() == 0 {
-			    current_length += 1;
+                        if vector.len() == 0 {
+                            current_length += 1;
                             input_vector.push(0 as u64);
-			} else {
-                       	    for val in vector.iter() {
+                        } else {
+                            for val in vector.iter() {
                                 current_length += 1;
                                 input_vector.push(((*val << 1) | 1u64) as u64);
                             }
-			}
+                        }
 
-                        for i in current_length .. max_length {
+                        for i in current_length..max_length {
                             input_vector.push(0);
                         }
 
                         //for (i, elem) in vector.iter().enumerate() {
-                            //println!("{} input element = {}", i, *elem);
+                        //println!("{} input element = {}", i, *elem);
                         //}
 
                         //println!("all_length = {}", all_length);
                         //println!("current_length = {}", current_length);
                         //println!("data_start_index = {}", data_start_index);
                         //println!("progress_start_index = {}", progress_start_index);
- 
-			/*println!("PRINT INPUT VECTOR TO FPGA");
-			for elem in input_vector.iter() {
-				print!(" {}", elem);
-			}
 
-			println!();*/
+                        /*println!("PRINT INPUT VECTOR TO FPGA");
+                        for elem in input_vector.iter() {
+                            print!(" {}", elem);
+                        }
+
+                        println!();*/
 
                         fpga_data = run(hc, input_vector.as_mut_ptr());// changes should be reflected in hc
                         let output = Vec::from_raw_parts(fpga_data, max_length as usize, max_length as usize);
@@ -452,14 +445,14 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                         output.push(0);*/ /*output.push(0); output.push(0);
                         output.push(0); output.push(0); output.push(0);
                         output.push(0); output.push(0); output.push(0);*/
- 
+
                         /*println!("PRINT OUTPUT VECTOR FROM FPGA");
                         for (i, elem) in output.iter().enumerate() {
                             print!(" {}", elem);
                         }
                         println!();*/
 
-                        for i in data_start_index .. max_length {
+                        for i in data_start_index..max_length {
                             let val = output[i] as u64;
                             let shifted_val = val >> 1;
                             //println!("shifted val = {}", shifted_val);
@@ -474,10 +467,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                             //println!("internal update {}", output[progress_start_index + 4*i + 3] as i64);
                             //println!("produced = {}", output[progress_start_index + 4*i + 1]);
 
-                            consumed.insert(*j, output[progress_start_index + 4*i] as i64);
-                            internals.insert(*j, ((output[progress_start_index + 4*i + 2] >> 1 as u64, output[progress_start_index + 4*i + 3] as i64)));
-                            produced.insert(*j, (output[progress_start_index + 4*i + 1]) as i64);
-
+                            consumed.insert(*j, output[progress_start_index + 4 * i] as i64);
+                            internals.insert(*j, ((output[progress_start_index + 4 * i + 2] >> 1 as u64, output[progress_start_index + 4 * i + 3] as i64)));
+                            produced.insert(*j, (output[progress_start_index + 4 * i + 1]) as i64);
                         }
                     }
 
@@ -487,21 +479,20 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                     for (i, j) in ghost_indexes.iter() {
                         let mut cb = ChangeBatch::new_from(time.clone(), *consumed.get(j).unwrap());
                         let mut cb1 = ChangeBatch::new_from(time.clone(), *produced.get(j).unwrap());
- 			let mut cb2 = ChangeBatch::new_from(internals.get(j).unwrap().0 as u64, internals.get(j).unwrap().1 as i64);
+                        let mut cb2 = ChangeBatch::new_from(internals.get(j).unwrap().0 as u64, internals.get(j).unwrap().1 as i64);
                         cb.drain_into(&mut progress.wrapper_consumeds.get_mut(j).unwrap()[0]);
                         cb1.drain_into(&mut progress.wrapper_produceds.get_mut(j).unwrap()[0]);
                         cb2.drain_into(&mut progress.wrapper_internals.get_mut(j).unwrap()[0]);
                     }
-
                 }
-                
+
                 if !has_data {
-		    //println!("no data");
-		    let fpga_data;
+                    //println!("no data");
+                    let fpga_data;
                     let mut produced = HashMap::new();
                     let mut consumed = HashMap::new();
                     let mut internals = HashMap::new();
-                    let mut info_length =  24;//2 + ghost_indexes.len() + 4 * ghost_indexes.len();
+                    let mut info_length = 24;//2 + ghost_indexes.len() + 4 * ghost_indexes.len();
                     let mut all_length = 4;//(((info_length + vector.len()) / 8) + 1) as i64;
                     let mut current_length = 0;
                     let mut max_length = 32;
@@ -509,41 +500,40 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                     let mut progress_start_index = 0;
 
                     unsafe {
-
                         current_length += 1;
                         //data_start_index += 1;
                         progress_start_index += 1;
                         input_vector.push(all_length as u64);
- 			//println!("increase length");
+                        //println!("increase length");
 
                         current_length += 1;
                         //data_start_index += 1;
                         progress_start_index += 1;
                         input_vector.push(0);
-			//println!("increase length");
+                        //println!("increase length");
 
                         // TODO: check that N values are pushed
 
-                        for i in 0 .. borrow.len() {
+                        for i in 0..borrow.len() {
                             let frontier = borrow[i].borrow().frontier();
-			    //println!("frontier={:?}", frontier);
-			    if frontier.len() == 0 {
-				//println!("$$$$$$$$$$$$$$$$EMPTY FRONTIER$$$$$$$$$$$$$$");
-				current_length += 1;
+                            //println!("frontier={:?}", frontier);
+                            if frontier.len() == 0 {
+                                //println!("$$$$$$$$$$$$$$$$EMPTY FRONTIER$$$$$$$$$$$$$$");
+                                current_length += 1;
                                 //data_start_index += 1;
                                 progress_start_index += 1;
-                                input_vector.push(0);	
+                                input_vector.push(0);
                             } else {
                                 for val in frontier.iter() {
                                     current_length += 1;
                                     //data_start_index += 1;
                                     progress_start_index += 1;
-				    input_vector.push((*val << 1) | 1u64);
-				    //println!("increase length by frontier");
+                                    input_vector.push((*val << 1) | 1u64);
+                                    //println!("increase length by frontier");
                                 }
-			    }
+                            }
                         }
-                        for i in  0 .. ghost_indexes.len() {
+                        for i in 0..ghost_indexes.len() {
                             current_length += 4;
                             //data_start_index += 4;
                             input_vector.push(0);
@@ -551,32 +541,31 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                             input_vector.push(0);
                             input_vector.push(0);
                             //println!("increase length by progress");
-
                         }
                         //current_length += 1;
                         //input_vector.push( 0 as u64);
 
 
-                        for i in current_length .. max_length {
+                        for i in current_length..max_length {
                             input_vector.push(0);
                         }
 
-			//println!("PRINT INPUT VECTOR TO FPGA");
-			//for elem in input_vector.iter() {
-			//	print!(" {}", elem);
-			//}
-			//println!();
+                        //println!("PRINT INPUT VECTOR TO FPGA");
+                        //for elem in input_vector.iter() {
+                        //	print!(" {}", elem);
+                        //}
+                        //println!();
 
-			fpga_data = run(hc, input_vector.as_mut_ptr());// changes should be reflected in hc
+                        fpga_data = run(hc, input_vector.as_mut_ptr());// changes should be reflected in hc
                         let output = Vec::from_raw_parts(fpga_data, max_length as usize, max_length as usize);
 
-			/*println!("PRINT OUTPUT VECTOR FROM FPGA");
-                        for (i, elem) in output.iter().enumerate() {
-                            print!(" {}", elem);
-                        }
-			println!();*/
+                        /*println!("PRINT OUTPUT VECTOR FROM FPGA");
+                                    for (i, elem) in output.iter().enumerate() {
+                                        print!(" {}", elem);
+                                    }
+                        println!();*/
 
-                        for i in data_start_index .. max_length {
+                        for i in data_start_index..max_length {
                             let val = output[i] as u64;
                             let shifted_val = val >> 1;
                             //println!("shifted val = {}", shifted_val);
@@ -591,28 +580,27 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                             //println!("internal update {}", output[progress_start_index + 4*i + 3] as i64);
                             //println!("produced = {}", output[progress_start_index + 4*i + 1]);
 
-                            consumed.insert(*j, output[progress_start_index + 4*i] as i64);
-                            internals.insert(*j, ((output[progress_start_index + 4*i + 2] >> 1 as u64, output[progress_start_index + 4*i + 3] as i64)));
-                            produced.insert(*j, (output[progress_start_index + 4*i + 1]) as i64);
-
+                            consumed.insert(*j, output[progress_start_index + 4 * i] as i64);
+                            internals.insert(*j, ((output[progress_start_index + 4 * i + 2] >> 1 as u64, output[progress_start_index + 4 * i + 3] as i64)));
+                            produced.insert(*j, (output[progress_start_index + 4 * i + 1]) as i64);
                         }
                     }
-		    let id_wrap = ghost_indexes[ghost_indexes.len() - 1].1;
-		    //println!("********id wrap********** = {}", id_wrap);
+                    let id_wrap = ghost_indexes[ghost_indexes.len() - 1].1;
+                    //println!("********id wrap********** = {}", id_wrap);
 
-		    if vector2.len() > 0 {
-		        output_wrapper.session(&(internals.get(&id_wrap).unwrap().0 as u64)).give_vec(&mut vector2);
+                    if vector2.len() > 0 {
+                        output_wrapper.session(&(internals.get(&id_wrap).unwrap().0 as u64)).give_vec(&mut vector2);
 
                         let mut cb1 = ChangeBatch::new_from(internals.get(&id_wrap).unwrap().0 as u64, *produced.get(&id_wrap).unwrap());
- 		        let mut cb2 = ChangeBatch::new_from(internals.get(&id_wrap).unwrap().0 as u64, internals.get(&id_wrap).unwrap().1 as i64);
+                        let mut cb2 = ChangeBatch::new_from(internals.get(&id_wrap).unwrap().0 as u64, internals.get(&id_wrap).unwrap().1 as i64);
                         cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&id_wrap).unwrap()[0]);
                         cb2.drain_into(&mut progress.wrapper_internals.get_mut(&id_wrap).unwrap()[0]);
-		    }
-  	 	}
+                    }
+                }
 
                 output_wrapper.cease();
 
-		let duration = start1.elapsed();
+                let duration = start1.elapsed();
 
                 false
             };
@@ -622,7 +610,6 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         // when we have multiple operators we should push edges to ghost edges
         let mut prev_ghost = 0;
         for ghost in ghost_indexes2.iter() {
-
             if ghost.0 > 0 {
                 ghost_edges.push((prev_ghost, ghost.1));
             }
@@ -640,11 +627,10 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
             logic: raw_logic,
             shared_progress: Rc::new(RefCell::new(SharedProgress::new_ghosts(builder_wrapper.shape().inputs(), builder_wrapper.shape().outputs(), ghost_operators.clone()))),
             summary: builder_wrapper.summary().to_vec(),
-            ghost_indexes: ghost_indexes2
+            ghost_indexes: ghost_indexes2,
         };
 
         self.scope().add_operator_with_indices(Box::new(operator), builder_wrapper.index(), builder_wrapper.global());
-
 
 
         // we also need to create a map from ghost to wrapper
