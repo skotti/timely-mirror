@@ -36,7 +36,7 @@ fn main() {
         worker.dataflow(|scope| {
             scope.input_from(&mut input)
                  .fpga_wrapper(hc)
-                 //.inspect(move |x| println!("worker {}:\thello {}", index, x))
+                 .inspect(move |x| println!("worker {}:\thello {}", index, x))
                  .probe_with(&mut probe);
         });
 	
@@ -45,7 +45,7 @@ fn main() {
         let mut epoch_start = Instant::now();
         let mut hist = hdrhist::HDRHist::new();
 
-        for round in 0..1000 {
+        for round in 0..1 {
             
 	        for j in 0..8 {
                 input.send(round);// max = 0

@@ -174,7 +174,7 @@ impl<A: Allocate> Worker<A> {
     pub fn step_or_park(&mut self, duration: Option<Duration>) -> bool {
 
         {   // Process channel events. Activate responders.
-	    //println!("START STEP OR PARK");
+	        println!("START STEP OR PARK");
             let mut allocator = self.allocator.borrow_mut();
             allocator.receive();
             let events = allocator.events().clone();
@@ -201,7 +201,7 @@ impl<A: Allocate> Worker<A> {
             .borrow_mut()
             .advance();
 
-        //println!("HERE2");
+        println!("HERE2");
 
         // Consider parking only if we have no pending events, some dataflows, and a non-zero duration.
         let empty_for = self.activations.borrow().empty_for();
@@ -215,7 +215,7 @@ impl<A: Allocate> Worker<A> {
         if !self.dataflows.borrow().is_empty() && delay != Some(Duration::new(0,0)) {
 
             // Log parking and flush log.
-	    //println!("HERE3");
+	    println!("HERE3");
             self.logging().as_mut().map(|l| l.log(crate::logging::ParkEvent::park(delay)));
             self.logging.borrow_mut().flush();
 
@@ -225,11 +225,11 @@ impl<A: Allocate> Worker<A> {
 
             // Log return from unpark.
             self.logging().as_mut().map(|l| l.log(crate::logging::ParkEvent::unpark()));
-	    //println!("HERE4");
+	    println!("HERE4");
         }
         else {   // Schedule active dataflows.
 
-	    //println!("HERE5");
+	    println!("HERE5");
             let active_dataflows = &mut self.active_dataflows;
             self.activations
                 .borrow_mut()
@@ -240,9 +240,9 @@ impl<A: Allocate> Worker<A> {
                 // Step dataflow if it exists, remove if not incomplete.
                 if let Entry::Occupied(mut entry) = dataflows.entry(index) {
                     // TODO: This is a moment at which a scheduling decision is being made.
-		    //println!("HERE5.1");
+		    println!("HERE5.1");
                     let incomplete = entry.get_mut().step();
-		    //println!("HERE5.2");
+		    println!("HERE5.2");
                     if !incomplete {
                         let mut paths = self.paths.borrow_mut();
                         for channel in entry.get_mut().channel_ids.drain(..) {
@@ -252,13 +252,13 @@ impl<A: Allocate> Worker<A> {
                     }
                 }
             }
-	    //println!("HERE6");
+	    println!("HERE6");
         }
 
         // Clean up, indicate if dataflows remain.
         self.logging.borrow_mut().flush();
         self.allocator.borrow_mut().release();
-	//println!("END OF STEP OR PARK");
+	println!("END OF STEP OR PARK");
         !self.dataflows.borrow().is_empty()
     }
 

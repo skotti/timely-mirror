@@ -39,7 +39,9 @@ pub struct HardwareCommon {
     wr_cmd_cnt: u32,
     cnfg_reg: *mut c_void,
     ctrl_reg: *mut c_void,
-    //hMem: * mut i64
+    cnfg_reg_avx: *mut c_void,
+    hMem: *mut c_void,
+    memory: *mut c_void
 }
 
 unsafe impl Send for HardwareCommon {}
@@ -48,7 +50,9 @@ unsafe impl Sync for HardwareCommon {}
 
 #[link(name = "fpgalibrary")]
 extern "C" {
-    fn run(hc: *const HardwareCommon, input: *mut u64) -> *mut i64;
+    fn send_input(hc: *const HardwareCommon, input: *mut u64);
+    fn send_input_and_check(hc: *const HardwareCommon, input: *mut u64, output: *mut i64) -> bool;
+    fn checkOutput(hc: *const HardwareCommon, output: *mut i64) -> bool;
 }
 
 /// Wrapper operator to store ghost operators
@@ -330,7 +334,6 @@ impl<S: Scope<Timestamp=u64>> FpgaWrapper<S> for Stream<S, u64> {
                     data.swap(&mut vector);
                     // I should call my fpga function here with vector as an input
 
-                    let fpga_data;
                     let mut produced = HashMap::new();
                     let mut consumed = HashMap::new();
                     let mut internals = HashMap::new();
@@ -340,8 +343,10 @@ impl<S: Scope<Timestamp=u64>> FpgaWrapper<S> for Stream<S, u64> {
                     let mut max_length = 32;
                     let mut data_start_index = 24;
                     let mut progress_start_index = 0;
+                    let mut got_output = false;
 
                     unsafe {
+
                         current_length += 1;
                         //data_start_index += 1;
                         progress_start_index += 1;
@@ -403,92 +408,72 @@ impl<S: Scope<Timestamp=u64>> FpgaWrapper<S> for Stream<S, u64> {
                             input_vector.push(0);
                         }
 
-                        //for (i, elem) in vector.iter().enumerate() {
-                        //println!("{} input element = {}", i, *elem);
-                        //}
-
-                        //println!("all_length = {}", all_length);
-                        //println!("current_length = {}", current_length);
-                        //println!("data_start_index = {}", data_start_index);
-                        //println!("progress_start_index = {}", progress_start_index);
-
-                        /*println!("PRINT INPUT VECTOR TO FPGA");
+                        println!("PRINT INPUT VECTOR TO FPGA");
                         for elem in input_vector.iter() {
                             print!(" {}", elem);
                         }
 
-                        println!();*/
+                        println!();
+                        //send_input(hc, input_vector.as_mut_ptr());
+                        let mut output = vec![0;32];
 
-                        fpga_data = run(hc, input_vector.as_mut_ptr());// changes should be reflected in hc
-                        let output = Vec::from_raw_parts(fpga_data, max_length as usize, max_length as usize);
+                        if send_input_and_check(hc, input_vector.as_mut_ptr(), output.as_mut_ptr()) {
 
-                        // TODO: I will leave this code for testing purposes without FPGA
-                        /*let mut output = Vec::new();
-                        output.push(input_vector[0]); // all length
-                        output.push(input_vector[1]); // time
-                        output.push(input_vector[2]); // frontier 1
-                        output.push(input_vector[3]); // frontier 2
-                        //output.push(input_vector[4]); // frontier 3
-                        output.push(1); // consumed 1
-                        output.push(0); // internals 1
-                        output.push(1); // produceds 1
-                        output.push(1); // consumed 2
-                        output.push(0); // internals 2
-                        output.push(1); // produceds 2
-                        //output.push(1); // consumed 3
-                        //output.push(0); // internals 3
-                        //output.push(1); // produceds 3
-                        output.push(3); // data
-                        output.push(0);
-                        output.push(0);
-                        output.push(0);
-                        output.push(0);*/ /*output.push(0); output.push(0);
-                        output.push(0); output.push(0); output.push(0);
-                        output.push(0); output.push(0); output.push(0);*/
+                            got_output = true;
 
-                        /*println!("PRINT OUTPUT VECTOR FROM FPGA");
-                        for (i, elem) in output.iter().enumerate() {
-                            print!(" {}", elem);
-                        }
-                        println!();*/
-
-                        for i in data_start_index..max_length {
-                            let val = output[i] as u64;
-                            let shifted_val = val >> 1;
-                            //println!("shifted val = {}", shifted_val);
-                            if val != 0 {
-                                vector2.push(shifted_val);
+                            println!("PRINT OUTPUT VECTOR FROM FPGA");
+                            for elem in output.iter() {
+                                print!(" {}", elem);
                             }
-                        }
-                        //vector2.push(1);
-                        for (i, j) in ghost_indexes.iter() {
-                            //println!("consumed = {}", output[progress_start_index + 4*i]);
-                            //println!("internal time = {}", output[progress_start_index + 4*i + 2] >> 1);
-                            //println!("internal update {}", output[progress_start_index + 4*i + 3] as i64);
-                            //println!("produced = {}", output[progress_start_index + 4*i + 1]);
+                            println!();
 
-                            consumed.insert(*j, output[progress_start_index + 4 * i] as i64);
-                            internals.insert(*j, ((output[progress_start_index + 4 * i + 2] >> 1 as u64, output[progress_start_index + 4 * i + 3] as i64)));
-                            produced.insert(*j, (output[progress_start_index + 4 * i + 1]) as i64);
+
+                            for i in data_start_index..max_length {
+                                let val = output[i] as u64;
+                                let shifted_val = val >> 1;
+                                //println!("shifted val = {}", shifted_val);
+                                if val != 0 {
+                                    vector2.push(shifted_val);
+                                }
+                            }
+                            //vector2.push(1);
+                            for (i, j) in ghost_indexes.iter() {
+                                //println!("consumed = {}", output[progress_start_index + 4*i]);
+                                //println!("internal time = {}", output[progress_start_index + 4*i + 2] >> 1);
+                                //println!("internal update {}", output[progress_start_index + 4*i + 3] as i64);
+                                //println!("produced = {}", output[progress_start_index + 4*i + 1]);
+
+                                consumed.insert(*j, output[progress_start_index + 4 * i] as i64);
+                                internals.insert(*j, ((output[progress_start_index + 4 * i + 2] >> 1 as u64, output[progress_start_index + 4 * i + 3] as i64)));
+                                produced.insert(*j, (output[progress_start_index + 4 * i + 1]) as i64);
+                            }
+                        } else {
+                          println!("Not enough time to get output from FPGA");
+
                         }
+                        println!("After check output");
+
                     }
 
 
-                    output_wrapper.session(time).give_vec(&mut vector2);
+                    if got_output {
+                    // TODO: we leave them empty for now if there is no data
+                        output_wrapper.session(time).give_vec(&mut vector2);
 
-                    for (i, j) in ghost_indexes.iter() {
-                        let mut cb = ChangeBatch::new_from(time.clone(), *consumed.get(j).unwrap());
-                        let mut cb1 = ChangeBatch::new_from(time.clone(), *produced.get(j).unwrap());
-                        let mut cb2 = ChangeBatch::new_from(internals.get(j).unwrap().0 as u64, internals.get(j).unwrap().1 as i64);
-                        cb.drain_into(&mut progress.wrapper_consumeds.get_mut(j).unwrap()[0]);
-                        cb1.drain_into(&mut progress.wrapper_produceds.get_mut(j).unwrap()[0]);
-                        cb2.drain_into(&mut progress.wrapper_internals.get_mut(j).unwrap()[0]);
+                        for (i, j) in ghost_indexes.iter() {
+
+                            let mut cb = ChangeBatch::new_from(time.clone(), *consumed.get(j).unwrap());
+                            let mut cb1 = ChangeBatch::new_from(time.clone(), *produced.get(j).unwrap());
+                            let mut cb2 = ChangeBatch::new_from(internals.get(j).unwrap().0 as u64, internals.get(j).unwrap().1 as i64);
+                            cb.drain_into(&mut progress.wrapper_consumeds.get_mut(j).unwrap()[0]);
+                            cb1.drain_into(&mut progress.wrapper_produceds.get_mut(j).unwrap()[0]);
+                            cb2.drain_into(&mut progress.wrapper_internals.get_mut(j).unwrap()[0]);
+                        }
                     }
                 }
 
                 if !has_data {
                     //println!("no data");
-                    let fpga_data;
                     let mut produced = HashMap::new();
                     let mut consumed = HashMap::new();
                     let mut internals = HashMap::new();
@@ -550,41 +535,49 @@ impl<S: Scope<Timestamp=u64>> FpgaWrapper<S> for Stream<S, u64> {
                             input_vector.push(0);
                         }
 
-                        //println!("PRINT INPUT VECTOR TO FPGA");
-                        //for elem in input_vector.iter() {
-                        //	print!(" {}", elem);
-                        //}
-                        //println!();
+                        println!("no data: PRINT INPUT VECTOR TO FPGA");
+                        for elem in input_vector.iter() {
+                        	print!(" {}", elem);
+                        }
+                        println!();
+                        //send_input(hc, input_vector.as_mut_ptr());
 
-                        fpga_data = run(hc, input_vector.as_mut_ptr());// changes should be reflected in hc
-                        let output = Vec::from_raw_parts(fpga_data, max_length as usize, max_length as usize);
+                        let mut output = vec![0;32];
+                        if send_input_and_check(hc, input_vector.as_mut_ptr(), output.as_mut_ptr()) {
 
-                        /*println!("PRINT OUTPUT VECTOR FROM FPGA");
-                                    for (i, elem) in output.iter().enumerate() {
-                                        print!(" {}", elem);
-                                    }
-                        println!();*/
-
-                        for i in data_start_index..max_length {
-                            let val = output[i] as u64;
-                            let shifted_val = val >> 1;
-                            //println!("shifted val = {}", shifted_val);
-                            if val != 0 {
-                                vector2.push(shifted_val);
+                            println!("no data: PRINT OUTPUT VECTOR TO FPGA");
+                            for elem in output.iter() {
+                                print!(" {}", elem);
                             }
-                        }
-                        //vector2.push(1);
-                        for (i, j) in ghost_indexes.iter() {
-                            //println!("consumed = {}", output[progress_start_index + 4*i]);
-                            ///println!("internal time = {}", output[progress_start_index + 4*i + 2] >> 1);
-                            //println!("internal update {}", output[progress_start_index + 4*i + 3] as i64);
-                            //println!("produced = {}", output[progress_start_index + 4*i + 1]);
+                            println!();
 
-                            consumed.insert(*j, output[progress_start_index + 4 * i] as i64);
-                            internals.insert(*j, ((output[progress_start_index + 4 * i + 2] >> 1 as u64, output[progress_start_index + 4 * i + 3] as i64)));
-                            produced.insert(*j, (output[progress_start_index + 4 * i + 1]) as i64);
+                            for i in data_start_index..max_length {
+                                let val = output[i] as u64;
+                                let shifted_val = val >> 1;
+                                //println!("shifted val = {}", shifted_val);
+                                if val != 0 {
+                                    vector2.push(shifted_val);
+                                }
+                            }
+                            //vector2.push(1);
+                            for (i, j) in ghost_indexes.iter() {
+                                //println!("consumed = {}", output[progress_start_index + 4*i]);
+                                //println!("internal time = {}", output[progress_start_index + 4*i + 2] >> 1);
+                                //println!("internal update {}", output[progress_start_index + 4*i + 3] as i64);
+                                //println!("produced = {}", output[progress_start_index + 4*i + 1]);
+
+                                consumed.insert(*j, output[progress_start_index + 4 * i] as i64);
+                                internals.insert(*j, ((output[progress_start_index + 4 * i + 2] >> 1 as u64, output[progress_start_index + 4 * i + 3] as i64)));
+                                produced.insert(*j, (output[progress_start_index + 4 * i + 1]) as i64);
+                            }
+                        } else {
+                            println!("no data: Not enough time to get output from FPGA");
                         }
+
+                        println!("no data: after check output");
+
                     }
+
                     let id_wrap = ghost_indexes[ghost_indexes.len() - 1].1;
                     //println!("********id wrap********** = {}", id_wrap);
 

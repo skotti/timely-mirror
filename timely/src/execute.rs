@@ -4,7 +4,7 @@ use crate::communication::{initialize_from, Configuration, Allocator, allocator:
 use crate::dataflow::scopes::Child;
 use crate::worker::Worker;
 
-use crate::dataflow::operators::fpga_wrapper_simulation::HardwareCommon;
+use crate::dataflow::operators::fpga_wrapper::HardwareCommon;
 
 
 #[link(name = "fpgalibrary")]
@@ -223,7 +223,7 @@ where
         }
 
         let result = func(&mut worker, hwcommon);
-        while worker.step_or_park(None) {}
+        while worker.step_or_park(None) {println!("here1");}
         unsafe {
             closeHardware(hwcommon);
         }
@@ -316,7 +316,7 @@ where
     initialize_from(builders, others, move |allocator| {
         let mut worker = Worker::new(allocator);
         let result = func(&mut worker);
-        while worker.step_or_park(None) { }
+        while worker.step_or_park(None) {println!("here2"); }
         result
     })
 }
