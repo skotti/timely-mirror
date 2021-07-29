@@ -19,8 +19,7 @@ use crate::logging::TimelyLogger;
 /// Methods provided by the root Worker.
 ///
 /// These methods are often proxied by child scopes, and this trait provides access.
-pub trait AsWorker : Scheduler {
-
+pub trait AsWorker: Scheduler {
     /// Index of the worker among its peers.
     fn index(&self) -> usize;
     /// Number of peer workers.
@@ -107,15 +106,15 @@ impl<A: Allocate> Worker<A> {
         let index = c.index();
         Worker {
             timer: now.clone(),
-            paths:  Default::default(),
+            paths: Default::default(),
             allocator: Rc::new(RefCell::new(c)),
-            identifiers:  Default::default(),
+            identifiers: Default::default(),
             dataflows: Default::default(),
-            dataflow_counter:  Default::default(),
+            dataflow_counter: Default::default(),
             logging: Rc::new(RefCell::new(crate::logging_core::Registry::new(now.clone(), index))),
             activations: Rc::new(RefCell::new(Activations::new(now.clone()))),
             active_dataflows: Default::default(),
-            temp_channel_ids:  Default::default(),
+            temp_channel_ids: Default::default(),
         }
     }
 
@@ -172,9 +171,8 @@ impl<A: Allocate> Worker<A> {
     /// });
     /// ```
     pub fn step_or_park(&mut self, duration: Option<Duration>) -> bool {
-
         {   // Process channel events. Activate responders.
-	        println!("START STEP OR PARK");
+            println!("START STEP OR PARK");
             let mut allocator = self.allocator.borrow_mut();
             allocator.receive();
             let events = allocator.events().clone();
@@ -196,7 +194,7 @@ impl<A: Allocate> Worker<A> {
         }
 
         // Organize activations.
-	//println!("HERE1");
+        //println!("HERE1");
         self.activations
             .borrow_mut()
             .advance();
@@ -207,15 +205,15 @@ impl<A: Allocate> Worker<A> {
         let empty_for = self.activations.borrow().empty_for();
         // Determine the minimum park duration, where `None` are an absence of a constraint.
         let delay = match (duration, empty_for) {
-            (Some(x), Some(y)) => Some(std::cmp::min(x,y)),
+            (Some(x), Some(y)) => Some(std::cmp::min(x, y)),
             (x, y) => x.or(y),
         };
-	//println!("{}", self.dataflows.borrow().is_empty());
+        //println!("{}", self.dataflows.borrow().is_empty());
 
-        if !self.dataflows.borrow().is_empty() && delay != Some(Duration::new(0,0)) {
+        if !self.dataflows.borrow().is_empty() && delay != Some(Duration::new(0, 0)) {
 
             // Log parking and flush log.
-	    println!("HERE3");
+            println!("HERE3");
             self.logging().as_mut().map(|l| l.log(crate::logging::ParkEvent::park(delay)));
             self.logging.borrow_mut().flush();
 
@@ -225,11 +223,10 @@ impl<A: Allocate> Worker<A> {
 
             // Log return from unpark.
             self.logging().as_mut().map(|l| l.log(crate::logging::ParkEvent::unpark()));
-	    println!("HERE4");
-        }
-        else {   // Schedule active dataflows.
+            println!("HERE4");
+        } else {   // Schedule active dataflows.
 
-	    println!("HERE5");
+            println!("HERE5");
             let active_dataflows = &mut self.active_dataflows;
             self.activations
                 .borrow_mut()
@@ -240,9 +237,9 @@ impl<A: Allocate> Worker<A> {
                 // Step dataflow if it exists, remove if not incomplete.
                 if let Entry::Occupied(mut entry) = dataflows.entry(index) {
                     // TODO: This is a moment at which a scheduling decision is being made.
-		    println!("HERE5.1");
+                    println!("HERE5.1");
                     let incomplete = entry.get_mut().step();
-		    println!("HERE5.2");
+                    println!("HERE5.2");
                     if !incomplete {
                         let mut paths = self.paths.borrow_mut();
                         for channel in entry.get_mut().channel_ids.drain(..) {
@@ -252,13 +249,13 @@ impl<A: Allocate> Worker<A> {
                     }
                 }
             }
-	    println!("HERE6");
+            println!("HERE6");
         }
 
         // Clean up, indicate if dataflows remain.
         self.logging.borrow_mut().flush();
         self.allocator.borrow_mut().release();
-	println!("END OF STEP OR PARK");
+        println!("END OF STEP OR PARK");
         !self.dataflows.borrow().is_empty()
     }
 
@@ -282,7 +279,7 @@ impl<A: Allocate> Worker<A> {
     ///     worker.step_while(|| probe.less_than(&0));
     /// });
     /// ```
-    pub fn step_while<F: FnMut()->bool>(&mut self, mut func: F) {
+    pub fn step_while<F: FnMut() -> bool>(&mut self, mut func: F) {
         while func() { self.step(); }
     }
 
@@ -375,9 +372,9 @@ impl<A: Allocate> Worker<A> {
     /// });
     /// ```
     pub fn dataflow<T, R, F>(&mut self, func: F) -> R
-    where
-        T: Refines<()>,
-        F: FnOnce(&mut Child<Self, T>)->R,
+        where
+            T: Refines<()>,
+            F: FnOnce(&mut Child<Self, T>) -> R,
     {
         let logging = self.logging.borrow_mut().get("timely");
         self.dataflow_core("Dataflow", logging, Box::new(()), |_, child| func(child))
@@ -409,10 +406,10 @@ impl<A: Allocate> Worker<A> {
     /// });
     /// ```
     pub fn dataflow_core<T, R, F, V>(&mut self, name: &str, mut logging: Option<TimelyLogger>, mut resources: V, func: F) -> R
-    where
-        T: Refines<()>,
-        F: FnOnce(&mut V, &mut Child<Self, T>)->R,
-        V: Any+'static,
+        where
+            T: Refines<()>,
+            F: FnOnce(&mut V, &mut Child<Self, T>) -> R,
+            V: Any + 'static,
     {
         let addr = vec![];
         let dataflow_index = self.allocate_dataflow_index();
@@ -456,7 +453,6 @@ impl<A: Allocate> Worker<A> {
         self.dataflows.borrow_mut().insert(dataflow_index, wrapper);
 
         result
-
     }
 
     /// Drops an identified dataflow.

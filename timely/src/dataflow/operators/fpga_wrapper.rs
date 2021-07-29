@@ -41,7 +41,7 @@ pub struct HardwareCommon {
     ctrl_reg: *mut c_void,
     cnfg_reg_avx: *mut c_void,
     hMem: *mut c_void,
-    memory: *mut c_void
+    memory: *mut c_void,
 }
 
 unsafe impl Send for HardwareCommon {}
@@ -345,8 +345,9 @@ impl<S: Scope<Timestamp=u64>> FpgaWrapper<S> for Stream<S, u64> {
                     let mut progress_start_index = 0;
                     let mut got_output = false;
 
-                    unsafe {
+                    let mut incomplete = false;
 
+                    unsafe {
                         current_length += 1;
                         //data_start_index += 1;
                         progress_start_index += 1;
@@ -415,10 +416,9 @@ impl<S: Scope<Timestamp=u64>> FpgaWrapper<S> for Stream<S, u64> {
 
                         println!();
                         //send_input(hc, input_vector.as_mut_ptr());
-                        let mut output = vec![0;32];
+                        let mut output = vec![0; 32];
 
                         if send_input_and_check(hc, input_vector.as_mut_ptr(), output.as_mut_ptr()) {
-
                             got_output = true;
 
                             println!("PRINT OUTPUT VECTOR FROM FPGA");
@@ -448,20 +448,18 @@ impl<S: Scope<Timestamp=u64>> FpgaWrapper<S> for Stream<S, u64> {
                                 produced.insert(*j, (output[progress_start_index + 4 * i + 1]) as i64);
                             }
                         } else {
-                          println!("Not enough time to get output from FPGA");
-
+                            incomplete = true;
+                            println!("Not enough time to get output from FPGA");
                         }
                         println!("After check output");
-
                     }
 
 
                     if got_output {
-                    // TODO: we leave them empty for now if there is no data
+                        // TODO: we leave them empty for now if there is no data
                         output_wrapper.session(time).give_vec(&mut vector2);
 
                         for (i, j) in ghost_indexes.iter() {
-
                             let mut cb = ChangeBatch::new_from(time.clone(), *consumed.get(j).unwrap());
                             let mut cb1 = ChangeBatch::new_from(time.clone(), *produced.get(j).unwrap());
                             let mut cb2 = ChangeBatch::new_from(internals.get(j).unwrap().0 as u64, internals.get(j).unwrap().1 as i64);
@@ -537,14 +535,13 @@ impl<S: Scope<Timestamp=u64>> FpgaWrapper<S> for Stream<S, u64> {
 
                         println!("no data: PRINT INPUT VECTOR TO FPGA");
                         for elem in input_vector.iter() {
-                        	print!(" {}", elem);
+                            print!(" {}", elem);
                         }
                         println!();
                         //send_input(hc, input_vector.as_mut_ptr());
 
-                        let mut output = vec![0;32];
+                        let mut output = vec![0; 32];
                         if send_input_and_check(hc, input_vector.as_mut_ptr(), output.as_mut_ptr()) {
-
                             println!("no data: PRINT OUTPUT VECTOR TO FPGA");
                             for elem in output.iter() {
                                 print!(" {}", elem);
@@ -571,11 +568,11 @@ impl<S: Scope<Timestamp=u64>> FpgaWrapper<S> for Stream<S, u64> {
                                 produced.insert(*j, (output[progress_start_index + 4 * i + 1]) as i64);
                             }
                         } else {
+                            incomplete = true;
                             println!("no data: Not enough time to get output from FPGA");
                         }
 
                         println!("no data: after check output");
-
                     }
 
                     let id_wrap = ghost_indexes[ghost_indexes.len() - 1].1;
@@ -595,7 +592,7 @@ impl<S: Scope<Timestamp=u64>> FpgaWrapper<S> for Stream<S, u64> {
 
                 let duration = start1.elapsed();
 
-                false
+                incomplete;
             };
 
         let mut ghost_operators = Vec::new();
