@@ -294,10 +294,14 @@ impl<S: Scope<Timestamp=u64>> FpgaWrapper<S> for Stream<S, u64> {
         let frontier = Rc::new(RefCell::new(vec![MutableAntichain::new(); ghost_indexes.len()]));
         let mut started = false;
 
+        let mut incomplete = false;
+        let mut n_sent = 0;
+        let mut n_received = 0;
+
         let raw_logic =
             move |progress: &mut SharedProgress<S::Timestamp>| {
                 let start1 = Instant::now();
-                //println! ("SHEDULED!!!");
+                println! ("SHEDULED!!!");
 
                 let mut borrow = frontier.borrow_mut();
 
@@ -344,8 +348,6 @@ impl<S: Scope<Timestamp=u64>> FpgaWrapper<S> for Stream<S, u64> {
                     let mut data_start_index = 24;
                     let mut progress_start_index = 0;
                     let mut got_output = false;
-
-                    let mut incomplete = false;
 
                     unsafe {
                         current_length += 1;
@@ -420,6 +422,8 @@ impl<S: Scope<Timestamp=u64>> FpgaWrapper<S> for Stream<S, u64> {
 
                         if send_input_and_check(hc, input_vector.as_mut_ptr(), output.as_mut_ptr()) {
                             got_output = true;
+                            n_sent += 1;
+                            n_received += 1;
 
                             println!("PRINT OUTPUT VECTOR FROM FPGA");
                             for elem in output.iter() {
@@ -447,27 +451,45 @@ impl<S: Scope<Timestamp=u64>> FpgaWrapper<S> for Stream<S, u64> {
                                 internals.insert(*j, ((output[progress_start_index + 4 * i + 2] >> 1 as u64, output[progress_start_index + 4 * i + 3] as i64)));
                                 produced.insert(*j, (output[progress_start_index + 4 * i + 1]) as i64);
                             }
+                            println!("n_sent = {}, n received = {}", n_sent, n_received);
+                            if n_sent - n_received != 0 {incomplete = true;} else {incomplete = false;}
+                            println!("incomplete = {}", incomplete);
                         } else {
-                            incomplete = true;
+                            n_sent += 1;
+                            if n_sent - n_received != 0 {incomplete = true;} else {incomplete = false;}
+                            println!("n_sent = {}, n received = {}", n_sent, n_received);
                             println!("Not enough time to get output from FPGA");
+                            println!("incomplete = {}", incomplete);
                         }
                         println!("After check output");
                     }
 
+                    let id_window = ghost_indexes[ghost_indexes.len() - 1].1;
 
                     if got_output {
                         // TODO: we leave them empty for now if there is no data
-                        output_wrapper.session(time).give_vec(&mut vector2);
+                        // по идее вектор всегда должен быть пустым кроме тех моментов когда мы
+                        // выдаем махимум. тут конечно проявляется зависимость от логики
+                        if vector2.len() > 0 {
+                            output_wrapper.session(&(internals.get(&id_window).unwrap().0 as u64)).give_vec(&mut vector2);
+                            let mut cb1 = ChangeBatch::new_from(internals.get(&id_window).unwrap().0 as u64, *produced.get(&id_window).unwrap());
+                            let mut cb2 = ChangeBatch::new_from(internals.get(&id_window).unwrap().0 as u64, internals.get(&id_window).unwrap().1 as i64);
+                            cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&id_window).unwrap()[0]);
+                            cb2.drain_into(&mut progress.wrapper_internals.get_mut(&id_window).unwrap()[0]);
 
-                        for (i, j) in ghost_indexes.iter() {
-                            let mut cb = ChangeBatch::new_from(time.clone(), *consumed.get(j).unwrap());
-                            let mut cb1 = ChangeBatch::new_from(time.clone(), *produced.get(j).unwrap());
-                            let mut cb2 = ChangeBatch::new_from(internals.get(j).unwrap().0 as u64, internals.get(j).unwrap().1 as i64);
-                            cb.drain_into(&mut progress.wrapper_consumeds.get_mut(j).unwrap()[0]);
-                            cb1.drain_into(&mut progress.wrapper_produceds.get_mut(j).unwrap()[0]);
-                            cb2.drain_into(&mut progress.wrapper_internals.get_mut(j).unwrap()[0]);
+                        } else {
+                            for (i, j) in ghost_indexes.iter() {
+                                println!("Adding updates\n");
+                                let mut cb = ChangeBatch::new_from(time.clone(), *consumed.get(j).unwrap());
+                                let mut cb1 = ChangeBatch::new_from(time.clone(), *produced.get(j).unwrap());
+                                let mut cb2 = ChangeBatch::new_from(internals.get(j).unwrap().0 as u64, internals.get(j).unwrap().1 as i64);
+                                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(j).unwrap()[0]);
+                                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(j).unwrap()[0]);
+                                cb2.drain_into(&mut progress.wrapper_internals.get_mut(j).unwrap()[0]);
+                            }
                         }
                     }
+
                 }
 
                 if !has_data {
@@ -481,6 +503,8 @@ impl<S: Scope<Timestamp=u64>> FpgaWrapper<S> for Stream<S, u64> {
                     let mut max_length = 32;
                     let mut data_start_index = 24;
                     let mut progress_start_index = 0;
+                    let mut got_output = false;
+                    let mut time = 0;
 
                     unsafe {
                         current_length += 1;
@@ -541,7 +565,12 @@ impl<S: Scope<Timestamp=u64>> FpgaWrapper<S> for Stream<S, u64> {
                         //send_input(hc, input_vector.as_mut_ptr());
 
                         let mut output = vec![0; 32];
+                        
                         if send_input_and_check(hc, input_vector.as_mut_ptr(), output.as_mut_ptr()) {
+                            got_output = true;
+
+                            n_sent += 1;
+                            n_received += 1;
                             println!("no data: PRINT OUTPUT VECTOR TO FPGA");
                             for elem in output.iter() {
                                 print!(" {}", elem);
@@ -553,9 +582,11 @@ impl<S: Scope<Timestamp=u64>> FpgaWrapper<S> for Stream<S, u64> {
                                 let shifted_val = val >> 1;
                                 //println!("shifted val = {}", shifted_val);
                                 if val != 0 {
+                                    println!("no data: add data to vector2");
                                     vector2.push(shifted_val);
                                 }
                             }
+                            time = output[1];
                             //vector2.push(1);
                             for (i, j) in ghost_indexes.iter() {
                                 //println!("consumed = {}", output[progress_start_index + 4*i]);
@@ -567,24 +598,55 @@ impl<S: Scope<Timestamp=u64>> FpgaWrapper<S> for Stream<S, u64> {
                                 internals.insert(*j, ((output[progress_start_index + 4 * i + 2] >> 1 as u64, output[progress_start_index + 4 * i + 3] as i64)));
                                 produced.insert(*j, (output[progress_start_index + 4 * i + 1]) as i64);
                             }
+                            if n_sent - n_received != 0 {incomplete = true;} else {incomplete = false;}
+                            println!("no data: n_sent = {}, n received = {}", n_sent, n_received);
+                            println!("no data: incomplete = {}", incomplete);
                         } else {
-                            incomplete = true;
+                            n_sent += 1;
+                            println!("no data: n_sent = {}, n received = {}", n_sent, n_received);
+                            if n_sent - n_received != 0 {incomplete = true;} else {incomplete = false;}
                             println!("no data: Not enough time to get output from FPGA");
+                            println!("no data: incomplete = {}", incomplete);
                         }
 
                         println!("no data: after check output");
                     }
 
-                    let id_wrap = ghost_indexes[ghost_indexes.len() - 1].1;
-                    //println!("********id wrap********** = {}", id_wrap);
+                    let id_window = ghost_indexes[ghost_indexes.len() - 1].1;
+                    println!("********id wrap********** = {}", id_window);
 
-                    if vector2.len() > 0 {
-                        output_wrapper.session(&(internals.get(&id_wrap).unwrap().0 as u64)).give_vec(&mut vector2);
+                    /*if vector2.len() > 0 {
+                        println!("Adding updates");
+                        output_wrapper.session(&(internals.get(&id_window).unwrap().0 as u64)).give_vec(&mut vector2);
 
-                        let mut cb1 = ChangeBatch::new_from(internals.get(&id_wrap).unwrap().0 as u64, *produced.get(&id_wrap).unwrap());
-                        let mut cb2 = ChangeBatch::new_from(internals.get(&id_wrap).unwrap().0 as u64, internals.get(&id_wrap).unwrap().1 as i64);
-                        cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&id_wrap).unwrap()[0]);
-                        cb2.drain_into(&mut progress.wrapper_internals.get_mut(&id_wrap).unwrap()[0]);
+                        let mut cb1 = ChangeBatch::new_from(internals.get(&id_window).unwrap().0 as u64, *produced.get(&id_window).unwrap());
+                        let mut cb2 = ChangeBatch::new_from(internals.get(&id_window).unwrap().0 as u64, internals.get(&id_window).unwrap().1 as i64);
+                        cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&id_window).unwrap()[0]);
+                        cb2.drain_into(&mut progress.wrapper_internals.get_mut(&id_window).unwrap()[0]);
+                    }*/
+
+                    if got_output {
+                        // TODO: we leave them empty for now if there is no data
+                        // по идее вектор всегда должен быть пустым кроме тех моментов когда мы
+                        // выдаем махимум. тут конечно проявляется зависимость от логики
+                        if vector2.len() > 0 {
+                            output_wrapper.session(&(internals.get(&id_window).unwrap().0 as u64)).give_vec(&mut vector2);
+                            let mut cb1 = ChangeBatch::new_from(internals.get(&id_window).unwrap().0 as u64, *produced.get(&id_window).unwrap());
+                            let mut cb2 = ChangeBatch::new_from(internals.get(&id_window).unwrap().0 as u64, internals.get(&id_window).unwrap().1 as i64);
+                            cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&id_window).unwrap()[0]);
+                            cb2.drain_into(&mut progress.wrapper_internals.get_mut(&id_window).unwrap()[0]);
+
+                        } else {
+                            for (i, j) in ghost_indexes.iter() {
+                                println!("Adding updates\n");
+                                let mut cb = ChangeBatch::new_from(time as u64, *consumed.get(j).unwrap());
+                                let mut cb1 = ChangeBatch::new_from(time as u64, *produced.get(j).unwrap());
+                                let mut cb2 = ChangeBatch::new_from(internals.get(j).unwrap().0 as u64, internals.get(j).unwrap().1 as i64);
+                                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(j).unwrap()[0]);
+                                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(j).unwrap()[0]);
+                                cb2.drain_into(&mut progress.wrapper_internals.get_mut(j).unwrap()[0]);
+                            }
+                        }
                     }
                 }
 
@@ -592,7 +654,7 @@ impl<S: Scope<Timestamp=u64>> FpgaWrapper<S> for Stream<S, u64> {
 
                 let duration = start1.elapsed();
 
-                incomplete;
+                false
             };
 
         let mut ghost_operators = Vec::new();

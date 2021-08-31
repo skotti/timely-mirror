@@ -208,7 +208,7 @@ impl<A: Allocate> Worker<A> {
             (Some(x), Some(y)) => Some(std::cmp::min(x, y)),
             (x, y) => x.or(y),
         };
-        //println!("{}", self.dataflows.borrow().is_empty());
+        println!("dataflow is empty {}", self.dataflows.borrow().is_empty());
 
         if !self.dataflows.borrow().is_empty() && delay != Some(Duration::new(0, 0)) {
 

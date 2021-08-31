@@ -545,6 +545,7 @@ impl<T:Timestamp> Tracker<T> {
     /// The method drains `self.input_changes` and circulates their implications
     /// until we cease deriving new implications.
     pub fn propagate_all(&mut self) {
+        println!("Inside propagate all");
 
         // Step 1: Drain `self.input_changes` and determine actual frontier changes.
         //
@@ -553,6 +554,9 @@ impl<T:Timestamp> Tracker<T> {
         // changes in the frontier, rather than changes in the pointstamp counts that
         // witness that frontier.
         for ((target, time), diff) in self.target_changes.drain() {
+
+            println!("target changes: location = {:?} , timestamp = {:?}, delta = {}", target, time, diff);
+
 
             let operator = &mut self.per_operator[target.node].targets[target.port];
             let changes = operator.pointstamps.update_iter(Some((time, diff)));
@@ -567,11 +571,13 @@ impl<T:Timestamp> Tracker<T> {
                         .flat_map(|summary| summary.results_in(&time))
                         .for_each(|out_time| output_changes.update(out_time, diff));
                 }
+                println!("worklist push: location = {:?} , timestamp = {:?}, delta = {}", target, time, diff);
                 self.worklist.push(Reverse((time, Location::from(target), diff)));
             }
         }
 
         for ((source, time), diff) in self.source_changes.drain() {
+            println!("target changes: location = {:?} , timestamp = {:?}, delta = {}", source, time, diff);
 
             let operator = &mut self.per_operator[source.node].sources[source.port];
             let changes = operator.pointstamps.update_iter(Some((time, diff)));
@@ -586,6 +592,7 @@ impl<T:Timestamp> Tracker<T> {
                         .flat_map(|summary| summary.results_in(&time))
                         .for_each(|out_time| output_changes.update(out_time, diff));
                 }
+                println!("worklist push: location = {:?} , timestamp = {:?}, delta = {}", source, time, diff);
                 self.worklist.push(Reverse((time, Location::from(source), diff)));
             }
         }
@@ -599,14 +606,20 @@ impl<T:Timestamp> Tracker<T> {
         //       changes can be made to them once we complete them.
         while let Some(Reverse((time, location, mut diff))) = self.worklist.pop() {
 
+
+            println!("worklist pop: time = {:?} , location = {:?}, delta = {}", time, location, diff);
+
             // Drain and accumulate all updates that have the same time and location.
             while self.worklist.peek().map(|x| ((x.0).0 == time) && ((x.0).1 == location)).unwrap_or(false) {
+
                 diff += (self.worklist.pop().unwrap().0).2;
+                println!("worklist pop loop: time = {:?} , location = {:?}, delta = {}", time, location, diff);
             }
 
             // Only act if there is a net change, positive or negative.
             if diff != 0 {
 
+                println!("worklist final diff: time = {:?} , location = {:?}, delta = {}", time, location, diff);
                 match location.port {
                     // Update to an operator input.
                     // Propagate any changes forward across the operator.
@@ -628,6 +641,7 @@ impl<T:Timestamp> Tracker<T> {
                                     }
                                 }
                             }
+                            println!("pushed changes update: location = {:?} , timestamp = {:?}, delta = {}", location, time, diff);
                             self.pushed_changes.update((location, time), diff);
                         }
                     }
@@ -649,6 +663,7 @@ impl<T:Timestamp> Tracker<T> {
                                     diff,
                                 )));
                             }
+                            println!("pushed changes update: location = {:?} , timestamp = {:?}, delta = {}", location, time, diff);
                             self.pushed_changes.update((location, time), diff);
                         }
                     },

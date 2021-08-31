@@ -440,7 +440,9 @@ where
 
         // A subgraph is incomplete if any child is incomplete, or there are outstanding messages.
         let incomplete = self.incomplete_count > 0;
+        println!("Overall incomplete = {}", incomplete);
         let tracking = self.pointstamp_tracker.tracking_anything();
+        println!("Tracking = {}", tracking);
 	//println!("END OF SCHEDULE SUBGRAPH");
 
         incomplete || tracking
@@ -550,6 +552,7 @@ where
 
         // Process exchanged pointstamps. Handle child 0 statements carefully.
         for ((location, timestamp), delta) in self.final_pointstamp.drain() {
+            //println!("location = {} , timestamp = {}, delta = {}", location.node, timestamp, delta);
 
             // Child 0 corresponds to the parent scope and has special handling.
             if location.node == 0 {
@@ -585,6 +588,18 @@ where
 
         // FPGA: here we need to transfer frontier changes back to the wrapper, as ghost node
         // will not be executed
+
+
+        for i in 1 .. 7 {
+            println!("child {}:normal frontiers{:?}", i, self.children[i]
+                        .shared_progress
+                        .borrow_mut()
+                        .frontiers);
+            println!("child {}: wrapper frontiers{:?}", i, self.children[i]
+                        .shared_progress
+                        .borrow_mut()
+                        .wrapper_frontiers);
+        }
 
         let mut wrapper_pushed = false;
 	//println!("start to add nodes in temp active");
@@ -625,12 +640,23 @@ where
                         .borrow_mut()
                         .wrapper_frontiers.get_mut(&location.node).unwrap()[port]
                         .update(time, diff);
+
+                    println!("wrapper frontiers{:?}", self.children[*location_node]
+                        .shared_progress
+                        .borrow_mut()
+                        .wrapper_frontiers);
                 } else {
+
                     self.children[location.node]
                         .shared_progress
                         .borrow_mut()
                         .frontiers[port]
                         .update(time, diff);
+                    println!("normal frontiers{:?}", self.children[location.node]
+                        .shared_progress
+                        .borrow_mut()
+                        .frontiers);
+
                 }
             }
         }
