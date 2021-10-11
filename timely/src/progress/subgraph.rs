@@ -290,7 +290,7 @@ where
         }
         incomplete[0] = false;
         // TODO: fix this
-        let incomplete_count = incomplete.len() - 4;
+        let incomplete_count = incomplete.len() - 3;
 
         let activations = worker.activations().clone();
 

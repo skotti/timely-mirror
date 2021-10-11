@@ -47,7 +47,7 @@ fn main() {
 
         for round in 0..1000 {
             
-	        for j in 0..8 {
+	        for j in 0..4000 {
                 input.send(round);// max = 0
 	        }
             
