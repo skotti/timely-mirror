@@ -23,6 +23,8 @@ use crate::logging::TimelyEvent::Operates;
 use crate::progress::frontier::MutableAntichain;
 use std::time::{Duration, Instant};
 
+use std::ptr;
+
 //use std::collections::HashMap;
 //#[path = "../../../hardware.rs"]
 //pub mod hardware;
@@ -295,19 +297,23 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         let frontier = Rc::new(RefCell::new(vec![MutableAntichain::new(); ghost_indexes.len()]));
         let mut started = false;
 
+        let mut vector = Vec::with_capacity(4096);
+        let mut vector2 = Vec::with_capacity(4096);
+
+        let mut produced = HashMap::with_capacity(3);
+        let mut consumed = HashMap::with_capacity(3);
+        let mut internals = HashMap::with_capacity(3);
+
+
         let raw_logic =
             move |progress: &mut SharedProgress<S::Timestamp>| {
 
-
-		let start1 = Instant::now();
-                //println! ("SHEDULED!!!");
-
+                //let start1 = Instant::now();
                 let mut borrow = frontier.borrow_mut();
 
                 for (i, j) in ghost_indexes.iter() {
                     borrow[*i].update_iter(progress.wrapper_frontiers.get_mut(j).unwrap()[0].drain());
                 }
-                //borrow.update_iter(progress.frontiers[0].drain()); // drain = removes elements from vector
 
                 if !started {
                     // discard initial capability.
@@ -321,12 +327,11 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                 // invoke supplied logic
                 use crate::communication::message::RefOrMut;
 
-                let mut vector = Vec::new();
-                let mut vector2 = Vec::new();
-
                 let param = 500;
-   
                 let mut has_data = false;
+                let end1 = Instant::now();
+                let delta1 = (end1 - start1).as_nanos();
+                println!("Delta1 = {}", delta1);
                 
                 while let Some(message) = input_wrapper.next() {
                     has_data = true;
@@ -336,12 +341,6 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                         RefOrMut::Mut(reference) => (&reference.time, RefOrMut::Mut(&mut reference.data)),
                     };
                     data.swap(&mut vector);
-                    // I should call my fpga function here with vector as an input
-
-                    let mut produced = HashMap::new();
-                    let mut consumed = HashMap::new();
-                    let mut internals = HashMap::new();
-
 
                     let mut frontier_length =  8;//2 + ghost_indexes.len() + 4 * ghost_indexes.len();
                     let mut all_length = param + 1;//(((info_length + vector.len()) / 8) + 1) as i64;
@@ -353,11 +352,10 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
 
                     unsafe {
 
+                        let start2 = Instant::now();
                         let memory = (*hc).hMem as *mut u64;
                         *memory.offset(current_length as isize) = *time ;
                         current_length += 1;
-
-                        // TODO: check that N values are pushed
 
                         for i in 0 .. borrow.len() {
                             let frontier = borrow[i].borrow().frontier();
@@ -389,6 +387,10 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                         for i in current_length .. max_length {
                             *memory.offset(i as isize) = 0;
                         }
+                        let end2 = Instant::now();
+                        let delta2 = (end2 - start2).as_nanos();
+
+                        println!("Delta2 = {}", delta2);
 
                         //for (i, elem) in vector.iter().enumerate() {
                             //println!("{} input element = {}", i, *elem);
@@ -406,7 +408,13 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
 
 			            println!();*/
 
+                        let start3 = Instant::now();
+
                         run(hc);// changes should be reflected in hc
+                        
+                        let end3 = Instant::now();
+                        let delta3 = (end3 - start3).as_nanos();
+                        println!("Delta3 = {}", delta3);
 
                         /*println!("PRINT OUTPUT VECTOR FROM FPGA");
                         for (i, elem) in output.iter().enumerate() {
@@ -414,16 +422,29 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                         }
                         println!();*/
 
+                        let start4 = Instant::now();
                         let memory_out = (*hc).oMem as *mut u64;
+                        let pointer_in = memory_out.offset(0 as isize);
+                        let pointer_out = vector2.as_mut_ptr();
 
-                        for i in 0 .. data_length {
+                        ptr::copy_nonoverlapping(pointer_in, pointer_out, data_length);
+
+                        vector2.set_len(data_length);
+
+                        /*for i in 0 .. data_length {
                             let val = *memory_out.offset(i as isize) as u64;
                             let shifted_val = val >> 1;
                             if val != 0 {
                                 vector2.push(shifted_val);
                             }
-                        }
+                        }*/
+
+                        let end4 = Instant::now();
+                        let delta4 = (end4 - start4).as_nanos();
+                        println!("Delta4 = {}", delta4);
+
                         //vector2.push(1);
+                        let start5 = Instant::now();
                         for (i, j) in ghost_indexes.iter() {
                             //println!("consumed = {}", output[progress_start_index + 4*i]);
                             //println!("internal time = {}", output[progress_start_index + 4*i + 2] >> 1);
@@ -444,9 +465,13 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                             produced.insert(*j, produced_value);
 
                         }
+                        let end5 = Instant::now();
+                        let delta5 = (end5 - start5).as_nanos();
+                        println!("Delta5 = {}", delta5);
                     }
 
 
+                    let start6 = Instant::now();
                     output_wrapper.session(time).give_vec(&mut vector2);
 
                     for (i, j) in ghost_indexes.iter() {
@@ -458,13 +483,14 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                         cb2.drain_into(&mut progress.wrapper_internals.get_mut(j).unwrap()[0]);
                     }
 
+                    let end6 = Instant::now();
+                    let delta6 = (end6 - start6).as_nanos();
+                    println!("Delta6 = {}", delta6);
+
                 }
                 
                 if !has_data {
-		            //println!("no data");
-                    let mut produced = HashMap::new();
-                    let mut consumed = HashMap::new();
-                    let mut internals = HashMap::new();
+		            println!("no data");
 
                     let mut frontier_length =  8;//2 + ghost_indexes.len() + 4 * ghost_indexes.len();
                     let mut all_length = param + 1;//(((info_length + vector.len()) / 8) + 1) as i64;
@@ -554,6 +580,11 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
 		            }
   	 	        }
 
+                vector.clear();
+                vector2.clear();
+                produced.clear();
+                consumed.clear();
+                internals.clear();
                 output_wrapper.cease();
 
                 false
