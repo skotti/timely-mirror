@@ -45,10 +45,10 @@ fn main() {
         let mut epoch_start = Instant::now();
         let mut hist = hdrhist::HDRHist::new();
 
-        for round in 0..1000 {
+        for round in 0..10 {
             
 	        for j in 0..4000 {
-                input.send(round);// max = 0
+                input.send(round+10);// max = 0
 	        }
             
             input.advance_to(round + 1);

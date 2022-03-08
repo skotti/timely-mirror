@@ -214,8 +214,8 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         // TODO: should get rid of ghost indexes
         let mut current_index = 0;
 
-        // CREATE FILTER GHOST OPERATOR
-        let mut builder_filter = OperatorBuilder::new("Filter".to_owned(), self.scope()); // scope comes from stream
+        // CREATE FILTER GHOST OPERATOR 1
+        /*let mut builder_filter = OperatorBuilder::new("Filter".to_owned(), self.scope()); // scope comes from stream
         builder_filter.set_notify(false);
         builder_filter.set_shape(1, 1);
 
@@ -235,6 +235,242 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         self.scope().add_operator_with_indices_no_path(Box::new(operator_filter), builder_filter.index(), builder_filter.global());
         ghost_indexes.push((current_index, builder_filter.index()));
         ghost_indexes2.push((current_index, builder_filter.index()));
+        current_index += 1;*/
+
+        // CREATE FILTER GHOST OPERATOR 1
+        let mut builder_filter1 = OperatorBuilder::new("Filter1".to_owned(), self.scope()); // scope comes from stream
+        builder_filter1.set_notify(false);
+        builder_filter1.set_shape(1, 1);
+
+        let operator_logic_filter1 =
+         move |progress: &mut SharedProgress<S::Timestamp>| { false};
+
+        let operator_filter1 = FakeOperator {
+            shape: builder_filter1.shape().clone(),
+            address: builder_filter1.address().clone(),
+            activations: self.scope().activations().clone(),
+            logic: operator_logic_filter1,
+            shared_progress: Rc::new(RefCell::new(SharedProgress::new(1, 1))),
+            summary: builder_filter1.summary().to_vec(),
+        };
+
+
+        self.scope().add_operator_with_indices_no_path(Box::new(operator_filter1), builder_filter1.index(), builder_filter1.global());
+        ghost_indexes.push((current_index, builder_filter1.index()));
+        ghost_indexes2.push((current_index, builder_filter1.index()));
+        current_index += 1;
+
+
+        // CREATE FILTER GHOST OPERATOR 2
+        let mut builder_filter2 = OperatorBuilder::new("Filter2".to_owned(), self.scope()); // scope comes from stream
+        builder_filter2.set_notify(false);
+        builder_filter2.set_shape(1, 1);
+
+        let operator_logic_filter2 =
+         move |progress: &mut SharedProgress<S::Timestamp>| { false};
+
+        let operator_filter2 = FakeOperator {
+            shape: builder_filter2.shape().clone(),
+            address: builder_filter2.address().clone(),
+            activations: self.scope().activations().clone(),
+            logic: operator_logic_filter2,
+            shared_progress: Rc::new(RefCell::new(SharedProgress::new(1, 1))),
+            summary: builder_filter2.summary().to_vec(),
+        };
+
+
+        self.scope().add_operator_with_indices_no_path(Box::new(operator_filter2), builder_filter2.index(), builder_filter2.global());
+        ghost_indexes.push((current_index, builder_filter2.index()));
+        ghost_indexes2.push((current_index, builder_filter2.index()));
+        current_index += 1;
+
+        // CREATE FILTER GHOST OPERATOR 3
+        let mut builder_filter3 = OperatorBuilder::new("Filter3".to_owned(), self.scope()); // scope comes from stream
+        builder_filter3.set_notify(false);
+        builder_filter3.set_shape(1, 1);
+
+        let operator_logic_filter3 =
+         move |progress: &mut SharedProgress<S::Timestamp>| { false};
+
+        let operator_filter3 = FakeOperator {
+            shape: builder_filter3.shape().clone(),
+            address: builder_filter3.address().clone(),
+            activations: self.scope().activations().clone(),
+            logic: operator_logic_filter3,
+            shared_progress: Rc::new(RefCell::new(SharedProgress::new(1, 1))),
+            summary: builder_filter3.summary().to_vec(),
+        };
+
+
+        self.scope().add_operator_with_indices_no_path(Box::new(operator_filter3), builder_filter3.index(), builder_filter3.global());
+        ghost_indexes.push((current_index, builder_filter3.index()));
+        ghost_indexes2.push((current_index, builder_filter3.index()));
+        current_index += 1;
+
+        // CREATE FILTER GHOST OPERATOR 4
+        let mut builder_filter4 = OperatorBuilder::new("Filter4".to_owned(), self.scope()); // scope comes from stream
+        builder_filter4.set_notify(false);
+        builder_filter4.set_shape(1, 1);
+
+        let operator_logic_filter4 =
+         move |progress: &mut SharedProgress<S::Timestamp>| { false};
+
+        let operator_filter4 = FakeOperator {
+            shape: builder_filter4.shape().clone(),
+            address: builder_filter4.address().clone(),
+            activations: self.scope().activations().clone(),
+            logic: operator_logic_filter4,
+            shared_progress: Rc::new(RefCell::new(SharedProgress::new(1, 1))),
+            summary: builder_filter4.summary().to_vec(),
+        };
+
+
+        self.scope().add_operator_with_indices_no_path(Box::new(operator_filter4), builder_filter4.index(), builder_filter4.global());
+        ghost_indexes.push((current_index, builder_filter4.index()));
+        ghost_indexes2.push((current_index, builder_filter4.index()));
+        current_index += 1;
+
+
+        // CREATE FILTER GHOST OPERATOR 5
+        let mut builder_filter5 = OperatorBuilder::new("Filter5".to_owned(), self.scope()); // scope comes from stream
+        builder_filter5.set_notify(false);
+        builder_filter5.set_shape(1, 1);
+
+        let operator_logic_filter5 =
+         move |progress: &mut SharedProgress<S::Timestamp>| { false};
+
+        let operator_filter5 = FakeOperator {
+            shape: builder_filter5.shape().clone(),
+            address: builder_filter5.address().clone(),
+            activations: self.scope().activations().clone(),
+            logic: operator_logic_filter5,
+            shared_progress: Rc::new(RefCell::new(SharedProgress::new(1, 1))),
+            summary: builder_filter5.summary().to_vec(),
+        };
+
+
+        self.scope().add_operator_with_indices_no_path(Box::new(operator_filter5), builder_filter5.index(), builder_filter5.global());
+        ghost_indexes.push((current_index, builder_filter5.index()));
+        ghost_indexes2.push((current_index, builder_filter5.index()));
+        current_index += 1;
+
+
+        // CREATE FILTER GHOST OPERATOR 6
+        let mut builder_filter6 = OperatorBuilder::new("Filter6".to_owned(), self.scope()); // scope comes from stream
+        builder_filter6.set_notify(false);
+        builder_filter6.set_shape(1, 1);
+
+        let operator_logic_filter6 =
+         move |progress: &mut SharedProgress<S::Timestamp>| { false};
+
+        let operator_filter6 = FakeOperator {
+            shape: builder_filter6.shape().clone(),
+            address: builder_filter6.address().clone(),
+            activations: self.scope().activations().clone(),
+            logic: operator_logic_filter6,
+            shared_progress: Rc::new(RefCell::new(SharedProgress::new(1, 1))),
+            summary: builder_filter6.summary().to_vec(),
+        };
+
+
+        self.scope().add_operator_with_indices_no_path(Box::new(operator_filter6), builder_filter6.index(), builder_filter6.global());
+        ghost_indexes.push((current_index, builder_filter6.index()));
+        ghost_indexes2.push((current_index, builder_filter6.index()));
+        current_index += 1;
+
+
+        // CREATE FILTER GHOST OPERATOR 7
+        let mut builder_filter7 = OperatorBuilder::new("Filter7".to_owned(), self.scope()); // scope comes from stream
+        builder_filter7.set_notify(false);
+        builder_filter7.set_shape(1, 1);
+
+        let operator_logic_filter7 =
+         move |progress: &mut SharedProgress<S::Timestamp>| { false};
+
+        let operator_filter7 = FakeOperator {
+            shape: builder_filter7.shape().clone(),
+            address: builder_filter7.address().clone(),
+            activations: self.scope().activations().clone(),
+            logic: operator_logic_filter7,
+            shared_progress: Rc::new(RefCell::new(SharedProgress::new(1, 1))),
+            summary: builder_filter7.summary().to_vec(),
+        };
+
+
+        self.scope().add_operator_with_indices_no_path(Box::new(operator_filter7), builder_filter7.index(), builder_filter7.global());
+        ghost_indexes.push((current_index, builder_filter7.index()));
+        ghost_indexes2.push((current_index, builder_filter7.index()));
+        current_index += 1;
+
+
+        // CREATE FILTER GHOST OPERATOR 8
+        let mut builder_filter8 = OperatorBuilder::new("Filter8".to_owned(), self.scope()); // scope comes from stream
+        builder_filter8.set_notify(false);
+        builder_filter8.set_shape(1, 1);
+
+        let operator_logic_filter8 =
+         move |progress: &mut SharedProgress<S::Timestamp>| { false};
+
+        let operator_filter8 = FakeOperator {
+            shape: builder_filter8.shape().clone(),
+            address: builder_filter8.address().clone(),
+            activations: self.scope().activations().clone(),
+            logic: operator_logic_filter8,
+            shared_progress: Rc::new(RefCell::new(SharedProgress::new(1, 1))),
+            summary: builder_filter8.summary().to_vec(),
+        };
+
+
+        self.scope().add_operator_with_indices_no_path(Box::new(operator_filter8), builder_filter8.index(), builder_filter8.global());
+        ghost_indexes.push((current_index, builder_filter8.index()));
+        ghost_indexes2.push((current_index, builder_filter8.index()));
+        current_index += 1;
+
+
+        // CREATE FILTER GHOST OPERATOR 9
+        let mut builder_filter9 = OperatorBuilder::new("Filter9".to_owned(), self.scope()); // scope comes from stream
+        builder_filter9.set_notify(false);
+        builder_filter9.set_shape(1, 1);
+
+        let operator_logic_filter9 =
+         move |progress: &mut SharedProgress<S::Timestamp>| { false};
+
+        let operator_filter9 = FakeOperator {
+            shape: builder_filter9.shape().clone(),
+            address: builder_filter9.address().clone(),
+            activations: self.scope().activations().clone(),
+            logic: operator_logic_filter9,
+            shared_progress: Rc::new(RefCell::new(SharedProgress::new(1, 1))),
+            summary: builder_filter9.summary().to_vec(),
+        };
+
+
+        self.scope().add_operator_with_indices_no_path(Box::new(operator_filter9), builder_filter9.index(), builder_filter9.global());
+        ghost_indexes.push((current_index, builder_filter9.index()));
+        ghost_indexes2.push((current_index, builder_filter9.index()));
+        current_index += 1;
+
+        // CREATE FILTER GHOST OPERATOR 10
+        let mut builder_filter10 = OperatorBuilder::new("Filter10".to_owned(), self.scope()); // scope comes from stream
+        builder_filter10.set_notify(false);
+        builder_filter10.set_shape(1, 1);
+
+        let operator_logic_filter10 =
+         move |progress: &mut SharedProgress<S::Timestamp>| { false};
+
+        let operator_filter10 = FakeOperator {
+            shape: builder_filter10.shape().clone(),
+            address: builder_filter10.address().clone(),
+            activations: self.scope().activations().clone(),
+            logic: operator_logic_filter10,
+            shared_progress: Rc::new(RefCell::new(SharedProgress::new(1, 1))),
+            summary: builder_filter10.summary().to_vec(),
+        };
+
+
+        self.scope().add_operator_with_indices_no_path(Box::new(operator_filter10), builder_filter10.index(), builder_filter10.global());
+        ghost_indexes.push((current_index, builder_filter10.index()));
+        ghost_indexes2.push((current_index, builder_filter10.index()));
         current_index += 1;
 
 
@@ -261,8 +497,8 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         ghost_indexes2.push((current_index, builder_map.index()));
         current_index += 1;
 
-        // CREATE AGGREGATE GHOST OPERATOR
-        /*let mut builder_aggregate = OperatorBuilder::new("Aggregate".to_owned(), self.scope()); // scope comes from stream
+        // CREATE AGGREGATE AGGREGATE OPERATOR
+        let mut builder_aggregate = OperatorBuilder::new("Aggregate".to_owned(), self.scope()); // scope comes from stream
         builder_aggregate.set_notify(false);
         builder_aggregate.set_shape(1, 1);
 
@@ -283,7 +519,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         ghost_indexes.push((current_index, builder_aggregate.index()));
         ghost_indexes2.push((current_index, builder_aggregate.index()));
         current_index += 1;
-        */
+        
         // create wrapper operator
 
         let mut builder_wrapper = OperatorBuilder::new("Wrapper".to_owned(), self.scope()); // scope comes from stream
@@ -297,18 +533,18 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         let frontier = Rc::new(RefCell::new(vec![MutableAntichain::new(); ghost_indexes.len()]));
         let mut started = false;
 
-        let mut vector = Vec::with_capacity(4096);
-        let mut vector2 = Vec::with_capacity(4096);
+        let mut vector = Vec::with_capacity(8192);
+        let mut vector2 = Vec::with_capacity(8192);
 
-        let mut produced = HashMap::with_capacity(3);
-        let mut consumed = HashMap::with_capacity(3);
-        let mut internals = HashMap::with_capacity(3);
+        let mut produced = HashMap::with_capacity(32);
+        let mut consumed = HashMap::with_capacity(32);
+        let mut internals = HashMap::with_capacity(32);
 
 
         let raw_logic =
             move |progress: &mut SharedProgress<S::Timestamp>| {
 
-                //let start1 = Instant::now();
+                let start1 = Instant::now();
                 let mut borrow = frontier.borrow_mut();
 
                 for (i, j) in ghost_indexes.iter() {
@@ -327,11 +563,13 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                 // invoke supplied logic
                 use crate::communication::message::RefOrMut;
 
-                let param = 500;
+                let param = 500; // number of 8 number chuncks
+                let param_output = 1;
+                let frontier_param = 2;
                 let mut has_data = false;
-                let end1 = Instant::now();
+                /*let end1 = Instant::now();
                 let delta1 = (end1 - start1).as_nanos();
-                println!("Delta1 = {}", delta1);
+                println!("Delta1 = {}", delta1);*/
                 
                 while let Some(message) = input_wrapper.next() {
                     has_data = true;
@@ -342,17 +580,16 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                     };
                     data.swap(&mut vector);
 
-                    let mut frontier_length =  8;//2 + ghost_indexes.len() + 4 * ghost_indexes.len();
-                    let mut all_length = param + 1;//(((info_length + vector.len()) / 8) + 1) as i64;
+                    let mut frontier_length =  frontier_param * 8;//2 + ghost_indexes.len() + 4 * ghost_indexes.len();
                     let mut current_length = 0;
-                    let mut max_length = param * 8 + 8;
+                    let mut max_length = param * 8 + frontier_param * 8;
                     let mut data_length = param * 8;
                     let mut data_start_index = 0;
-                    let mut progress_start_index = param * 8;
+                    let mut progress_start_index = param_output * 8;
 
                     unsafe {
 
-                        let start2 = Instant::now();
+                        //let start2 = Instant::now();
                         let memory = (*hc).hMem as *mut u64;
                         *memory.offset(current_length as isize) = *time ;
                         current_length += 1;
@@ -387,11 +624,10 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                         for i in current_length .. max_length {
                             *memory.offset(i as isize) = 0;
                         }
-                        let end2 = Instant::now();
+                        /*let end2 = Instant::now();
                         let delta2 = (end2 - start2).as_nanos();
-
-                        println!("Delta2 = {}", delta2);
-
+                        println!("Delta2 = {}", delta2);*/
+                        
                         //for (i, elem) in vector.iter().enumerate() {
                             //println!("{} input element = {}", i, *elem);
                         //}
@@ -408,43 +644,44 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
 
 			            println!();*/
 
-                        let start3 = Instant::now();
+                        //let start3 = Instant::now();
 
                         run(hc);// changes should be reflected in hc
                         
-                        let end3 = Instant::now();
+                        /*let end3 = Instant::now();
                         let delta3 = (end3 - start3).as_nanos();
-                        println!("Delta3 = {}", delta3);
-
+                        println!("Delta3 = {}", delta3);*/
+                        
                         /*println!("PRINT OUTPUT VECTOR FROM FPGA");
                         for (i, elem) in output.iter().enumerate() {
                             print!(" {}", elem);
                         }
                         println!();*/
 
-                        let start4 = Instant::now();
+                        //let start4 = Instant::now();
                         let memory_out = (*hc).oMem as *mut u64;
-                        let pointer_in = memory_out.offset(0 as isize);
-                        let pointer_out = vector2.as_mut_ptr();
+                        //let pointer_in = memory_out.offset(0 as isize);
+                        //let pointer_out = vector2.as_mut_ptr();
 
-                        ptr::copy_nonoverlapping(pointer_in, pointer_out, data_length);
+                        //ptr::copy_nonoverlapping(pointer_in, pointer_out, data_length);
 
-                        vector2.set_len(data_length);
+                        //vector2.set_len(data_length);
 
-                        /*for i in 0 .. data_length {
+                        for i in 0 .. data_length {
                             let val = *memory_out.offset(i as isize) as u64;
                             let shifted_val = val >> 1;
                             if val != 0 {
                                 vector2.push(shifted_val);
                             }
-                        }*/
+                        }
 
-                        let end4 = Instant::now();
+                        /*let end4 = Instant::now();
                         let delta4 = (end4 - start4).as_nanos();
-                        println!("Delta4 = {}", delta4);
+                        println!("Delta4 = {}", delta4);*/
+                        
 
                         //vector2.push(1);
-                        let start5 = Instant::now();
+                        //let start5 = Instant::now();
                         for (i, j) in ghost_indexes.iter() {
                             //println!("consumed = {}", output[progress_start_index + 4*i]);
                             //println!("internal time = {}", output[progress_start_index + 4*i + 2] >> 1);
@@ -460,18 +697,27 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                             let internals_time = *memory_out.offset(internals_index_1)  >> 1 as u64;
                             let internals_value = *memory_out.offset(internals_index_2) as i64;
 
+
+                            /*println!("consumed index = {}", consumed_index);
+                            println!("produced index = {}", produced_index);
+
+                            println!("consumed = {}", consumed_value);
+                            println!("produced = {}", produced_value);
+                            println!("internal time = {}", internals_time);
+                            println!("internal update {}", internals_value);*/
+
                             consumed.insert(*j, consumed_value);
                             internals.insert(*j, (internals_time, internals_value));
                             produced.insert(*j, produced_value);
 
                         }
-                        let end5 = Instant::now();
+                        /*let end5 = Instant::now();
                         let delta5 = (end5 - start5).as_nanos();
-                        println!("Delta5 = {}", delta5);
+                        println!("Delta5 = {}", delta5);*/
                     }
 
 
-                    let start6 = Instant::now();
+                    //let start6 = Instant::now();
                     output_wrapper.session(time).give_vec(&mut vector2);
 
                     for (i, j) in ghost_indexes.iter() {
@@ -483,22 +729,21 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                         cb2.drain_into(&mut progress.wrapper_internals.get_mut(j).unwrap()[0]);
                     }
 
-                    let end6 = Instant::now();
+                    /*let end6 = Instant::now();
                     let delta6 = (end6 - start6).as_nanos();
-                    println!("Delta6 = {}", delta6);
+                    println!("Delta6 = {}", delta6);*/
 
                 }
                 
                 if !has_data {
-		            println!("no data");
+		            //println!("no data");
 
-                    let mut frontier_length =  8;//2 + ghost_indexes.len() + 4 * ghost_indexes.len();
-                    let mut all_length = param + 1;//(((info_length + vector.len()) / 8) + 1) as i64;
+                    let mut frontier_length = frontier_param * 8;//2 + ghost_indexes.len() + 4 * ghost_indexes.len();
                     let mut current_length = 0;
-                    let mut max_length = param * 8 + 8;
+                    let mut max_length = param * 8 + frontier_param * 8;
                     let mut data_length = param * 8;
                     let mut data_start_index = 0;
-                    let mut progress_start_index = param * 8;
+                    let mut progress_start_index = param_output * 8;
 
                     unsafe {
 
@@ -560,6 +805,12 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                             let internals_time = *memory_out.offset(internals_index_1)  >> 1 as u64;
                             let internals_value = *memory_out.offset(internals_index_2) as i64;
 
+                            /*println!("consumed = {}", consumed_value);
+                            println!("produced = {}", produced_value);
+                            println!("internal time = {}", internals_time);
+                            println!("internal update {}", internals_value);*/
+
+
                             consumed.insert(*j, consumed_value);
                             internals.insert(*j, (internals_time, internals_value));
                             produced.insert(*j, produced_value);
@@ -580,12 +831,16 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
 		            }
   	 	        }
 
+                //let start7 = Instant::now();
                 vector.clear();
                 vector2.clear();
                 produced.clear();
                 consumed.clear();
                 internals.clear();
                 output_wrapper.cease();
+                /*let end7 = Instant::now();
+                let delta7 = (end7 - start7).as_nanos();
+                println!("Delta1 = {}", delta7);*/
 
                 false
             };
@@ -601,9 +856,28 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
             }
             prev_ghost = ghost.1;
         }
-        ghost_operators.push(builder_filter.index());
+        ghost_operators.push(builder_filter1.index());
+        ghost_operators.push(builder_filter2.index());
+        ghost_operators.push(builder_filter3.index());
+        ghost_operators.push(builder_filter4.index());
+        ghost_operators.push(builder_filter5.index());
+        ghost_operators.push(builder_filter6.index());
+        ghost_operators.push(builder_filter7.index());
+        ghost_operators.push(builder_filter8.index());
+        ghost_operators.push(builder_filter9.index());
+        ghost_operators.push(builder_filter10.index());
+        /*ghost_operators.push(builder_filter11.index());
+        ghost_operators.push(builder_filter12.index());
+        ghost_operators.push(builder_filter13.index());
+        ghost_operators.push(builder_filter14.index());
+        ghost_operators.push(builder_filter15.index());
+        ghost_operators.push(builder_filter16.index());
+        ghost_operators.push(builder_filter17.index());
+        ghost_operators.push(builder_filter18.index());
+        ghost_operators.push(builder_filter19.index());
+        ghost_operators.push(builder_filter20.index());*/
         ghost_operators.push(builder_map.index());
-        //ghost_operators.push(builder_aggregate.index());
+        ghost_operators.push(builder_aggregate.index());
 
         builder_wrapper.set_notify(false);
         let operator = FpgaOperator {
