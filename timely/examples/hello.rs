@@ -1,19 +1,18 @@
 extern crate timely;
 extern crate hdrhist;
 
+use std::time::{Duration, Instant};
 use timely::dataflow::{InputHandle, ProbeHandle};
 use timely::dataflow::operators::{Input, Exchange, Inspect, Probe, FpgaWrapper};
-use std::time::{Duration, Instant};
 
 fn main() {
     // initializes and runs a timely dataflow.
-    timely::execute_from_args(std::env::args(),  |worker, hc| {
+    timely::execute_from_args(std::env::args(), |worker, hc| {
         let index = worker.index();
         let mut input = InputHandle::new();
         let mut probe = ProbeHandle::new();
 
         // create a new input, exchange data, and inspect its output
-
         worker.dataflow(|scope| {
             scope.input_from(&mut input)
                  .fpga_wrapper(hc)
@@ -28,7 +27,7 @@ fn main() {
 
         for round in 0..10 {
             for j in 0..4000 {
-                input.send(round+10);// max = 0
+                input.send(round + 10); // max = 0
             }
             input.advance_to(round + 1);
             while probe.less_than(input.time()) {
@@ -47,7 +46,10 @@ fn main() {
         let epoch_throughput = (1000 as f64) / (total_nanos as f64) * 1_000_000_000f64; // epochs/sec
         println!("epoch time: {}", epoch_latency);
 
-        println!("total time (nanos): {}, throughput: {}", total_nanos, epoch_throughput);
+        println!(
+            "total time (nanos): {}, throughput: {}",
+            total_nanos, epoch_throughput
+        );
         println!("epoch latency (nanos):\n{}", hist.summary_string());
     }).unwrap();
 }
