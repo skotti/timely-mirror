@@ -573,30 +573,30 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
 
                         for i in 0 .. borrow.len() {
                             let frontier = borrow[i].borrow().frontier();
-			                if frontier.len() == 0 {
+                            if frontier.len() == 0 {
                                 *memory.offset(current_length as isize) = 0;
-			    	            current_length += 1;
-			                } else {
+                                current_length += 1;
+                            } else {
                                 for val in frontier.iter() {
                                     *memory.offset(current_length as isize) = (*val << 1) | 1u64;
                                     current_length += 1;
-                            	}
-			                }
+                                }
+                            }
                         }
                         for i in current_length .. frontier_length {
                             *memory.offset(current_length as isize) = 0;
                             current_length += 1;
                         }
 
-			            if vector.len() == 0 {
+                        if vector.len() == 0 {
                             *memory.offset(current_length as isize) = 0 as u64;
                             current_length += 1;
-			            } else {
-                       	    for val in vector.iter() {
+                        } else {
+                               for val in vector.iter() {
                                 *memory.offset(current_length as isize) = ((*val << 1) | 1u64) as u64;
                                 current_length += 1;
                             }
-			            }
+                        }
 
                         for i in current_length .. max_length {
                             *memory.offset(i as isize) = 0;
@@ -638,7 +638,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                     for (i, j) in ghost_indexes.iter() {
                         let mut cb = ChangeBatch::new_from(time.clone(), *consumed.get(j).unwrap());
                         let mut cb1 = ChangeBatch::new_from(time.clone(), *produced.get(j).unwrap());
- 			            let mut cb2 = ChangeBatch::new_from(internals.get(j).unwrap().0 as u64, internals.get(j).unwrap().1 as i64);
+                         let mut cb2 = ChangeBatch::new_from(internals.get(j).unwrap().0 as u64, internals.get(j).unwrap().1 as i64);
                         cb.drain_into(&mut progress.wrapper_consumeds.get_mut(j).unwrap()[0]);
                         cb1.drain_into(&mut progress.wrapper_produceds.get_mut(j).unwrap()[0]);
                         cb2.drain_into(&mut progress.wrapper_internals.get_mut(j).unwrap()[0]);
@@ -663,7 +663,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
 
                         for i in 0 .. borrow.len() {
                             let frontier = borrow[i].borrow().frontier();
-			                if frontier.len() == 0 {
+                            if frontier.len() == 0 {
                                 *memory.offset(current_length as isize) = 0;
                                 current_length += 1;
                             } else {
@@ -671,7 +671,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                                     *memory.offset(current_length as isize) = (*val << 1) | 1u64;
                                     current_length += 1;
                                 }
-			                }
+                            }
                         }
 
 
@@ -680,7 +680,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                             *memory.offset(i as isize) = 0;
                         }
 
-			            run(hc);
+                        run(hc);
 
                         let memory_out = (*hc).oMem as *mut u64;
 
@@ -710,17 +710,17 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
 
                         }
                     }
-		            let id_wrap = ghost_indexes[ghost_indexes.len() - 1].1;
+                    let id_wrap = ghost_indexes[ghost_indexes.len() - 1].1;
 
-		            if vector2.len() > 0 {
-		                output_wrapper.session(&(internals.get(&id_wrap).unwrap().0 as u64)).give_vec(&mut vector2);
+                    if vector2.len() > 0 {
+                        output_wrapper.session(&(internals.get(&id_wrap).unwrap().0 as u64)).give_vec(&mut vector2);
 
                         let mut cb1 = ChangeBatch::new_from(internals.get(&id_wrap).unwrap().0 as u64, *produced.get(&id_wrap).unwrap());
- 		                let mut cb2 = ChangeBatch::new_from(internals.get(&id_wrap).unwrap().0 as u64, internals.get(&id_wrap).unwrap().1 as i64);
+                         let mut cb2 = ChangeBatch::new_from(internals.get(&id_wrap).unwrap().0 as u64, internals.get(&id_wrap).unwrap().1 as i64);
                         cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&id_wrap).unwrap()[0]);
                         cb2.drain_into(&mut progress.wrapper_internals.get_mut(&id_wrap).unwrap()[0]);
-		            }
-  	 	        }
+                    }
+                   }
 
                 vector.clear();
                 vector2.clear();
