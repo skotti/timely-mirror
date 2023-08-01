@@ -52,13 +52,6 @@ impl OperatorShape {
         self.outputs
     }
 
-    /*pub fn set_inputs(&mut self, inputs: usize) {
-        self.inputs = inputs;
-    }
-
-    pub fn set_outputs(&mut self, outputs: usize) {
-        self.outputs = outputs;
-    }*/
     /// The number of outputs of this operator
     pub fn peers(&self) -> usize {
         self.peers
@@ -204,7 +197,6 @@ impl<G: Scope> OperatorBuilder<G> {
 
         let (targets, registrar) = Tee::<G::Timestamp,D>::new();
         let source = Source::new(self.index, self.shape.outputs);
-        //let stream = Stream::new(source, registrar, self.scope.clone());
 
         self.shape.outputs += 1;
         assert_eq!(self.shape.inputs, connection.len());

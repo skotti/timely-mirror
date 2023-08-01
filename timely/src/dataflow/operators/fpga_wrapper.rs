@@ -215,29 +215,6 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         let mut current_index = 0;
 
         // CREATE FILTER GHOST OPERATOR 1
-        /*let mut builder_filter = OperatorBuilder::new("Filter".to_owned(), self.scope()); // scope comes from stream
-        builder_filter.set_notify(false);
-        builder_filter.set_shape(1, 1);
-
-        let operator_logic_filter =
-         move |progress: &mut SharedProgress<S::Timestamp>| { false};
-
-        let operator_filter = FakeOperator {
-            shape: builder_filter.shape().clone(),
-            address: builder_filter.address().clone(),
-            activations: self.scope().activations().clone(),
-            logic: operator_logic_filter,
-            shared_progress: Rc::new(RefCell::new(SharedProgress::new(1, 1))),
-            summary: builder_filter.summary().to_vec(),
-        };
-
-
-        self.scope().add_operator_with_indices_no_path(Box::new(operator_filter), builder_filter.index(), builder_filter.global());
-        ghost_indexes.push((current_index, builder_filter.index()));
-        ghost_indexes2.push((current_index, builder_filter.index()));
-        current_index += 1;*/
-
-        // CREATE FILTER GHOST OPERATOR 1
         let mut builder_filter1 = OperatorBuilder::new("Filter1".to_owned(), self.scope()); // scope comes from stream
         builder_filter1.set_notify(false);
         builder_filter1.set_shape(1, 1);
@@ -624,48 +601,8 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                         for i in current_length .. max_length {
                             *memory.offset(i as isize) = 0;
                         }
-                        /*let end2 = Instant::now();
-                        let delta2 = (end2 - start2).as_nanos();
-                        println!("Delta2 = {}", delta2);*/
 
-                        //for (i, elem) in vector.iter().enumerate() {
-                            //println!("{} input element = {}", i, *elem);
-                        //}
-
-                        //println!("all_length = {}", all_length);
-                        //println!("current_length = {}", current_length);
-                        //println!("data_start_index = {}", data_start_index);
-                        //println!("progress_start_index = {}", progress_start_index);
-
-			            /*println!("PRINT INPUT VECTOR TO FPGA");
-			            for elem in input_vector.iter() {
-				        print!(" {}", elem);
-			            }
-
-			            println!();*/
-
-                        //let start3 = Instant::now();
-
-                        run(hc);// changes should be reflected in hc
-
-                        /*let end3 = Instant::now();
-                        let delta3 = (end3 - start3).as_nanos();
-                        println!("Delta3 = {}", delta3);*/
-
-                        /*println!("PRINT OUTPUT VECTOR FROM FPGA");
-                        for (i, elem) in output.iter().enumerate() {
-                            print!(" {}", elem);
-                        }
-                        println!();*/
-
-                        //let start4 = Instant::now();
                         let memory_out = (*hc).oMem as *mut u64;
-                        //let pointer_in = memory_out.offset(0 as isize);
-                        //let pointer_out = vector2.as_mut_ptr();
-
-                        //ptr::copy_nonoverlapping(pointer_in, pointer_out, data_length);
-
-                        //vector2.set_len(data_length);
 
                         for i in 0 .. data_length {
                             let val = *memory_out.offset(i as isize) as u64;
@@ -675,18 +612,8 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                             }
                         }
 
-                        /*let end4 = Instant::now();
-                        let delta4 = (end4 - start4).as_nanos();
-                        println!("Delta4 = {}", delta4);*/
 
-
-                        //vector2.push(1);
-                        //let start5 = Instant::now();
                         for (i, j) in ghost_indexes.iter() {
-                            //println!("consumed = {}", output[progress_start_index + 4*i]);
-                            //println!("internal time = {}", output[progress_start_index + 4*i + 2] >> 1);
-                            //println!("internal update {}", output[progress_start_index + 4*i + 3] as i64);
-                            //println!("produced = {}", output[progress_start_index + 4*i + 1]);
                             let consumed_index = (progress_start_index + 4*i) as isize;
                             let produced_index = (progress_start_index + 4*i + 1) as isize;
                             let internals_index_1 = (progress_start_index + 4*i + 2) as isize;
@@ -697,23 +624,11 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                             let internals_time = *memory_out.offset(internals_index_1)  >> 1 as u64;
                             let internals_value = *memory_out.offset(internals_index_2) as i64;
 
-
-                            /*println!("consumed index = {}", consumed_index);
-                            println!("produced index = {}", produced_index);
-
-                            println!("consumed = {}", consumed_value);
-                            println!("produced = {}", produced_value);
-                            println!("internal time = {}", internals_time);
-                            println!("internal update {}", internals_value);*/
-
                             consumed.insert(*j, consumed_value);
                             internals.insert(*j, (internals_time, internals_value));
                             produced.insert(*j, produced_value);
 
                         }
-                        /*let end5 = Instant::now();
-                        let delta5 = (end5 - start5).as_nanos();
-                        println!("Delta5 = {}", delta5);*/
                     }
 
 
@@ -729,14 +644,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                         cb2.drain_into(&mut progress.wrapper_internals.get_mut(j).unwrap()[0]);
                     }
 
-                    /*let end6 = Instant::now();
-                    let delta6 = (end6 - start6).as_nanos();
-                    println!("Delta6 = {}", delta6);*/
-
                 }
 
                 if !has_data {
-		            //println!("no data");
 
                     let mut frontier_length = frontier_param * 8;//2 + ghost_indexes.len() + 4 * ghost_indexes.len();
                     let mut current_length = 0;
@@ -770,19 +680,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                             *memory.offset(i as isize) = 0;
                         }
 
-			            //println!("PRINT INPUT VECTOR TO FPGA");
-			            //for elem in input_vector.iter() {
-			            //	print!(" {}", elem);
-			            //}
-			            //println!();
-
 			            run(hc);
-
-			            /*println!("PRINT OUTPUT VECTOR FROM FPGA");
-                        for (i, elem) in output.iter().enumerate() {
-                            print!(" {}", elem);
-                        }
-			            println!();*/
 
                         let memory_out = (*hc).oMem as *mut u64;
 
@@ -793,7 +691,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                                 vector2.push(shifted_val);
                             }
                         }
-                        //vector2.push(1);
+
                         for (i, j) in ghost_indexes.iter() {
                             let consumed_index = (progress_start_index + 4*i) as isize;
                             let produced_index = (progress_start_index + 4*i + 1) as isize;
@@ -805,12 +703,6 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                             let internals_time = *memory_out.offset(internals_index_1)  >> 1 as u64;
                             let internals_value = *memory_out.offset(internals_index_2) as i64;
 
-                            /*println!("consumed = {}", consumed_value);
-                            println!("produced = {}", produced_value);
-                            println!("internal time = {}", internals_time);
-                            println!("internal update {}", internals_value);*/
-
-
                             consumed.insert(*j, consumed_value);
                             internals.insert(*j, (internals_time, internals_value));
                             produced.insert(*j, produced_value);
@@ -819,7 +711,6 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                         }
                     }
 		            let id_wrap = ghost_indexes[ghost_indexes.len() - 1].1;
-		            //println!("********id wrap********** = {}", id_wrap);
 
 		            if vector2.len() > 0 {
 		                output_wrapper.session(&(internals.get(&id_wrap).unwrap().0 as u64)).give_vec(&mut vector2);
@@ -831,16 +722,12 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
 		            }
   	 	        }
 
-                //let start7 = Instant::now();
                 vector.clear();
                 vector2.clear();
                 produced.clear();
                 consumed.clear();
                 internals.clear();
                 output_wrapper.cease();
-                /*let end7 = Instant::now();
-                let delta7 = (end7 - start7).as_nanos();
-                println!("Delta1 = {}", delta7);*/
 
                 false
             };
@@ -866,16 +753,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         ghost_operators.push(builder_filter8.index());
         ghost_operators.push(builder_filter9.index());
         ghost_operators.push(builder_filter10.index());
-        /*ghost_operators.push(builder_filter11.index());
-        ghost_operators.push(builder_filter12.index());
-        ghost_operators.push(builder_filter13.index());
-        ghost_operators.push(builder_filter14.index());
-        ghost_operators.push(builder_filter15.index());
-        ghost_operators.push(builder_filter16.index());
-        ghost_operators.push(builder_filter17.index());
-        ghost_operators.push(builder_filter18.index());
-        ghost_operators.push(builder_filter19.index());
-        ghost_operators.push(builder_filter20.index());*/
+
         ghost_operators.push(builder_map.index());
         ghost_operators.push(builder_aggregate.index());
 

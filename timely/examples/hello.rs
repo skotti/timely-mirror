@@ -3,29 +3,11 @@ extern crate hdrhist;
 
 use timely::dataflow::{InputHandle, ProbeHandle};
 use timely::dataflow::operators::{Input, Exchange, Inspect, Probe, FpgaWrapper};
-//use timely::dataflow::operators::fpga_wrapper::HardwareCommon;
 use std::time::{Duration, Instant};
-
-
-/*#[link(name = "fpgalibrary")]
-extern "C" {
-    fn initialize() -> * const HardwareCommon;
-    fn closeHardware(hc: * const HardwareCommon);
-}*/
-
 
 fn main() {
     // initializes and runs a timely dataflow.
-    /*let hwcommon;
-    unsafe {
-        hwcommon = initialize();
-    }*/
     timely::execute_from_args(std::env::args(),  |worker, hc| {
-
-       // let hc;
-       // unsafe {
-       //     hc = initialize();
-       // }
 
         let index = worker.index();
         let mut input = InputHandle::new();
@@ -72,12 +54,5 @@ fn main() {
         println!("total time (nanos): {}, throughput: {}", total_nanos, epoch_throughput);
         println!("epoch latency (nanos):\n{}", hist.summary_string());
 
-        //unsafe {
-        //    closeHardware(hc);
-        //}
     }).unwrap();
-    /*unsafe {
-    	closeHardware(hwcommon);
-    }*/
-
 }
