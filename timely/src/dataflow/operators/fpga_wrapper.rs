@@ -25,10 +25,6 @@ use std::time::{Duration, Instant};
 
 use std::ptr;
 
-//use std::collections::HashMap;
-//#[path = "../../../hardware.rs"]
-//pub mod hardware;
-
 use std::ffi::c_void;
 use std::collections::HashMap;
 
