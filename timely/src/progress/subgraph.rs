@@ -792,7 +792,7 @@ impl<T: Timestamp> PerOperatorState<T> {
             inputs,
             outputs,
             edges:              vec![vec![]; outputs],
-            ghost_edges:              vec![vec![]; outputs],
+            ghost_edges: vec![vec![]; outputs],
             logging,
 
             shared_progress,

@@ -6,7 +6,6 @@ use crate::worker::Worker;
 
 use crate::dataflow::operators::fpga_wrapper::HardwareCommon;
 
-
 #[link(name = "fpgalibrary")]
 extern "C" {
     fn initialize() -> * const HardwareCommon;
@@ -193,7 +192,6 @@ where
     let (allocators, other) = config.try_build()?;
 
     initialize_from(allocators, other, move |allocator| {
-
         let hwcommon;
         unsafe {
             hwcommon = initialize();
@@ -222,11 +220,10 @@ where
         }
 
         let result = func(&mut worker, hwcommon);
-        while worker.step_or_park(None) {}
+        while worker.step_or_park(None) { }
         unsafe {
             closeHardware(hwcommon);
         }
-
         result
     })
 }

@@ -186,15 +186,16 @@ impl<G: Scope> OperatorBuilder<G> {
 
     /// Adds a new input to a generic operator builder, returning the `Push` implementor to use.
     pub fn new_output_without_stream<D: Data>(&mut self) -> Tee<G::Timestamp, D> {
-
         let connection = vec![Antichain::from_elem(Default::default()); self.shape.inputs];
         self.new_output_connection_without_stream(connection)
     }
 
     /// Adds a new input to a generic operator builder, returning the `Push` implementor to use.
-    pub fn new_output_connection_without_stream<D: Data>(&mut self, connection: Vec<Antichain<<G::Timestamp as Timestamp>::Summary>>) -> Tee<G::Timestamp, D> {
-
-        let (targets, registrar) = Tee::<G::Timestamp,D>::new();
+    pub fn new_output_connection_without_stream<D: Data>(
+        &mut self,
+        connection: Vec<Antichain<<G::Timestamp as Timestamp>::Summary>>,
+    ) -> Tee<G::Timestamp, D> {
+        let (targets, registrar) = Tee::<G::Timestamp, D>::new();
         let source = Source::new(self.index, self.shape.outputs);
 
         self.shape.outputs += 1;
