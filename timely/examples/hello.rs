@@ -41,7 +41,7 @@ fn main() {
 
         let epoch_end = Instant::now();
 
-        let total_nanos = (Instant::now() - start).as_nanos();
+        let total_nanos = (epoch_end - start).as_nanos();
         let epoch_latency = (total_nanos as f64) / 1_000_000_000f64 / (1000 as f64); // sec
         let epoch_throughput = (1000 as f64) / (total_nanos as f64) * 1_000_000_000f64; // epochs/sec
         println!("epoch time: {}", epoch_latency);
