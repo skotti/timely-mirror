@@ -519,7 +519,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         ghost_indexes.push((current_index, builder_aggregate.index()));
         ghost_indexes2.push((current_index, builder_aggregate.index()));
         current_index += 1;
-        
+
         // create wrapper operator
 
         let mut builder_wrapper = OperatorBuilder::new("Wrapper".to_owned(), self.scope()); // scope comes from stream
@@ -570,7 +570,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                 /*let end1 = Instant::now();
                 let delta1 = (end1 - start1).as_nanos();
                 println!("Delta1 = {}", delta1);*/
-                
+
                 while let Some(message) = input_wrapper.next() {
                     has_data = true;
                     //println!("INSIDE DATA PROCESSING");
@@ -627,7 +627,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                         /*let end2 = Instant::now();
                         let delta2 = (end2 - start2).as_nanos();
                         println!("Delta2 = {}", delta2);*/
-                        
+
                         //for (i, elem) in vector.iter().enumerate() {
                             //println!("{} input element = {}", i, *elem);
                         //}
@@ -636,7 +636,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                         //println!("current_length = {}", current_length);
                         //println!("data_start_index = {}", data_start_index);
                         //println!("progress_start_index = {}", progress_start_index);
- 
+
 			            /*println!("PRINT INPUT VECTOR TO FPGA");
 			            for elem in input_vector.iter() {
 				        print!(" {}", elem);
@@ -647,11 +647,11 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                         //let start3 = Instant::now();
 
                         run(hc);// changes should be reflected in hc
-                        
+
                         /*let end3 = Instant::now();
                         let delta3 = (end3 - start3).as_nanos();
                         println!("Delta3 = {}", delta3);*/
-                        
+
                         /*println!("PRINT OUTPUT VECTOR FROM FPGA");
                         for (i, elem) in output.iter().enumerate() {
                             print!(" {}", elem);
@@ -678,7 +678,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                         /*let end4 = Instant::now();
                         let delta4 = (end4 - start4).as_nanos();
                         println!("Delta4 = {}", delta4);*/
-                        
+
 
                         //vector2.push(1);
                         //let start5 = Instant::now();
@@ -734,7 +734,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                     println!("Delta6 = {}", delta6);*/
 
                 }
-                
+
                 if !has_data {
 		            //println!("no data");
 

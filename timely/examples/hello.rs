@@ -39,18 +39,18 @@ fn main() {
                  //.inspect(move |x| println!("worker {}:\thello {}", index, x))
                  .probe_with(&mut probe);
         });
-	
+
         // introduce data and watch!
         let start = Instant::now();
         let mut epoch_start = Instant::now();
         let mut hist = hdrhist::HDRHist::new();
 
         for round in 0..10 {
-            
+
 	        for j in 0..4000 {
                 input.send(round+10);// max = 0
 	        }
-            
+
             input.advance_to(round + 1);
 
             while probe.less_than(input.time()) {
@@ -67,7 +67,7 @@ fn main() {
         let total_nanos = (Instant::now() - start).as_nanos();
         let epoch_latency = (total_nanos as f64) / 1_000_000_000f64 / (1000 as f64); // sec
         let epoch_throughput = (1000 as f64) / (total_nanos as f64) * 1_000_000_000f64; // epochs/sec
-	    println!("epoch time: {}", epoch_latency); 
+	    println!("epoch time: {}", epoch_latency);
 
         println!("total time (nanos): {}, throughput: {}", total_nanos, epoch_throughput);
         println!("epoch latency (nanos):\n{}", hist.summary_string());
@@ -79,5 +79,5 @@ fn main() {
     /*unsafe {
     	closeHardware(hwcommon);
     }*/
-	
+
 }
