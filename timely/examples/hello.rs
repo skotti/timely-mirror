@@ -8,7 +8,6 @@ use std::time::{Duration, Instant};
 fn main() {
     // initializes and runs a timely dataflow.
     timely::execute_from_args(std::env::args(),  |worker, hc| {
-
         let index = worker.index();
         let mut input = InputHandle::new();
         let mut probe = ProbeHandle::new();
@@ -28,13 +27,10 @@ fn main() {
         let mut hist = hdrhist::HDRHist::new();
 
         for round in 0..10 {
-
             for j in 0..4000 {
                 input.send(round+10);// max = 0
             }
-
             input.advance_to(round + 1);
-
             while probe.less_than(input.time()) {
                 worker.step();
             }
@@ -53,6 +49,5 @@ fn main() {
 
         println!("total time (nanos): {}, throughput: {}", total_nanos, epoch_throughput);
         println!("epoch latency (nanos):\n{}", hist.summary_string());
-
     }).unwrap();
 }

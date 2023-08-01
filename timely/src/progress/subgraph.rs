@@ -24,7 +24,6 @@ use crate::progress::broadcast::Progcaster;
 use crate::progress::reachability;
 use crate::progress::timestamp::Refines;
 
-
 // IMPORTANT : by convention, a child identifier of zero is used to indicate inputs and outputs of
 // the Subgraph itself. An identifier greater than zero corresponds to an actual child, which can
 // be found at position (id - 1) in the `children` field of the Subgraph.
@@ -52,9 +51,7 @@ where
     children: Vec<PerOperatorState<TInner>>,
     child_count: usize,
 
-
     edge_stash: Vec<(Source, Target)>,
-
     ghost_edge_stash: Vec<(Source, Target)>,
 
     // shared state written to by the datapath, counting records entering this subgraph instance.
@@ -231,9 +228,7 @@ where
 
         // TODO: should we push here edges between ghost operators?
         // wrapper_ghost edges will already contain
-
     }
-
 
     /// Now that initialization is complete, actually build a subgraph.
     pub fn build<A: crate::worker::AsWorker>(mut self, worker: &mut A) -> Subgraph<TOuter, TInner> {
@@ -261,7 +256,6 @@ where
                 builder.add_node(index, child.inputs, child.outputs, child.internal_summary.clone());
             }
         }
-
 
         self.reorganize_edges();
 
@@ -587,7 +581,6 @@ where
         for ((location, time), diff) in self.pointstamp_tracker.pushed().drain() {
             // Targets are actionable, sources are not.
             if let crate::progress::Port::Target(port) = location.port {
-
                 if self.children[location.node].notify {
                     self.temp_active.push(Reverse(location.node));
                     // if we already scheduled wrapper here
@@ -729,7 +722,6 @@ struct PerOperatorState<T: Timestamp> {
     operator: Option<Box<dyn Operate<T>>>,
 
     edges: Vec<Vec<Target>>,    // edges from the outputs of the operator
-
     ghost_edges: Vec<Vec<Target>>,
 
     shared_progress: Rc<RefCell<SharedProgress<T>>>,
@@ -740,7 +732,6 @@ struct PerOperatorState<T: Timestamp> {
 
     wrapper_ghost: Rc<RefCell<HashMap<usize, Vec<usize>>>>,
     wrapper_ghost_edges: Rc<RefCell<HashMap<usize, Vec<(usize, usize)>>>>,
-
 }
 
 impl<T: Timestamp> PerOperatorState<T> {
@@ -788,7 +779,6 @@ impl<T: Timestamp> PerOperatorState<T> {
         let (internal_summary, shared_progress) = scope.get_internal_summary();
 
         assert_eq!(internal_summary.len(), inputs);
-
         assert!(!internal_summary.iter().any(|x| x.len() != outputs));
 
         PerOperatorState {

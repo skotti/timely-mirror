@@ -19,6 +19,7 @@ use crate::dataflow::{Stream, Scope};
 use crate::dataflow::channels::pushers::Tee;
 use crate::dataflow::channels::pact::ParallelizationContract;
 use crate::dataflow::operators::generic::operator_info::OperatorInfo;
+
 /// Contains type-free information about the operator properties.
 #[derive(Clone)]
 pub struct OperatorShape {
@@ -30,7 +31,6 @@ pub struct OperatorShape {
 }
 
 /// Core data for the structure of an operator, minus scope and logic.
-
 impl OperatorShape {
     fn new(name: String, peers: usize) -> Self {
         OperatorShape {
@@ -129,7 +129,6 @@ impl<G: Scope> OperatorBuilder<G> {
     pub fn summary(&self) -> &Vec<Vec<Antichain<<G::Timestamp as Timestamp>::Summary>>> {
         &self.summary
     }
-
 
     /// Indicates whether the operator requires frontier information.
     pub fn set_notify(&mut self, notify: bool) {

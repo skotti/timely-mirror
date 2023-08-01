@@ -13,7 +13,6 @@ extern "C" {
     fn closeHardware(hc: * const HardwareCommon);
 }
 
-
 /// Executes a single-threaded timely dataflow computation.
 ///
 /// The `example` method takes a closure on a `Scope` which it executes to initialize and run a

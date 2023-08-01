@@ -6,7 +6,6 @@ use timely::dataflow::operators::{Input, Inspect, Probe, Filter, Exchange};
 fn main() {
     // initializes and runs a timely dataflow.
     timely::execute_from_args(std::env::args(), |worker| {
-
         let index = worker.index();
         let mut input = InputHandle::new();
         let mut probe = ProbeHandle::new();
@@ -26,7 +25,6 @@ fn main() {
                 input.send(round);
                 input.send(round);
                 input.send(round);
-
             }
             input.advance_to(round + 1);
             while probe.less_than(input.time()) {

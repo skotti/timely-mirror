@@ -120,5 +120,4 @@ impl<T: Timestamp> SharedProgress<T> {
             wrapper_produceds: wproduceds,
         }
     }
-
 }
