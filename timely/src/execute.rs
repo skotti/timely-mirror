@@ -8,8 +8,8 @@ use crate::dataflow::operators::fpga_wrapper::HardwareCommon;
 
 #[link(name = "fpgalibrary")]
 extern "C" {
-    fn initialize() -> * const HardwareCommon;
-    fn closeHardware(hc: * const HardwareCommon);
+    fn initialize() -> *const HardwareCommon;
+    fn closeHardware(hc: *const HardwareCommon);
 }
 
 /// Executes a single-threaded timely dataflow computation.
