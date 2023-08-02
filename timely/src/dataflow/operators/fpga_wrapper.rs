@@ -1,27 +1,22 @@
 //! Funtionality to run operators on FPGA
 pub extern crate libc;
 
-use std::sync::{Arc, Mutex};
-
 use crate::dataflow::channels::pact::Pipeline;
 use crate::dataflow::channels::pullers::Counter as PullCounter;
 use crate::dataflow::channels::pushers::buffer::Buffer as PushBuffer;
 use crate::dataflow::channels::pushers::{Counter as PushCounter, Tee};
 use crate::dataflow::operators::generic::builder_raw::OperatorBuilder;
 use crate::dataflow::operators::generic::builder_raw::OperatorShape;
-use crate::dataflow::operators::generic::operator::Operator;
-use crate::dataflow::{Scope, ScopeParent, Stream};
+use crate::dataflow::{Scope, Stream};
 use crate::progress::{operate::SharedProgress, Antichain, ChangeBatch, Operate, Timestamp};
 use crate::scheduling::{Activations, Schedule};
-use crate::Data;
 
-use crate::logging::TimelyEvent::Operates;
 use crate::progress::frontier::MutableAntichain;
 use std::borrow::Borrow;
 use std::cell::RefCell;
-use std::ops::Deref;
+use std::convert::TryInto;
 use std::rc::Rc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use std::ptr;
 
