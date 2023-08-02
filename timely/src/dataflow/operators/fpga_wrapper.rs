@@ -508,6 +508,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         ghost_indexes2.push((current_index, builder_map.index()));
         current_index += 1;
 
+        /*
         // CREATE AGGREGATE AGGREGATE OPERATOR
         let mut builder_aggregate = OperatorBuilder::new("Aggregate".to_owned(), self.scope()); // scope comes from stream
         builder_aggregate.set_notify(false);
@@ -532,6 +533,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         ghost_indexes.push((current_index, builder_aggregate.index()));
         ghost_indexes2.push((current_index, builder_aggregate.index()));
         current_index += 1;
+        */
 
         // create wrapper operator
 
@@ -575,9 +577,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
             // invoke supplied logic
             use crate::communication::message::RefOrMut;
 
-            let param = 500; // number of 8 number chuncks
-            let param_output = 1;
-            let frontier_param = 2;
+            let param = 8; // number of 8 number chuncks
+            let param_output = 8;
+            let frontier_param = 3;
             let mut has_data = false;
             /*let end1 = Instant::now();
             let delta1 = (end1 - start1).as_nanos();
@@ -638,6 +640,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                         *memory.offset(i as isize) = 0;
                     }
 
+                    run(hc); // changes should be reflected in hc
                     let memory_out = (*hc).oMem as *mut u64;
 
                     for i in 0..data_length {
@@ -791,7 +794,6 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         ghost_operators.push(builder_filter10.index());
 
         ghost_operators.push(builder_map.index());
-        ghost_operators.push(builder_aggregate.index());
 
         builder_wrapper.set_notify(false);
         let operator = FpgaOperator {
