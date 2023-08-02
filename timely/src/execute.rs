@@ -6,10 +6,29 @@ use crate::worker::Worker;
 
 use crate::dataflow::operators::fpga_wrapper::HardwareCommon;
 
-#[link(name = "fpgalibrary")]
 extern "C" {
-    fn initialize() -> *const HardwareCommon;
-    fn closeHardware(hc: *const HardwareCommon);
+    fn malloc(size: usize) -> *mut std::ffi::c_void;
+}
+
+/// Allocate resources needed for computation
+fn initialize() -> *const HardwareCommon {
+    const SIZE: usize = 100 * 1024 * 1024;
+
+    let hc: HardwareCommon = HardwareCommon {
+        hMem: unsafe { malloc(SIZE) },
+        oMem: unsafe { malloc(SIZE) },
+        area: std::ptr::null_mut(),
+    };
+
+    // This is some magic to get the proper type
+    let boxed_hc = Box::into_raw(Box::new(hc)) as *const HardwareCommon;
+    boxed_hc
+}
+
+/// Free allocated resources again
+fn closeHardware(hc: *const HardwareCommon) {
+    // Nothing to do here yet.
+    // We simply leak the malloc'd memory as it gets free'd on exit anyway.
 }
 
 /// Executes a single-threaded timely dataflow computation.
@@ -192,10 +211,7 @@ where
     let (allocators, other) = config.try_build()?;
 
     initialize_from(allocators, other, move |allocator| {
-        let hwcommon;
-        unsafe {
-            hwcommon = initialize();
-        }
+        let hwcommon = initialize();
 
         let mut worker = Worker::new(allocator);
 
@@ -221,9 +237,8 @@ where
 
         let result = func(&mut worker, hwcommon);
         while worker.step_or_park(None) { }
-        unsafe {
-            closeHardware(hwcommon);
-        }
+
+        closeHardware(hwcommon);
         result
     })
 }

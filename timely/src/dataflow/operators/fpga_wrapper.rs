@@ -28,26 +28,66 @@ use std::ptr;
 use std::collections::HashMap;
 use std::ffi::c_void;
 
+#[derive(Debug)]
 #[repr(C)]
 /// Data structure to store FPGA related data
 pub struct HardwareCommon {
-    fd: i32,
-    cpid: i32,
-    rd_cmd_cnt: u32,
-    wr_cmd_cnt: u32,
-    cnfg_reg: *mut c_void,
-    ctrl_reg: *mut c_void,
-    cnfg_reg_avx: *mut c_void,
-    hMem: *mut c_void,
-    oMem: *mut c_void,
+    /// Input memory
+    pub hMem: *mut c_void,
+    /// Output memory
+    pub oMem: *mut c_void,
+    /// the mmapped cache lines
+    pub area: *mut c_void,
 }
 
 unsafe impl Send for HardwareCommon {}
 unsafe impl Sync for HardwareCommon {}
 
-#[link(name = "fpgalibrary")]
-extern "C" {
-    fn run(hc: *const HardwareCommon);
+/// Writes a specific hardcoded bit pattern to simulate FPGA output
+fn write_hc_u64(hc: *const HardwareCommon, first_val: u64, second_val: u64) {
+    // Assuming you have a c_void pointer to the buffer
+    let buffer_ptr: *mut u64 = unsafe { (*hc).oMem } as *mut u64;
+
+    let mut my_offset = 0;
+    // 1...1 - 64 times
+    for _i in 0..8 {
+        unsafe { ptr::write(buffer_ptr.offset(my_offset), first_val) };
+        my_offset += 1;
+    }
+
+    // 1100 - operator many times
+    let operator_count = 11;
+    for _i in 0..operator_count {
+        unsafe { ptr::write(buffer_ptr.offset(my_offset + 0), second_val) };
+        unsafe { ptr::write(buffer_ptr.offset(my_offset + 1), second_val) };
+        unsafe { ptr::write(buffer_ptr.offset(my_offset + 2), 0) };
+        unsafe { ptr::write(buffer_ptr.offset(my_offset + 3), 0) };
+
+        my_offset += 4;
+    }
+}
+
+/// This is where we would communicate with the FPGA
+fn fpga_communication(hc: *const HardwareCommon) {
+    // Stubbed, do nothing for now
+}
+
+// Instead of a single `run`, `run1` and `run2` exist as the proper behaviour doesn't exist yet on the FPGA.
+// Instead of reading the entire input vector in Rust code to determine the state, we decided to split
+// the `run` function into two to use the fact which function is called to determine the state.
+fn simulated_fpga1(hc: *const HardwareCommon) {
+    write_hc_u64(hc, 1, 8);
+}
+fn simulated_fpga2(hc: *const HardwareCommon) {
+    write_hc_u64(hc, 0, 0);
+}
+fn run1(hc: *const HardwareCommon) {
+    simulated_fpga1(hc);
+    fpga_communication(hc);
+}
+fn run2(hc: *const HardwareCommon) {
+    simulated_fpga2(hc);
+    fpga_communication(hc);
 }
 
 /// Wrapper operator to store ghost operators
@@ -577,8 +617,8 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
             // invoke supplied logic
             use crate::communication::message::RefOrMut;
 
-            let param = 8; // number of 8 number chuncks
-            let param_output = 8;
+            let param = 1; // number of 8 number chuncks
+            let param_output = 1;
             let frontier_param = 3;
             let mut has_data = false;
             /*let end1 = Instant::now();
@@ -640,7 +680,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                         *memory.offset(i as isize) = 0;
                     }
 
-                    run(hc); // changes should be reflected in hc
+                    run1(hc); // changes should be reflected in hc
                     let memory_out = (*hc).oMem as *mut u64;
 
                     for i in 0..data_length {
@@ -714,7 +754,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                         *memory.offset(i as isize) = 0;
                     }
 
-                    run(hc);
+                    run2(hc);
 
                     let memory_out = (*hc).oMem as *mut u64;
 

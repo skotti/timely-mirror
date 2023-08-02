@@ -5,7 +5,6 @@ version = "0.11.1"
 authors = ["Frank McSherry <fmcsherry@me.com>"]
 readme = "../README.md"
 edition = "2018"
-build = "build.rs"
 
 description = "A low-latency data-parallel dataflow system in Rust"
 
@@ -35,8 +34,3 @@ hdrhist = "0.5.0"
 [dev-dependencies]
 timely_sort="0.1.6"
 rand="0.4"
-
-
-[build-dependencies]
-cc = "1.0"
-
