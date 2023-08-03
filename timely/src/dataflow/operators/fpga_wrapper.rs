@@ -4,7 +4,7 @@ pub extern crate libc;
 use crate::dataflow::channels::pact::Pipeline;
 use crate::dataflow::channels::pullers::Counter as PullCounter;
 use crate::dataflow::channels::pushers::buffer::Buffer as PushBuffer;
-use crate::dataflow::channels::pushers::{Counter as PushCounter, Tee};
+use crate::dataflow::channels::pushers::Counter as PushCounter;
 use crate::dataflow::operators::generic::builder_raw::OperatorBuilder;
 use crate::dataflow::operators::generic::builder_raw::OperatorShape;
 use crate::dataflow::{Scope, Stream};
@@ -16,7 +16,6 @@ use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::convert::TryInto;
 use std::rc::Rc;
-use std::time::Instant;
 
 use std::ptr;
 
