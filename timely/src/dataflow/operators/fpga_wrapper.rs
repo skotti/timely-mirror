@@ -141,7 +141,7 @@ where
         self.activations.borrow_mut().activate(&self.address[..]);
 
         // by default, we reserve a capability for each output port at `Default::default()`.
-        for (i, j) in self.ghost_indexes.iter() {
+        for (_i, j) in self.ghost_indexes.iter() {
             self.shared_progress
                 .borrow_mut()
                 .wrapper_internals
@@ -602,7 +602,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
 
             if !started {
                 // discard initial capability.
-                for (i, j) in ghost_indexes.iter() {
+                for (_i, j) in ghost_indexes.iter() {
                     progress.wrapper_internals.get_mut(j).unwrap()[0]
                         .update(S::Timestamp::minimum(), -1);
                     started = true;
@@ -656,7 +656,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                             }
                         }
                     }
-                    for i in current_length..frontier_length {
+                    for _i in current_length..frontier_length {
                         *memory.offset(current_length as isize) = 0;
                         current_length += 1;
                     }
@@ -706,7 +706,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                 //let start6 = Instant::now();
                 output_wrapper.session(time).give_vec(&mut vector2);
 
-                for (i, j) in ghost_indexes.iter() {
+                for (_i, j) in ghost_indexes.iter() {
                     let mut cb = ChangeBatch::new_from(time.clone(), *consumed.get(j).unwrap());
                     let mut cb1 = ChangeBatch::new_from(time.clone(), *produced.get(j).unwrap());
                     let mut cb2 = ChangeBatch::new_from(
