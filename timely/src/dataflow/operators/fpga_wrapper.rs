@@ -542,33 +542,6 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         ghost_indexes2.push((current_index, builder_map.index()));
         current_index += 1;
 
-        /*
-        // CREATE AGGREGATE AGGREGATE OPERATOR
-        let mut builder_aggregate = OperatorBuilder::new("Aggregate".to_owned(), self.scope()); // scope comes from stream
-        builder_aggregate.set_notify(false);
-        builder_aggregate.set_shape(1, 1);
-
-        let operator_logic_aggregate = move |progress: &mut SharedProgress<S::Timestamp>| false;
-
-        let operator_aggregate = FakeOperator {
-            shape: builder_aggregate.shape().clone(),
-            address: builder_aggregate.address().clone(),
-            activations: self.scope().activations().clone(),
-            logic: operator_logic_aggregate,
-            shared_progress: Rc::new(RefCell::new(SharedProgress::new(1, 1))),
-            summary: builder_aggregate.summary().to_vec(),
-        };
-
-        self.scope().add_operator_with_indices_no_path(
-            Box::new(operator_aggregate),
-            builder_aggregate.index(),
-            builder_aggregate.global(),
-        );
-        ghost_indexes.push((current_index, builder_aggregate.index()));
-        ghost_indexes2.push((current_index, builder_aggregate.index()));
-        current_index += 1;
-        */
-
         // create wrapper operator
 
         let mut builder_wrapper = OperatorBuilder::new("Wrapper".to_owned(), self.scope()); // scope comes from stream
