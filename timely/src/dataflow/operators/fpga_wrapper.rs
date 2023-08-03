@@ -631,12 +631,12 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                 };
                 data.swap(&mut vector);
 
-                let mut frontier_length = frontier_param * 8; //2 + ghost_indexes.len() + 4 * ghost_indexes.len();
+                let frontier_length = frontier_param * 8; //2 + ghost_indexes.len() + 4 * ghost_indexes.len();
                 let mut current_length = 0;
-                let mut max_length = param * 8 + frontier_param * 8;
-                let mut data_length = param * 8;
-                let mut data_start_index = 0;
-                let mut progress_start_index = param_output * 8;
+                let max_length = param * 8 + frontier_param * 8;
+                let data_length = param * 8;
+                let data_start_index = 0;
+                let progress_start_index = param_output * 8;
 
                 unsafe {
                     //let start2 = Instant::now();
@@ -720,12 +720,12 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
             }
 
             if !has_data {
-                let mut frontier_length = frontier_param * 8; //2 + ghost_indexes.len() + 4 * ghost_indexes.len();
+                let frontier_length = frontier_param * 8; //2 + ghost_indexes.len() + 4 * ghost_indexes.len();
                 let mut current_length = 0;
-                let mut max_length = param * 8 + frontier_param * 8;
-                let mut data_length = param * 8;
-                let mut data_start_index = 0;
-                let mut progress_start_index = param_output * 8;
+                let max_length = param * 8 + frontier_param * 8;
+                let data_length = param * 8;
+                let data_start_index = 0;
+                let progress_start_index = param_output * 8;
 
                 unsafe {
                     let memory = (*hc).h_mem as *mut u64;
