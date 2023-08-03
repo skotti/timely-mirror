@@ -273,7 +273,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         builder_filter1.set_notify(false);
         builder_filter1.set_shape(1, 1);
 
-        let operator_logic_filter1 = move |progress: &mut SharedProgress<S::Timestamp>| false;
+        let operator_logic_filter1 = move |_progress: &mut SharedProgress<S::Timestamp>| false;
 
         let operator_filter1 = FakeOperator {
             shape: builder_filter1.shape().clone(),
@@ -298,7 +298,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         builder_filter2.set_notify(false);
         builder_filter2.set_shape(1, 1);
 
-        let operator_logic_filter2 = move |progress: &mut SharedProgress<S::Timestamp>| false;
+        let operator_logic_filter2 = move |_progress: &mut SharedProgress<S::Timestamp>| false;
 
         let operator_filter2 = FakeOperator {
             shape: builder_filter2.shape().clone(),
@@ -323,7 +323,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         builder_filter3.set_notify(false);
         builder_filter3.set_shape(1, 1);
 
-        let operator_logic_filter3 = move |progress: &mut SharedProgress<S::Timestamp>| false;
+        let operator_logic_filter3 = move |_progress: &mut SharedProgress<S::Timestamp>| false;
 
         let operator_filter3 = FakeOperator {
             shape: builder_filter3.shape().clone(),
@@ -348,7 +348,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         builder_filter4.set_notify(false);
         builder_filter4.set_shape(1, 1);
 
-        let operator_logic_filter4 = move |progress: &mut SharedProgress<S::Timestamp>| false;
+        let operator_logic_filter4 = move |_progress: &mut SharedProgress<S::Timestamp>| false;
 
         let operator_filter4 = FakeOperator {
             shape: builder_filter4.shape().clone(),
@@ -373,7 +373,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         builder_filter5.set_notify(false);
         builder_filter5.set_shape(1, 1);
 
-        let operator_logic_filter5 = move |progress: &mut SharedProgress<S::Timestamp>| false;
+        let operator_logic_filter5 = move |_progress: &mut SharedProgress<S::Timestamp>| false;
 
         let operator_filter5 = FakeOperator {
             shape: builder_filter5.shape().clone(),
@@ -398,7 +398,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         builder_filter6.set_notify(false);
         builder_filter6.set_shape(1, 1);
 
-        let operator_logic_filter6 = move |progress: &mut SharedProgress<S::Timestamp>| false;
+        let operator_logic_filter6 = move |_progress: &mut SharedProgress<S::Timestamp>| false;
 
         let operator_filter6 = FakeOperator {
             shape: builder_filter6.shape().clone(),
@@ -423,7 +423,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         builder_filter7.set_notify(false);
         builder_filter7.set_shape(1, 1);
 
-        let operator_logic_filter7 = move |progress: &mut SharedProgress<S::Timestamp>| false;
+        let operator_logic_filter7 = move |_progress: &mut SharedProgress<S::Timestamp>| false;
 
         let operator_filter7 = FakeOperator {
             shape: builder_filter7.shape().clone(),
@@ -448,7 +448,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         builder_filter8.set_notify(false);
         builder_filter8.set_shape(1, 1);
 
-        let operator_logic_filter8 = move |progress: &mut SharedProgress<S::Timestamp>| false;
+        let operator_logic_filter8 = move |_progress: &mut SharedProgress<S::Timestamp>| false;
 
         let operator_filter8 = FakeOperator {
             shape: builder_filter8.shape().clone(),
@@ -473,7 +473,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         builder_filter9.set_notify(false);
         builder_filter9.set_shape(1, 1);
 
-        let operator_logic_filter9 = move |progress: &mut SharedProgress<S::Timestamp>| false;
+        let operator_logic_filter9 = move |_progress: &mut SharedProgress<S::Timestamp>| false;
 
         let operator_filter9 = FakeOperator {
             shape: builder_filter9.shape().clone(),
@@ -498,7 +498,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         builder_filter10.set_notify(false);
         builder_filter10.set_shape(1, 1);
 
-        let operator_logic_filter10 = move |progress: &mut SharedProgress<S::Timestamp>| false;
+        let operator_logic_filter10 = move |_progress: &mut SharedProgress<S::Timestamp>| false;
 
         let operator_filter10 = FakeOperator {
             shape: builder_filter10.shape().clone(),
@@ -523,7 +523,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         builder_map.set_notify(false);
         builder_map.set_shape(1, 1);
 
-        let operator_logic_map = move |progress: &mut SharedProgress<S::Timestamp>| false;
+        let operator_logic_map = move |_progress: &mut SharedProgress<S::Timestamp>| false;
 
         let operator_map = FakeOperator {
             shape: builder_map.shape().clone(),
