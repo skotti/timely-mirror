@@ -62,9 +62,93 @@ fn write_hc_u64(hc: *const HardwareCommon, first_val: u64, second_val: u64) {
     }
 }
 
-/// This is where we would communicate with the FPGA
+/// Debug function to read the written to memory area
+fn read_hc_u64(hc: *const HardwareCommon) {
+    dbg!("read_hc_u64");
+    let hc_mut = hc as *mut HardwareCommon;
+
+    // Assuming you have a c_void pointer to the buffer
+    let buffer_ptr: *mut c_void = unsafe { (*hc_mut).oMem };
+    unsafe {
+        let dst_ptr = buffer_ptr as *mut u64;
+        for i in 0..144 {
+            let res = ptr::read(dst_ptr.offset(i));
+            print!("{res}");
+        }
+        println!();
+    }
+}
+
+#[cfg(target_arch = "aarch64")]
+#[inline]
+unsafe fn dmb() {
+    core::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
+}
+
+#[cfg(target_arch = "x86_64")]
+#[inline]
+unsafe fn dmb() {
+    core::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
+}
+
+/// Writes to the first cache line
+fn write_to_memory(val: [u64; 16], area: *mut std::ffi::c_void) {
+    // Treat as `uint64_t *`
+    let area = area as *mut u64;
+
+    for i in 0..16 as usize {
+        unsafe { *area.offset(i.try_into().unwrap()) = val[i] };
+    }
+    unsafe { dmb() };
+}
+
+/// Reads from the second cache line
+fn read_from_memory(area: *mut std::ffi::c_void) -> [u64; 16] {
+    let mut res: [u64; 16] = [0; 16];
+
+    // Treat as `uint64_t *`
+    let area = area as *mut u64;
+
+    // Read
+    for i in 0..16 {
+        res[i] = unsafe { *(area.offset((16 + i).try_into().unwrap())) };
+    }
+    unsafe { dmb() };
+
+    res
+}
+
+/// Communicates to FPGA via cache line using [`2fast2forward`](https://gitlab.inf.ethz.ch/PROJECT-Enzian/fpga-sources/enzian-applications/2fast2forward)
 fn fpga_communication(hc: *const HardwareCommon) {
-    // Stubbed, do nothing for now
+    let val: [u64; 16] = [420; 16]; // Using the same value for each element due to a quirk in provided bitstream reordering some values
+
+    // Get pointer to memory
+    let area = unsafe { (*hc).area };
+
+    // Write to cache line
+    write_to_memory(val, area);
+
+    // Read from other cache line
+    let res = read_from_memory(area);
+
+    // Use the input we gave to FPGA to calculate the output we expect
+    // The expected output being the number left shifted and the LSB set to `1`.
+    let mut expected_result: [u64; 16] = [0; 16];
+    for i in 0..val.len() {
+        let val = val[i];
+        // Perform the left shift and set the lowest bit to 1
+        let res = (val << 1) | 1;
+        expected_result[i] = res
+    }
+
+    // Debug prints
+    // dbg!(val);
+    // dbg!(expected_result);
+    // dbg!(res);
+
+    // Check result
+    // Based on current implementation
+    assert_eq!(expected_result, res);
 }
 
 // Instead of a single `run`, `run1` and `run2` exist as the proper behaviour doesn't exist yet on the FPGA.

@@ -52,4 +52,6 @@ fn main() {
         );
         println!("epoch latency (nanos):\n{}", hist.summary_string());
     }).unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(250));
+    dbg!("All done");
 }

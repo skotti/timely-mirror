@@ -6,18 +6,64 @@ use crate::worker::Worker;
 
 use crate::dataflow::operators::fpga_wrapper::HardwareCommon;
 
+use libc::c_int;
+use libc::{MAP_FAILED, MAP_FIXED, MAP_SHARED, PROT_READ, PROT_WRITE};
+use std::convert::TryInto;
+use std::ffi::c_void;
+
 extern "C" {
+    fn open(pathname: *const libc::c_char, flags: c_int) -> c_int;
+    fn get_nprocs() -> i32;
     fn malloc(size: usize) -> *mut std::ffi::c_void;
+}
+
+const SIZE: usize = 0x1000;
+
+/// Gets a file descriptor to the FPGA memory section
+fn get_fpga_mem() -> i32 {
+    let path = std::ffi::CString::new("/dev/fpgamem").unwrap();
+
+    // Calling libc function here as I couldn't get Rust native to work
+    let fd = unsafe { open(path.as_ptr(), libc::O_RDWR) };
+    fd
+}
+
+/// Takes a file descriptor to mmap into
+fn mmap_wrapper(fd: c_int, no_cpus: c_int) -> Result<*mut c_void, std::io::Error> {
+    let area = unsafe {
+        libc::mmap(
+            std::ptr::null_mut(),
+            SIZE * no_cpus as usize,
+            PROT_READ | PROT_WRITE,
+            MAP_SHARED | MAP_FIXED,
+            fd,
+            0,
+        )
+    };
+
+    if area == MAP_FAILED {
+        Err(std::io::Error::last_os_error())
+    }
+    else {
+        Ok(area as *mut c_void)
+    }
+}
+
+/// Runs munmap over the given pointer
+fn munmap_wrapper(area: *mut c_void, no_cpus: libc::size_t) {
+    unsafe { libc::munmap(area, 0x10000000000 * no_cpus) };
 }
 
 /// Allocate resources needed for computation
 fn initialize() -> *const HardwareCommon {
-    const SIZE: usize = 100 * 1024 * 1024;
+    let nprocs = unsafe { get_nprocs() };
+    let fd = get_fpga_mem();
+    let area = mmap_wrapper(fd, nprocs).unwrap();
 
     let hc: HardwareCommon = HardwareCommon {
         hMem: unsafe { malloc(SIZE) },
         oMem: unsafe { malloc(SIZE) },
-        area: std::ptr::null_mut(),
+        area,
     };
 
     // This is some magic to get the proper type
@@ -27,7 +73,12 @@ fn initialize() -> *const HardwareCommon {
 
 /// Free allocated resources again
 fn closeHardware(hc: *const HardwareCommon) {
-    // Nothing to do here yet.
+    // Unmap mmap'd memory area
+    let nprocs = unsafe { get_nprocs() };
+    let area = unsafe { (*hc).area };
+    munmap_wrapper(area, nprocs.try_into().unwrap());
+
+    // As for the malloc'd memory:
     // We simply leak the malloc'd memory as it gets free'd on exit anyway.
 }
 
