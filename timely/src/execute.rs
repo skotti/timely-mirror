@@ -15,8 +15,8 @@ fn initialize() -> *const HardwareCommon {
     const SIZE: usize = 100 * 1024 * 1024;
 
     let hc: HardwareCommon = HardwareCommon {
-        hMem: unsafe { malloc(SIZE) },
-        oMem: unsafe { malloc(SIZE) },
+        h_mem: unsafe { malloc(SIZE) },
+        o_mem: unsafe { malloc(SIZE) },
         area: std::ptr::null_mut(),
     };
 

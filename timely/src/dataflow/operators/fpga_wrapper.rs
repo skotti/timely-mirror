@@ -28,9 +28,9 @@ use std::ffi::c_void;
 /// Data structure to store FPGA related data
 pub struct HardwareCommon {
     /// Input memory
-    pub hMem: *mut c_void,
+    pub h_mem: *mut c_void,
     /// Output memory
-    pub oMem: *mut c_void,
+    pub o_mem: *mut c_void,
     /// the mmapped cache lines
     pub area: *mut c_void,
 }
@@ -41,7 +41,7 @@ unsafe impl Sync for HardwareCommon {}
 /// Writes a specific hardcoded bit pattern to simulate FPGA output
 fn write_hc_u64(hc: *const HardwareCommon, first_val: u64, second_val: u64) {
     // Assuming you have a c_void pointer to the buffer
-    let buffer_ptr: *mut u64 = unsafe { (*hc).oMem } as *mut u64;
+    let buffer_ptr: *mut u64 = unsafe { (*hc).o_mem } as *mut u64;
 
     let mut my_offset = 0;
     // 1...1 - 64 times
@@ -640,7 +640,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
 
                 unsafe {
                     //let start2 = Instant::now();
-                    let memory = (*hc).hMem as *mut u64;
+                    let memory = (*hc).h_mem as *mut u64;
                     *memory.offset(current_length as isize) = *time;
                     current_length += 1;
 
@@ -676,7 +676,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                     }
 
                     run1(hc); // changes should be reflected in hc
-                    let memory_out = (*hc).oMem as *mut u64;
+                    let memory_out = (*hc).o_mem as *mut u64;
 
                     for i in 0..data_length {
                         let val = *memory_out.offset(i as isize) as u64;
@@ -728,7 +728,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                 let mut progress_start_index = param_output * 8;
 
                 unsafe {
-                    let memory = (*hc).hMem as *mut u64;
+                    let memory = (*hc).h_mem as *mut u64;
                     *memory.offset(current_length as isize) = 0;
                     current_length += 1;
 
@@ -751,7 +751,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
 
                     run2(hc);
 
-                    let memory_out = (*hc).oMem as *mut u64;
+                    let memory_out = (*hc).o_mem as *mut u64;
 
                     for i in 0..data_length {
                         let val = *memory_out.offset(i as isize) as u64;
