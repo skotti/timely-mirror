@@ -593,7 +593,6 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         let mut internals = HashMap::with_capacity(32);
 
         let raw_logic = move |progress: &mut SharedProgress<S::Timestamp>| {
-            let start1 = Instant::now();
             let mut borrow = frontier.borrow_mut();
 
             for (i, j) in ghost_indexes.iter() {
@@ -639,7 +638,6 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                 let progress_start_index = param_output * 8;
 
                 unsafe {
-                    //let start2 = Instant::now();
                     let memory = (*hc).h_mem as *mut u64;
                     *memory.offset(current_length as isize) = *time;
                     current_length += 1;
