@@ -155,7 +155,7 @@ where
     /// Adds a new child to the subgraph.
     pub fn add_child_no_path(&mut self, child: Box<dyn Operate<TInner>>, index: usize, identifier: usize) {
         {
-            let mut child_path = self.path.clone();
+            let child_path = self.path.clone();
             self.logging.as_mut().map(|l| l.log(crate::logging::OperatesEvent {
                 id: identifier,
                 addr: child_path,
