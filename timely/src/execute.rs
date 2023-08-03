@@ -26,7 +26,7 @@ fn initialize() -> *const HardwareCommon {
 }
 
 /// Free allocated resources again
-fn closeHardware(hc: *const HardwareCommon) {
+fn close_hardware(hc: *const HardwareCommon) {
     // Nothing to do here yet.
     // We simply leak the malloc'd memory as it gets free'd on exit anyway.
 }
@@ -238,7 +238,7 @@ where
         let result = func(&mut worker, hwcommon);
         while worker.step_or_park(None) { }
 
-        closeHardware(hwcommon);
+        close_hardware(hwcommon);
         result
     })
 }
