@@ -82,6 +82,14 @@ fn read_hc_u64(hc: *const HardwareCommon) {
         print!("{res} ");
     }
     println!();
+
+    print!("h_mem: ");
+    let h_mem_ptr: *mut u64 = unsafe { (*hc_mut).h_mem as *mut u64 };
+    for i in 0..144 {
+        let res = unsafe { ptr::read(h_mem_ptr.offset(i)) };
+        print!("{res} ");
+    }
+    println!();
 }
 
 /// Fence needed for syncing memory operations
