@@ -73,19 +73,15 @@ fn write_hc_u64(hc: *const HardwareCommon, first_val: u64, second_val: u64) {
 /// Debug function to read the written to memory area
 fn read_hc_u64(hc: *const HardwareCommon) {
     dbg!("read_hc_u64");
-    print!("o_mem: ");
     let hc_mut = hc as *mut HardwareCommon;
 
-    // Assuming you have a c_void pointer to the buffer
-    let buffer_ptr: *mut c_void = unsafe { (*hc_mut).o_mem };
-    unsafe {
-        let dst_ptr = buffer_ptr as *mut u64;
-        for i in 0..144 {
-            let res = ptr::read(dst_ptr.offset(i));
-            print!("{res} ");
-        }
-        println!();
+    print!("o_mem: ");
+    let o_mem_ptr: *mut u64 = unsafe { (*hc_mut).o_mem as *mut u64 };
+    for i in 0..144 {
+        let res = unsafe { ptr::read(o_mem_ptr.offset(i)) };
+        print!("{res} ");
     }
+    println!();
 }
 
 /// Fence needed for syncing memory operations
