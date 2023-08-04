@@ -30,6 +30,7 @@ fn get_fpga_mem() -> i32 {
 
 /// Takes a file descriptor to mmap into
 fn mmap_wrapper(fd: c_int, no_cpus: c_int) -> Result<*mut c_void, std::io::Error> {
+    // return Ok(std::ptr::null_mut());
     let area = unsafe {
         libc::mmap(
             std::ptr::null_mut(),

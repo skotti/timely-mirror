@@ -26,7 +26,7 @@ fn main() {
 
         let num_rounds = 1;
         for round in 0..num_rounds {
-            for _j in 0..8 {
+            for _j in 0..8 { // Num inputs
                 input.send(round + 21); // max = 0
             }
             input.advance_to(round + 1);
@@ -52,4 +52,6 @@ fn main() {
         );
         println!("epoch latency (nanos):\n{}", hist.summary_string());
     }).unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(250));
+    dbg!("All done");
 }

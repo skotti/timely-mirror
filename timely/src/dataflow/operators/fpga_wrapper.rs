@@ -23,9 +23,9 @@ use std::collections::HashMap;
 use std::ffi::c_void;
 
 // Various parameters
-const NUMBER_OF_INPUTS: usize = 8; // make sure to sync with caller (e.g. `hello_fpga.rs`)
-const PARAM: usize = 1;
-const PARAM_OUTPUT: usize = 1;
+const NUMBER_OF_INPUTS: usize = 16; // make sure to sync with caller (e.g. `hello_fpga.rs`)
+const PARAM: usize = 2;
+const PARAM_OUTPUT: usize = 2;
 const FRONTIER_PARAM: usize = 3;
 const FRONTIER_LENGTH: usize = FRONTIER_PARAM * 8;
 const MAX_LENGTH: usize = PARAM * 8 + FRONTIER_PARAM * 8;
@@ -172,9 +172,11 @@ fn fpga_communication(hc: *const HardwareCommon) {
 // the `run` function into two to use the fact which function is called to determine the state.
 fn simulated_fpga1(hc: *const HardwareCommon) {
     write_hc_u64(hc, 1, NUMBER_OF_INPUTS.try_into().unwrap());
+    read_hc_u64(hc);
 }
 fn simulated_fpga2(hc: *const HardwareCommon) {
     write_hc_u64(hc, 0, 0);
+    read_hc_u64(hc);
 }
 fn run1(hc: *const HardwareCommon) {
     simulated_fpga1(hc);
