@@ -174,6 +174,7 @@ impl<A: Allocate> Worker<A> {
     pub fn step_or_park(&mut self, duration: Option<Duration>) -> bool {
 
         {   // Process channel events. Activate responders.
+            // dbg!();
             let mut allocator = self.allocator.borrow_mut();
             allocator.receive();
             let events = allocator.events().clone();

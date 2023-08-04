@@ -44,7 +44,7 @@ fn write_hc_u64(hc: *const HardwareCommon, first_val: u64, second_val: u64) {
 
     let mut my_offset = 0;
     // 1...1 - 64 times
-    for _i in 0..8 {
+    for _i in 0..16 {
         unsafe { ptr::write(buffer_ptr.offset(my_offset), first_val) };
         my_offset += 1;
     }
@@ -64,6 +64,7 @@ fn write_hc_u64(hc: *const HardwareCommon, first_val: u64, second_val: u64) {
 /// Debug function to read the written to memory area
 fn read_hc_u64(hc: *const HardwareCommon) {
     dbg!("read_hc_u64");
+    print!("o_mem: ");
     let hc_mut = hc as *mut HardwareCommon;
 
     // Assuming you have a c_void pointer to the buffer
@@ -72,7 +73,25 @@ fn read_hc_u64(hc: *const HardwareCommon) {
         let dst_ptr = buffer_ptr as *mut u64;
         for i in 0..144 {
             let res = ptr::read(dst_ptr.offset(i));
-            print!("{res}");
+            print!("{res} ");
+        }
+        println!();
+    }
+}
+
+/// Debug function to read the written to memory area
+fn read_hc_u64_h_mem(hc: *const HardwareCommon) {
+    dbg!("read_hc_u64_h_mem");
+    print!("h_mem: ");
+    let hc_mut = hc as *mut HardwareCommon;
+
+    // Assuming you have a c_void pointer to the buffer
+    let buffer_ptr: *mut c_void = unsafe { (*hc_mut).h_mem };
+    unsafe {
+        let dst_ptr = buffer_ptr as *mut u64;
+        for i in 0..144 {
+            let res = ptr::read(dst_ptr.offset(i));
+            print!("{res} ");
         }
         println!();
     }
@@ -156,10 +175,15 @@ fn fpga_communication(hc: *const HardwareCommon) {
 // Instead of reading the entire input vector in Rust code to determine the state, we decided to split
 // the `run` function into two to use the fact which function is called to determine the state.
 fn simulated_fpga1(hc: *const HardwareCommon) {
-    write_hc_u64(hc, 1, 8);
+    read_hc_u64_h_mem(hc);
+    write_hc_u64(hc, 1, 16);
+    read_hc_u64(hc);
+    
 }
 fn simulated_fpga2(hc: *const HardwareCommon) {
+    read_hc_u64_h_mem(hc);
     write_hc_u64(hc, 0, 0);
+    read_hc_u64(hc);
 }
 fn run1(hc: *const HardwareCommon) {
     simulated_fpga1(hc);
@@ -669,8 +693,10 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
             // invoke supplied logic
             use crate::communication::message::RefOrMut;
 
-            let param = 1; // number of 8 number chuncks
-            let param_output = 1;
+            let param = 2; // number of 8 number chuncks
+            let param_output = 2;
+            // let param = 1; // number of 8 number chuncks
+            // let param_output = 1;
             let frontier_param = 3;
             let mut has_data = false;
             /*let end1 = Instant::now();
@@ -753,6 +779,24 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                         let internals_time = *memory_out.offset(internals_index_1) >> 1 as u64;
                         let internals_value = *memory_out.offset(internals_index_2) as i64;
 
+
+                        dbg!(consumed_value);
+                        dbg!(produced_value);
+                        dbg!(internals_time);
+                        dbg!(internals_value);
+                        dbg!();
+                        // // if data
+                        // let consumed_value = 8;
+                        // let produced_value = 8;
+                        // let internals_time = 0;
+                        // let internals_value = 0;
+
+                        // assert_eq!(consumed_value, old_consumed_value);
+                        // assert_eq!(produced_value, old_produced_value);
+                        // assert_eq!(internals_time, old_internals_time);
+                        // assert_eq!(internals_value, old_internals_value);
+
+
                         consumed.insert(*j, consumed_value);
                         internals.insert(*j, (internals_time, internals_value));
                         produced.insert(*j, produced_value);
@@ -775,6 +819,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                 }
             }
 
+            dbg!(has_data);
             if !has_data {
                 let _frontier_length = frontier_param * 8; //2 + ghost_indexes.len() + 4 * ghost_indexes.len();
                 let mut current_length = 0;
@@ -827,6 +872,22 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                         let produced_value = *memory_out.offset(produced_index) as i64;
                         let internals_time = *memory_out.offset(internals_index_1) >> 1 as u64;
                         let internals_value = *memory_out.offset(internals_index_2) as i64;
+
+                        dbg!(consumed_value);
+                        dbg!(produced_value);
+                        dbg!(internals_time);
+                        dbg!(internals_value);
+                        dbg!();
+
+                        // let consumed_value = 0;
+                        // let produced_value = 0;
+                        // let internals_time = 0;
+                        // let internals_value = 0;
+
+                        // assert_eq!(consumed_value, old_consumed_value);
+                        // assert_eq!(produced_value, old_produced_value);
+                        // assert_eq!(internals_time, old_internals_time);
+                        // assert_eq!(internals_value, old_internals_value);
 
                         consumed.insert(*j, consumed_value);
                         internals.insert(*j, (internals_time, internals_value));
