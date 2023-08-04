@@ -347,7 +347,7 @@ where
 }
 
 /// Wrapper to run on FPGA
-pub trait FpgaWrapper<S: Scope /*, D: Data*/> {
+pub trait FpgaWrapper<S: Scope> {
     /// Wrapper function
     fn fpga_wrapper(&self, hc: *const HardwareCommon) -> Stream<S, u64>;
 }
@@ -679,13 +679,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
             use crate::communication::message::RefOrMut;
 
             let mut has_data = false;
-            /*let end1 = Instant::now();
-            let delta1 = (end1 - start1).as_nanos();
-            println!("Delta1 = {}", delta1);*/
 
             while let Some(message) = input_wrapper.next() {
                 has_data = true;
-                //println!("INSIDE DATA PROCESSING");
                 let (time, data) = match message.as_ref_or_mut() {
                     RefOrMut::Ref(reference) => (&reference.time, RefOrMut::Ref(&reference.data)),
                     RefOrMut::Mut(reference) => {
