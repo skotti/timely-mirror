@@ -73,6 +73,7 @@ fn write_hc_u64(hc: *const HardwareCommon, first_val: u64, second_val: u64) {
 /// Debug function to read the written to memory area
 fn read_hc_u64(hc: *const HardwareCommon) {
     dbg!("read_hc_u64");
+    print!("o_mem: ");
     let hc_mut = hc as *mut HardwareCommon;
 
     // Assuming you have a c_void pointer to the buffer
