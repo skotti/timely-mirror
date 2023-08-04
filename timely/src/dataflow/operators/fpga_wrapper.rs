@@ -23,6 +23,7 @@ use std::collections::HashMap;
 use std::ffi::c_void;
 
 // Various parameters
+const NUMBER_OF_INPUTS: usize = 8; // make sure to sync with caller (e.g. `hello_fpga.rs`)
 const PARAM: usize = 1;
 const PARAM_OUTPUT: usize = 1;
 const FRONTIER_PARAM: usize = 3;
@@ -53,7 +54,7 @@ fn write_hc_u64(hc: *const HardwareCommon, first_val: u64, second_val: u64) {
 
     let mut my_offset = 0;
     // 1...1 - 64 times
-    for _i in 0..8 {
+    for _i in 0..NUMBER_OF_INPUTS {
         unsafe { ptr::write(buffer_ptr.offset(my_offset), first_val) };
         my_offset += 1;
     }
@@ -170,7 +171,7 @@ fn fpga_communication(hc: *const HardwareCommon) {
 // Instead of reading the entire input vector in Rust code to determine the state, we decided to split
 // the `run` function into two to use the fact which function is called to determine the state.
 fn simulated_fpga1(hc: *const HardwareCommon) {
-    write_hc_u64(hc, 1, 8);
+    write_hc_u64(hc, 1, NUMBER_OF_INPUTS.try_into().unwrap());
 }
 fn simulated_fpga2(hc: *const HardwareCommon) {
     write_hc_u64(hc, 0, 0);
