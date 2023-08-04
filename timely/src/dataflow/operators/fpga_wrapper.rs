@@ -81,7 +81,7 @@ fn read_hc_u64(hc: *const HardwareCommon) {
         let dst_ptr = buffer_ptr as *mut u64;
         for i in 0..144 {
             let res = ptr::read(dst_ptr.offset(i));
-            print!("{res}");
+            print!("{res} ");
         }
         println!();
     }
