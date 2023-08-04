@@ -22,6 +22,15 @@ use std::ptr;
 use std::collections::HashMap;
 use std::ffi::c_void;
 
+// Various parameters
+const PARAM: usize = 1;
+const PARAM_OUTPUT: usize = 1;
+const FRONTIER_PARAM: usize = 3;
+const FRONTIER_LENGTH: usize = FRONTIER_PARAM * 8;
+const MAX_LENGTH: usize = PARAM * 8 + FRONTIER_PARAM * 8;
+const DATA_LENGTH: usize = PARAM_OUTPUT * 8;
+const PROGRESS_START_INDEX: usize = PARAM_OUTPUT * 8;
+
 #[derive(Debug)]
 #[repr(C)]
 /// Data structure to store FPGA related data
@@ -669,9 +678,6 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
             // invoke supplied logic
             use crate::communication::message::RefOrMut;
 
-            let param = 1; // number of 8 number chuncks
-            let param_output = 1;
-            let frontier_param = 3;
             let mut has_data = false;
             /*let end1 = Instant::now();
             let delta1 = (end1 - start1).as_nanos();
@@ -688,12 +694,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                 };
                 data.swap(&mut vector);
 
-                let frontier_length = frontier_param * 8; //2 + ghost_indexes.len() + 4 * ghost_indexes.len();
                 let mut current_length = 0;
-                let max_length = param * 8 + frontier_param * 8;
-                let data_length = param * 8;
-                let _data_start_index = 0;
-                let progress_start_index = param_output * 8;
 
                 unsafe {
                     let memory = (*hc).h_mem as *mut u64;
@@ -712,7 +713,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                             }
                         }
                     }
-                    for _i in current_length..frontier_length {
+                    for _i in current_length..FRONTIER_LENGTH {
                         *memory.offset(current_length as isize) = 0;
                         current_length += 1;
                     }
@@ -727,14 +728,14 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                         }
                     }
 
-                    for i in current_length..max_length {
+                    for i in current_length..MAX_LENGTH {
                         *memory.offset(i as isize) = 0;
                     }
 
                     run1(hc); // changes should be reflected in hc
                     let memory_out = (*hc).o_mem as *mut u64;
 
-                    for i in 0..data_length {
+                    for i in 0..DATA_LENGTH {
                         let val = *memory_out.offset(i as isize) as u64;
                         let shifted_val = val >> 1;
                         if val != 0 {
@@ -743,10 +744,10 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                     }
 
                     for (i, j) in ghost_indexes.iter() {
-                        let consumed_index = (progress_start_index + 4 * i) as isize;
-                        let produced_index = (progress_start_index + 4 * i + 1) as isize;
-                        let internals_index_1 = (progress_start_index + 4 * i + 2) as isize;
-                        let internals_index_2 = (progress_start_index + 4 * i + 3) as isize;
+                        let consumed_index = (PROGRESS_START_INDEX + 4 * i) as isize;
+                        let produced_index = (PROGRESS_START_INDEX + 4 * i + 1) as isize;
+                        let internals_index_1 = (PROGRESS_START_INDEX + 4 * i + 2) as isize;
+                        let internals_index_2 = (PROGRESS_START_INDEX + 4 * i + 3) as isize;
 
                         let consumed_value = *memory_out.offset(consumed_index) as i64;
                         let produced_value = *memory_out.offset(produced_index) as i64;
@@ -776,12 +777,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
             }
 
             if !has_data {
-                let _frontier_length = frontier_param * 8; //2 + ghost_indexes.len() + 4 * ghost_indexes.len();
                 let mut current_length = 0;
-                let max_length = param * 8 + frontier_param * 8;
-                let data_length = param * 8;
-                let _data_start_index = 0;
-                let progress_start_index = param_output * 8;
 
                 unsafe {
                     let memory = (*hc).h_mem as *mut u64;
@@ -801,7 +797,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                         }
                     }
 
-                    for i in current_length..max_length {
+                    for i in current_length..MAX_LENGTH {
                         *memory.offset(i as isize) = 0;
                     }
 
@@ -809,7 +805,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
 
                     let memory_out = (*hc).o_mem as *mut u64;
 
-                    for i in 0..data_length {
+                    for i in 0..DATA_LENGTH {
                         let val = *memory_out.offset(i as isize) as u64;
                         let shifted_val = val >> 1;
                         if val != 0 {
@@ -818,10 +814,10 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                     }
 
                     for (i, j) in ghost_indexes.iter() {
-                        let consumed_index = (progress_start_index + 4 * i) as isize;
-                        let produced_index = (progress_start_index + 4 * i + 1) as isize;
-                        let internals_index_1 = (progress_start_index + 4 * i + 2) as isize;
-                        let internals_index_2 = (progress_start_index + 4 * i + 3) as isize;
+                        let consumed_index = (PROGRESS_START_INDEX + 4 * i) as isize;
+                        let produced_index = (PROGRESS_START_INDEX + 4 * i + 1) as isize;
+                        let internals_index_1 = (PROGRESS_START_INDEX + 4 * i + 2) as isize;
+                        let internals_index_2 = (PROGRESS_START_INDEX + 4 * i + 3) as isize;
 
                         let consumed_value = *memory_out.offset(consumed_index) as i64;
                         let produced_value = *memory_out.offset(produced_index) as i64;
