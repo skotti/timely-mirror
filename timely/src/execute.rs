@@ -56,9 +56,21 @@ fn munmap_wrapper(area: *mut c_void, no_cpus: libc::size_t) {
 
 /// Allocate resources needed for computation
 fn initialize() -> *const HardwareCommon {
-    let nprocs = unsafe { get_nprocs() };
-    let fd = get_fpga_mem();
-    let area = mmap_wrapper(fd, nprocs).unwrap();
+    let area;
+    #[cfg(feature = "no-fpga")]
+    {
+        let red = "\x1b[31m";
+        let reset = "\x1b[0m";
+        println!("{red}====== Warning: No FPGA! ======{reset}");
+        area = std::ptr::null_mut();
+    }
+
+    #[cfg(not(feature = "no-fpga"))]
+    {
+        let nprocs = unsafe { get_nprocs() };
+        let fd = get_fpga_mem();
+        area = mmap_wrapper(fd, nprocs).unwrap();
+    }
 
     let hc: HardwareCommon = HardwareCommon {
         h_mem: unsafe { malloc(SIZE) },

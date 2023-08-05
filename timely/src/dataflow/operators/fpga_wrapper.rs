@@ -178,10 +178,14 @@ fn simulated_fpga2(hc: *const HardwareCommon) {
 }
 fn run1(hc: *const HardwareCommon) {
     simulated_fpga1(hc);
+
+    #[cfg(not(feature = "no-fpga"))]
     fpga_communication(hc);
 }
 fn run2(hc: *const HardwareCommon) {
     simulated_fpga2(hc);
+
+    #[cfg(not(feature = "no-fpga"))]
     fpga_communication(hc);
 }
 

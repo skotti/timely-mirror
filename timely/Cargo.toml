@@ -17,6 +17,7 @@ license = "MIT"
 
 [features]
 bincode= ["timely_communication/bincode"]
+no-fpga = []
 
 [dependencies]
 serde = "1.0"
