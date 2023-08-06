@@ -195,8 +195,8 @@ impl<G: Scope> OperatorBuilder<G> {
         &mut self,
         connection: Vec<Antichain<<G::Timestamp as Timestamp>::Summary>>,
     ) -> Tee<G::Timestamp, D> {
-        let (targets, registrar) = Tee::<G::Timestamp, D>::new();
-        let source = Source::new(self.index, self.shape.outputs);
+        let (targets, _registrar) = Tee::<G::Timestamp, D>::new();
+        let _source = Source::new(self.index, self.shape.outputs);
 
         self.shape.outputs += 1;
         assert_eq!(self.shape.inputs, connection.len());
