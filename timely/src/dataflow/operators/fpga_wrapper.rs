@@ -93,6 +93,16 @@ fn read_hc_u64(hc: *const HardwareCommon) {
     println!();
 }
 
+/// Reads a chunk of memory as array of `u64`
+fn read_memory_chunk_u64(dst_ptr: *mut u64) {
+    let entries = 144;
+    for i in 0..entries {
+        let res = unsafe { ptr::read(dst_ptr.offset(i)) };
+        print!("{res} ");
+    }
+    println!();
+}
+
 /// Fence needed for syncing memory operations
 #[cfg(target_arch = "aarch64")]
 #[inline]
