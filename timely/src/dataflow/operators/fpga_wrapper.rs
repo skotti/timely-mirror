@@ -48,21 +48,23 @@ unsafe impl Send for HardwareCommon {}
 unsafe impl Sync for HardwareCommon {}
 
 /// Writes a specific hardcoded bit pattern to simulate FPGA output
-fn generate_fpga_output(buffer_ptr: *mut u64, first_val: u64, second_val: u64) {
+fn generate_fpga_output(output_ptr: *mut u64, first_val: u64, second_val: u64) {
+    // Cast buffer ptr to array
+    let output_arr: &mut [u64] = unsafe { std::slice::from_raw_parts_mut(output_ptr, 144) };
     let mut my_offset = 0;
     // 1...1 - 64 times
     for _i in 0..NUMBER_OF_INPUTS {
-        unsafe { ptr::write(buffer_ptr.offset(my_offset), first_val) };
+        output_arr[my_offset] = first_val;
         my_offset += 1;
     }
 
     // 1100 - operator many times
     let operator_count = 11;
     for _i in 0..operator_count {
-        unsafe { ptr::write(buffer_ptr.offset(my_offset + 0), second_val) };
-        unsafe { ptr::write(buffer_ptr.offset(my_offset + 1), second_val) };
-        unsafe { ptr::write(buffer_ptr.offset(my_offset + 2), 0) };
-        unsafe { ptr::write(buffer_ptr.offset(my_offset + 3), 0) };
+        output_arr[my_offset + 0] = second_val;
+        output_arr[my_offset + 1] = second_val;
+        output_arr[my_offset + 2] = 0;
+        output_arr[my_offset + 3] = 0;
 
         my_offset += 4;
     }
