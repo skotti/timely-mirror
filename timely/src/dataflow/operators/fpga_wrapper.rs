@@ -71,14 +71,13 @@ fn generate_fpga_output(buffer_ptr: *mut u64, first_val: u64, second_val: u64) {
 /// Debug function to read the written to memory area
 fn read_hc_u64(hc: *const HardwareCommon) {
     dbg!("read_hc_u64");
-    let hc_mut = hc as *mut HardwareCommon;
 
     print!("o_mem: ");
-    let o_mem_ptr: *mut u64 = unsafe { (*hc_mut).o_mem as *mut u64 };
+    let o_mem_ptr: *mut u64 = unsafe { (*hc).o_mem as *mut u64 };
     read_memory_chunk_u64(o_mem_ptr);
 
     print!("h_mem: ");
-    let h_mem_ptr: *mut u64 = unsafe { (*hc_mut).h_mem as *mut u64 };
+    let h_mem_ptr: *mut u64 = unsafe { (*hc).h_mem as *mut u64 };
     read_memory_chunk_u64(h_mem_ptr);
 }
 
