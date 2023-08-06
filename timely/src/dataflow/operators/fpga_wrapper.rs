@@ -78,19 +78,11 @@ fn read_hc_u64(hc: *const HardwareCommon) {
 
     print!("o_mem: ");
     let o_mem_ptr: *mut u64 = unsafe { (*hc_mut).o_mem as *mut u64 };
-    for i in 0..144 {
-        let res = unsafe { ptr::read(o_mem_ptr.offset(i)) };
-        print!("{res} ");
-    }
-    println!();
+    read_memory_chunk_u64(o_mem_ptr);
 
     print!("h_mem: ");
     let h_mem_ptr: *mut u64 = unsafe { (*hc_mut).h_mem as *mut u64 };
-    for i in 0..144 {
-        let res = unsafe { ptr::read(h_mem_ptr.offset(i)) };
-        print!("{res} ");
-    }
-    println!();
+    read_memory_chunk_u64(h_mem_ptr);
 }
 
 /// Reads a chunk of memory as array of `u64`
