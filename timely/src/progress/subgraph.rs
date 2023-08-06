@@ -283,7 +283,7 @@ where
         }
         incomplete[0] = false;
         // TODO: fix this
-        let incomplete_count = incomplete.len() - self.ghost_wrapper.borrow_mut().len() - 1;// 12 op + 1
+        let incomplete_count = incomplete.len() - self.ghost_wrapper.borrow_mut().len() - 1; // #op + 1
 
         let activations = worker.activations().clone();
 
