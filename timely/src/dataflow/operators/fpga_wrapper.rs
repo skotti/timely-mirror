@@ -911,9 +911,11 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         );
 
         // we also need to create a map from ghost to wrapper
-
-        self.scope()
-            .add_fpga_operator(builder_wrapper.index(), ghost_operators, ghost_edges);
+        self.scope().add_fpga_operator(
+            builder_wrapper.index(),
+            ghost_operators.clone(),
+            ghost_edges.clone(),
+        );
 
         return stream_wrapper;
     }
