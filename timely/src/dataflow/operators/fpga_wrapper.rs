@@ -48,10 +48,7 @@ unsafe impl Send for HardwareCommon {}
 unsafe impl Sync for HardwareCommon {}
 
 /// Writes a specific hardcoded bit pattern to simulate FPGA output
-fn write_hc_u64(hc: *const HardwareCommon, first_val: u64, second_val: u64) {
-    // Assuming you have a c_void pointer to the buffer
-    let buffer_ptr: *mut u64 = unsafe { (*hc).o_mem } as *mut u64;
-
+fn generate_fpga_output(buffer_ptr: *mut u64, first_val: u64, second_val: u64) {
     let mut my_offset = 0;
     // 1...1 - 64 times
     for _i in 0..NUMBER_OF_INPUTS {
@@ -173,10 +170,12 @@ fn fpga_communication(hc: *const HardwareCommon) {
 // Instead of reading the entire input vector in Rust code to determine the state, we decided to split
 // the `run` function into two to use the fact which function is called to determine the state.
 fn simulated_fpga1(hc: *const HardwareCommon) {
-    write_hc_u64(hc, 1, NUMBER_OF_INPUTS.try_into().unwrap());
+    let buffer_ptr: *mut u64 = unsafe { (*hc).o_mem } as *mut u64;
+    generate_fpga_output(buffer_ptr, 1, NUMBER_OF_INPUTS.try_into().unwrap());
 }
 fn simulated_fpga2(hc: *const HardwareCommon) {
-    write_hc_u64(hc, 0, 0);
+    let buffer_ptr: *mut u64 = unsafe { (*hc).o_mem } as *mut u64;
+    generate_fpga_output(buffer_ptr, 0, 0);
 }
 fn run1(hc: *const HardwareCommon) {
     simulated_fpga1(hc);
