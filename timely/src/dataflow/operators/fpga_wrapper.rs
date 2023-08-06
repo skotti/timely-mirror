@@ -52,7 +52,7 @@ fn generate_fpga_output(output_ptr: *mut u64, first_val: u64, second_val: u64) {
     // Cast buffer ptr to array
     let output_arr: &mut [u64] = unsafe { std::slice::from_raw_parts_mut(output_ptr, 144) };
     let mut my_offset = 0;
-    // 1...1 - 64 times
+    // 1...1 - number of inputs times
     for _i in 0..NUMBER_OF_INPUTS {
         output_arr[my_offset] = first_val;
         my_offset += 1;
