@@ -24,6 +24,9 @@ use std::ffi::c_void;
 
 // Various parameters
 const NUMBER_OF_INPUTS: usize = 8; // make sure to sync with caller (e.g. `hello_fpga.rs`)
+const NUMBER_OF_FILTER_OPERATORS: usize = 10;
+const NUMBER_OF_MAP_OPERATORS: usize = 1;
+const OPERATOR_COUNT: usize = NUMBER_OF_FILTER_OPERATORS + NUMBER_OF_MAP_OPERATORS;
 const PARAM: usize = 1;
 const PARAM_OUTPUT: usize = 1;
 const FRONTIER_PARAM: usize = 3;
@@ -49,8 +52,6 @@ unsafe impl Sync for HardwareCommon {}
 
 /// Writes a specific hardcoded bit pattern to simulate FPGA output
 fn generate_fpga_output(input_ptr: *mut u64, output_ptr: *mut u64) {
-    let operator_count = 11;
-
     // Cast input buffer ptr to array
     let input_arr = unsafe { std::slice::from_raw_parts(input_ptr, 144) };
     let mut offset = 0; // Keep track while iterate through array
@@ -59,15 +60,15 @@ fn generate_fpga_output(input_ptr: *mut u64, output_ptr: *mut u64) {
 
     //
     let same_value = input_arr[offset];
-    for i in 0..operator_count {
+    for i in 0..OPERATOR_COUNT {
         let i = i + offset;
         assert!(0 == input_arr[i] || 1 == input_arr[i] || 3 == input_arr[i]);
         assert_eq!(same_value, input_arr[i]); // values should be the same across
     }
-    offset += operator_count;
+    offset += OPERATOR_COUNT;
 
     //
-    offset += operator_count + 1;
+    offset += OPERATOR_COUNT + 1;
 
     //
     let same_value = input_arr[offset];
@@ -97,7 +98,7 @@ fn generate_fpga_output(input_ptr: *mut u64, output_ptr: *mut u64) {
     }
 
     // 1100 - operator many times
-    for _i in 0..operator_count {
+    for _i in 0..OPERATOR_COUNT {
         output_arr[my_offset + 0] = second_val;
         output_arr[my_offset + 1] = second_val;
         output_arr[my_offset + 2] = 0;
@@ -398,7 +399,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         let mut current_index = 0;
 
         let mut vec_builder_filter = vec![];
-        for i in 0..10 {
+        for i in 0..NUMBER_OF_FILTER_OPERATORS {
             // CREATE FILTER GHOST OPERATOR 1
             let mut builder_filter =
                 OperatorBuilder::new(format!("Filter{}", i + 1).to_owned(), self.scope()); // scope comes from stream
@@ -429,14 +430,15 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         }
 
         let mut vec_builder_map = vec![];
-        for i in 0..1 {
+        for i in 0..NUMBER_OF_MAP_OPERATORS {
             // CREATE MAP GHOST OPERATOR
-            let mut builder_map = OperatorBuilder::new(format!("Map{}", i + 1).to_owned(), self.scope()); // scope comes from stream
+            let mut builder_map =
+                OperatorBuilder::new(format!("Map{}", i + 1).to_owned(), self.scope()); // scope comes from stream
             builder_map.set_notify(false);
             builder_map.set_shape(1, 1);
-    
+
             let operator_logic_map = move |_progress: &mut SharedProgress<S::Timestamp>| false;
-    
+
             let operator_map = FakeOperator {
                 shape: builder_map.shape().clone(),
                 address: builder_map.address().clone(),
@@ -445,7 +447,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                 shared_progress: Rc::new(RefCell::new(SharedProgress::new(1, 1))),
                 summary: builder_map.summary().to_vec(),
             };
-    
+
             self.scope().add_operator_with_indices_no_path(
                 Box::new(operator_map),
                 builder_map.index(),
