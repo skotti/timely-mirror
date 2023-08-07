@@ -48,7 +48,12 @@ unsafe impl Send for HardwareCommon {}
 unsafe impl Sync for HardwareCommon {}
 
 /// Writes a specific hardcoded bit pattern to simulate FPGA output
-fn generate_fpga_output(output_ptr: *mut u64, first_val: u64, second_val: u64) {
+fn generate_fpga_output(
+    input_ptr: *mut u64,
+    output_ptr: *mut u64,
+    first_val: u64,
+    second_val: u64,
+) {
     // Cast buffer ptr to array
     let output_arr: &mut [u64] = unsafe { std::slice::from_raw_parts_mut(output_ptr, 144) };
     let mut my_offset = 0;
@@ -172,11 +177,13 @@ fn fpga_communication(hc: *const HardwareCommon) {
 // the `run` function into two to use the fact which function is called to determine the state.
 fn simulated_fpga1(hc: *const HardwareCommon) {
     let buffer_ptr: *mut u64 = unsafe { (*hc).o_mem } as *mut u64;
-    generate_fpga_output(buffer_ptr, 1, NUMBER_OF_INPUTS.try_into().unwrap());
+    let h_ptr: *mut u64 = unsafe { (*hc).h_mem } as *mut u64;
+    generate_fpga_output(h_ptr, buffer_ptr, 1, NUMBER_OF_INPUTS.try_into().unwrap());
 }
 fn simulated_fpga2(hc: *const HardwareCommon) {
     let buffer_ptr: *mut u64 = unsafe { (*hc).o_mem } as *mut u64;
-    generate_fpga_output(buffer_ptr, 0, 0);
+    let h_ptr: *mut u64 = unsafe { (*hc).h_mem } as *mut u64;
+    generate_fpga_output(h_ptr, buffer_ptr, 0, 0);
 }
 fn run1(hc: *const HardwareCommon) {
     simulated_fpga1(hc);
