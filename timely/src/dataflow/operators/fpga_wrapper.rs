@@ -204,15 +204,11 @@ fn fpga_communication(hc: *const HardwareCommon) {
     assert_eq!(expected_result, res);
 }
 
-fn simulated_fpga(hc: *const HardwareCommon) {
-    let buffer_ptr: *mut u64 = unsafe { (*hc).o_mem } as *mut u64;
-    let h_ptr: *mut u64 = unsafe { (*hc).h_mem } as *mut u64;
-    generate_fpga_output(h_ptr, buffer_ptr);
-}
-
 /// Sends data to FPGA and receives reponse
 fn run(hc: *const HardwareCommon) {
-    simulated_fpga(hc);
+    let h_mem_ptr: *mut u64 = unsafe { (*hc).h_mem } as *mut u64;
+    let o_mem_ptr: *mut u64 = unsafe { (*hc).o_mem } as *mut u64;
+    generate_fpga_output(h_mem_ptr, o_mem_ptr);
 
     #[cfg(not(feature = "no-fpga"))]
     fpga_communication(hc);
