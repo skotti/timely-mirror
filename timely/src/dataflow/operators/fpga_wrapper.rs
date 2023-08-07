@@ -210,16 +210,8 @@ fn simulated_fpga(hc: *const HardwareCommon) {
     generate_fpga_output(h_ptr, buffer_ptr);
 }
 
-// Instead of a single `run`, `run1` and `run2` exist as the proper behaviour doesn't exist yet on the FPGA.
-// Instead of reading the entire input vector in Rust code to determine the state, we decided to split
-// the `run` function into two to use the fact which function is called to determine the state.
-fn run1(hc: *const HardwareCommon) {
-    simulated_fpga(hc);
-
-    #[cfg(not(feature = "no-fpga"))]
-    fpga_communication(hc);
-}
-fn run2(hc: *const HardwareCommon) {
+/// Sends data to FPGA and receives reponse
+fn run(hc: *const HardwareCommon) {
     simulated_fpga(hc);
 
     #[cfg(not(feature = "no-fpga"))]
@@ -775,7 +767,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                         *memory.offset(i as isize) = 0;
                     }
 
-                    run1(hc); // changes should be reflected in hc
+                    run(hc); // changes should be reflected in hc
                     let memory_out = (*hc).o_mem as *mut u64;
 
                     for i in 0..DATA_LENGTH {
@@ -844,7 +836,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                         *memory.offset(i as isize) = 0;
                     }
 
-                    run2(hc);
+                    run(hc);
 
                     let memory_out = (*hc).o_mem as *mut u64;
 
