@@ -48,12 +48,7 @@ unsafe impl Send for HardwareCommon {}
 unsafe impl Sync for HardwareCommon {}
 
 /// Writes a specific hardcoded bit pattern to simulate FPGA output
-fn generate_fpga_output(
-    input_ptr: *mut u64,
-    output_ptr: *mut u64,
-    first_val: u64,
-    second_val: u64,
-) {
+fn generate_fpga_output(input_ptr: *mut u64, output_ptr: *mut u64) {
     let operator_count = 11;
 
     // Cast input buffer ptr to array
@@ -215,12 +210,12 @@ fn fpga_communication(hc: *const HardwareCommon) {
 fn simulated_fpga1(hc: *const HardwareCommon) {
     let buffer_ptr: *mut u64 = unsafe { (*hc).o_mem } as *mut u64;
     let h_ptr: *mut u64 = unsafe { (*hc).h_mem } as *mut u64;
-    generate_fpga_output(h_ptr, buffer_ptr, 1, NUMBER_OF_INPUTS.try_into().unwrap());
+    generate_fpga_output(h_ptr, buffer_ptr);
 }
 fn simulated_fpga2(hc: *const HardwareCommon) {
     let buffer_ptr: *mut u64 = unsafe { (*hc).o_mem } as *mut u64;
     let h_ptr: *mut u64 = unsafe { (*hc).h_mem } as *mut u64;
-    generate_fpga_output(h_ptr, buffer_ptr, 0, 0);
+    generate_fpga_output(h_ptr, buffer_ptr);
 }
 fn run1(hc: *const HardwareCommon) {
     simulated_fpga1(hc);
