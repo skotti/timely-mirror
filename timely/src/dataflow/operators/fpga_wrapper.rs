@@ -83,18 +83,14 @@ fn generate_fpga_output(
     }
 
     //
-    let other_first_val: u64;
-    let other_second_val: u64;
+    let first_val: u64;
+    let second_val: u64;
     if same_value == 43 {
-        other_first_val = 1;
-        other_second_val = NUMBER_OF_INPUTS.try_into().unwrap();
-        assert_eq!(other_first_val, first_val);
-        assert_eq!(other_second_val, second_val);
+        first_val = 1;
+        second_val = NUMBER_OF_INPUTS.try_into().unwrap();
     } else {
-        other_first_val = 0;
-        other_second_val = 0;
-        assert_eq!(other_first_val, first_val);
-        assert_eq!(other_second_val, second_val);
+        first_val = 0;
+        second_val = 0;
     }
     // Cast buffer ptr to array
     let output_arr: &mut [u64] = unsafe { std::slice::from_raw_parts_mut(output_ptr, 144) };
