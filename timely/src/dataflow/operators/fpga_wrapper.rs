@@ -428,30 +428,34 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
             vec_builder_filter.push(builder_filter);
         }
 
-        // CREATE MAP GHOST OPERATOR
-        let mut builder_map = OperatorBuilder::new("Map".to_owned(), self.scope()); // scope comes from stream
-        builder_map.set_notify(false);
-        builder_map.set_shape(1, 1);
-
-        let operator_logic_map = move |_progress: &mut SharedProgress<S::Timestamp>| false;
-
-        let operator_map = FakeOperator {
-            shape: builder_map.shape().clone(),
-            address: builder_map.address().clone(),
-            activations: self.scope().activations().clone(),
-            logic: operator_logic_map,
-            shared_progress: Rc::new(RefCell::new(SharedProgress::new(1, 1))),
-            summary: builder_map.summary().to_vec(),
-        };
-
-        self.scope().add_operator_with_indices_no_path(
-            Box::new(operator_map),
-            builder_map.index(),
-            builder_map.global(),
-        );
-        ghost_indexes.push((current_index, builder_map.index()));
-        ghost_indexes2.push((current_index, builder_map.index()));
-        current_index += 1;
+        let mut vec_builder_map = vec![];
+        for i in 0..1 {
+            // CREATE MAP GHOST OPERATOR
+            let mut builder_map = OperatorBuilder::new(format!("Map{}", i + 1).to_owned(), self.scope()); // scope comes from stream
+            builder_map.set_notify(false);
+            builder_map.set_shape(1, 1);
+    
+            let operator_logic_map = move |_progress: &mut SharedProgress<S::Timestamp>| false;
+    
+            let operator_map = FakeOperator {
+                shape: builder_map.shape().clone(),
+                address: builder_map.address().clone(),
+                activations: self.scope().activations().clone(),
+                logic: operator_logic_map,
+                shared_progress: Rc::new(RefCell::new(SharedProgress::new(1, 1))),
+                summary: builder_map.summary().to_vec(),
+            };
+    
+            self.scope().add_operator_with_indices_no_path(
+                Box::new(operator_map),
+                builder_map.index(),
+                builder_map.global(),
+            );
+            ghost_indexes.push((current_index, builder_map.index()));
+            ghost_indexes2.push((current_index, builder_map.index()));
+            current_index += 1;
+            vec_builder_map.push(builder_map);
+        }
 
         // create wrapper operator
 
@@ -686,7 +690,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
             ghost_operators.push(builder_filter.index());
         }
 
-        ghost_operators.push(builder_map.index());
+        for builder_map in vec_builder_map {
+            ghost_operators.push(builder_map.index());
+        }
 
         builder_wrapper.set_notify(false);
         let operator = FpgaOperator {
