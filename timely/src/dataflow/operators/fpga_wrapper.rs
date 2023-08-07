@@ -207,24 +207,20 @@ fn fpga_communication(hc: *const HardwareCommon) {
 // Instead of a single `run`, `run1` and `run2` exist as the proper behaviour doesn't exist yet on the FPGA.
 // Instead of reading the entire input vector in Rust code to determine the state, we decided to split
 // the `run` function into two to use the fact which function is called to determine the state.
-fn simulated_fpga1(hc: *const HardwareCommon) {
+fn simulated_fpga(hc: *const HardwareCommon) {
     let buffer_ptr: *mut u64 = unsafe { (*hc).o_mem } as *mut u64;
     let h_ptr: *mut u64 = unsafe { (*hc).h_mem } as *mut u64;
     generate_fpga_output(h_ptr, buffer_ptr);
 }
-fn simulated_fpga2(hc: *const HardwareCommon) {
-    let buffer_ptr: *mut u64 = unsafe { (*hc).o_mem } as *mut u64;
-    let h_ptr: *mut u64 = unsafe { (*hc).h_mem } as *mut u64;
-    generate_fpga_output(h_ptr, buffer_ptr);
-}
+
 fn run1(hc: *const HardwareCommon) {
-    simulated_fpga1(hc);
+    simulated_fpga(hc);
 
     #[cfg(not(feature = "no-fpga"))]
     fpga_communication(hc);
 }
 fn run2(hc: *const HardwareCommon) {
-    simulated_fpga2(hc);
+    simulated_fpga(hc);
 
     #[cfg(not(feature = "no-fpga"))]
     fpga_communication(hc);
