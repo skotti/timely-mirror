@@ -397,255 +397,36 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         // TODO: should get rid of ghost indexes
         let mut current_index = 0;
 
-        // CREATE FILTER GHOST OPERATOR 1
-        let mut builder_filter1 = OperatorBuilder::new("Filter1".to_owned(), self.scope()); // scope comes from stream
-        builder_filter1.set_notify(false);
-        builder_filter1.set_shape(1, 1);
+        let mut vec_builder_filter = vec![];
+        for i in 0..10 {
+            // CREATE FILTER GHOST OPERATOR 1
+            let mut builder_filter =
+                OperatorBuilder::new(format!("Filter{}", i + 1).to_owned(), self.scope()); // scope comes from stream
+            builder_filter.set_notify(false);
+            builder_filter.set_shape(1, 1);
 
-        let operator_logic_filter1 = move |_progress: &mut SharedProgress<S::Timestamp>| false;
+            let operator_logic_filter = move |_progress: &mut SharedProgress<S::Timestamp>| false;
 
-        let operator_filter1 = FakeOperator {
-            shape: builder_filter1.shape().clone(),
-            address: builder_filter1.address().clone(),
-            activations: self.scope().activations().clone(),
-            logic: operator_logic_filter1,
-            shared_progress: Rc::new(RefCell::new(SharedProgress::new(1, 1))),
-            summary: builder_filter1.summary().to_vec(),
-        };
+            let operator_filter1 = FakeOperator {
+                shape: builder_filter.shape().clone(),
+                address: builder_filter.address().clone(),
+                activations: self.scope().activations().clone(),
+                logic: operator_logic_filter,
+                shared_progress: Rc::new(RefCell::new(SharedProgress::new(1, 1))),
+                summary: builder_filter.summary().to_vec(),
+            };
 
-        self.scope().add_operator_with_indices_no_path(
-            Box::new(operator_filter1),
-            builder_filter1.index(),
-            builder_filter1.global(),
-        );
-        ghost_indexes.push((current_index, builder_filter1.index()));
-        ghost_indexes2.push((current_index, builder_filter1.index()));
-        current_index += 1;
+            self.scope().add_operator_with_indices_no_path(
+                Box::new(operator_filter1),
+                builder_filter.index(),
+                builder_filter.global(),
+            );
+            ghost_indexes.push((current_index, builder_filter.index()));
+            ghost_indexes2.push((current_index, builder_filter.index()));
+            current_index += 1;
 
-        // CREATE FILTER GHOST OPERATOR 2
-        let mut builder_filter2 = OperatorBuilder::new("Filter2".to_owned(), self.scope()); // scope comes from stream
-        builder_filter2.set_notify(false);
-        builder_filter2.set_shape(1, 1);
-
-        let operator_logic_filter2 = move |_progress: &mut SharedProgress<S::Timestamp>| false;
-
-        let operator_filter2 = FakeOperator {
-            shape: builder_filter2.shape().clone(),
-            address: builder_filter2.address().clone(),
-            activations: self.scope().activations().clone(),
-            logic: operator_logic_filter2,
-            shared_progress: Rc::new(RefCell::new(SharedProgress::new(1, 1))),
-            summary: builder_filter2.summary().to_vec(),
-        };
-
-        self.scope().add_operator_with_indices_no_path(
-            Box::new(operator_filter2),
-            builder_filter2.index(),
-            builder_filter2.global(),
-        );
-        ghost_indexes.push((current_index, builder_filter2.index()));
-        ghost_indexes2.push((current_index, builder_filter2.index()));
-        current_index += 1;
-
-        // CREATE FILTER GHOST OPERATOR 3
-        let mut builder_filter3 = OperatorBuilder::new("Filter3".to_owned(), self.scope()); // scope comes from stream
-        builder_filter3.set_notify(false);
-        builder_filter3.set_shape(1, 1);
-
-        let operator_logic_filter3 = move |_progress: &mut SharedProgress<S::Timestamp>| false;
-
-        let operator_filter3 = FakeOperator {
-            shape: builder_filter3.shape().clone(),
-            address: builder_filter3.address().clone(),
-            activations: self.scope().activations().clone(),
-            logic: operator_logic_filter3,
-            shared_progress: Rc::new(RefCell::new(SharedProgress::new(1, 1))),
-            summary: builder_filter3.summary().to_vec(),
-        };
-
-        self.scope().add_operator_with_indices_no_path(
-            Box::new(operator_filter3),
-            builder_filter3.index(),
-            builder_filter3.global(),
-        );
-        ghost_indexes.push((current_index, builder_filter3.index()));
-        ghost_indexes2.push((current_index, builder_filter3.index()));
-        current_index += 1;
-
-        // CREATE FILTER GHOST OPERATOR 4
-        let mut builder_filter4 = OperatorBuilder::new("Filter4".to_owned(), self.scope()); // scope comes from stream
-        builder_filter4.set_notify(false);
-        builder_filter4.set_shape(1, 1);
-
-        let operator_logic_filter4 = move |_progress: &mut SharedProgress<S::Timestamp>| false;
-
-        let operator_filter4 = FakeOperator {
-            shape: builder_filter4.shape().clone(),
-            address: builder_filter4.address().clone(),
-            activations: self.scope().activations().clone(),
-            logic: operator_logic_filter4,
-            shared_progress: Rc::new(RefCell::new(SharedProgress::new(1, 1))),
-            summary: builder_filter4.summary().to_vec(),
-        };
-
-        self.scope().add_operator_with_indices_no_path(
-            Box::new(operator_filter4),
-            builder_filter4.index(),
-            builder_filter4.global(),
-        );
-        ghost_indexes.push((current_index, builder_filter4.index()));
-        ghost_indexes2.push((current_index, builder_filter4.index()));
-        current_index += 1;
-
-        // CREATE FILTER GHOST OPERATOR 5
-        let mut builder_filter5 = OperatorBuilder::new("Filter5".to_owned(), self.scope()); // scope comes from stream
-        builder_filter5.set_notify(false);
-        builder_filter5.set_shape(1, 1);
-
-        let operator_logic_filter5 = move |_progress: &mut SharedProgress<S::Timestamp>| false;
-
-        let operator_filter5 = FakeOperator {
-            shape: builder_filter5.shape().clone(),
-            address: builder_filter5.address().clone(),
-            activations: self.scope().activations().clone(),
-            logic: operator_logic_filter5,
-            shared_progress: Rc::new(RefCell::new(SharedProgress::new(1, 1))),
-            summary: builder_filter5.summary().to_vec(),
-        };
-
-        self.scope().add_operator_with_indices_no_path(
-            Box::new(operator_filter5),
-            builder_filter5.index(),
-            builder_filter5.global(),
-        );
-        ghost_indexes.push((current_index, builder_filter5.index()));
-        ghost_indexes2.push((current_index, builder_filter5.index()));
-        current_index += 1;
-
-        // CREATE FILTER GHOST OPERATOR 6
-        let mut builder_filter6 = OperatorBuilder::new("Filter6".to_owned(), self.scope()); // scope comes from stream
-        builder_filter6.set_notify(false);
-        builder_filter6.set_shape(1, 1);
-
-        let operator_logic_filter6 = move |_progress: &mut SharedProgress<S::Timestamp>| false;
-
-        let operator_filter6 = FakeOperator {
-            shape: builder_filter6.shape().clone(),
-            address: builder_filter6.address().clone(),
-            activations: self.scope().activations().clone(),
-            logic: operator_logic_filter6,
-            shared_progress: Rc::new(RefCell::new(SharedProgress::new(1, 1))),
-            summary: builder_filter6.summary().to_vec(),
-        };
-
-        self.scope().add_operator_with_indices_no_path(
-            Box::new(operator_filter6),
-            builder_filter6.index(),
-            builder_filter6.global(),
-        );
-        ghost_indexes.push((current_index, builder_filter6.index()));
-        ghost_indexes2.push((current_index, builder_filter6.index()));
-        current_index += 1;
-
-        // CREATE FILTER GHOST OPERATOR 7
-        let mut builder_filter7 = OperatorBuilder::new("Filter7".to_owned(), self.scope()); // scope comes from stream
-        builder_filter7.set_notify(false);
-        builder_filter7.set_shape(1, 1);
-
-        let operator_logic_filter7 = move |_progress: &mut SharedProgress<S::Timestamp>| false;
-
-        let operator_filter7 = FakeOperator {
-            shape: builder_filter7.shape().clone(),
-            address: builder_filter7.address().clone(),
-            activations: self.scope().activations().clone(),
-            logic: operator_logic_filter7,
-            shared_progress: Rc::new(RefCell::new(SharedProgress::new(1, 1))),
-            summary: builder_filter7.summary().to_vec(),
-        };
-
-        self.scope().add_operator_with_indices_no_path(
-            Box::new(operator_filter7),
-            builder_filter7.index(),
-            builder_filter7.global(),
-        );
-        ghost_indexes.push((current_index, builder_filter7.index()));
-        ghost_indexes2.push((current_index, builder_filter7.index()));
-        current_index += 1;
-
-        // CREATE FILTER GHOST OPERATOR 8
-        let mut builder_filter8 = OperatorBuilder::new("Filter8".to_owned(), self.scope()); // scope comes from stream
-        builder_filter8.set_notify(false);
-        builder_filter8.set_shape(1, 1);
-
-        let operator_logic_filter8 = move |_progress: &mut SharedProgress<S::Timestamp>| false;
-
-        let operator_filter8 = FakeOperator {
-            shape: builder_filter8.shape().clone(),
-            address: builder_filter8.address().clone(),
-            activations: self.scope().activations().clone(),
-            logic: operator_logic_filter8,
-            shared_progress: Rc::new(RefCell::new(SharedProgress::new(1, 1))),
-            summary: builder_filter8.summary().to_vec(),
-        };
-
-        self.scope().add_operator_with_indices_no_path(
-            Box::new(operator_filter8),
-            builder_filter8.index(),
-            builder_filter8.global(),
-        );
-        ghost_indexes.push((current_index, builder_filter8.index()));
-        ghost_indexes2.push((current_index, builder_filter8.index()));
-        current_index += 1;
-
-        // CREATE FILTER GHOST OPERATOR 9
-        let mut builder_filter9 = OperatorBuilder::new("Filter9".to_owned(), self.scope()); // scope comes from stream
-        builder_filter9.set_notify(false);
-        builder_filter9.set_shape(1, 1);
-
-        let operator_logic_filter9 = move |_progress: &mut SharedProgress<S::Timestamp>| false;
-
-        let operator_filter9 = FakeOperator {
-            shape: builder_filter9.shape().clone(),
-            address: builder_filter9.address().clone(),
-            activations: self.scope().activations().clone(),
-            logic: operator_logic_filter9,
-            shared_progress: Rc::new(RefCell::new(SharedProgress::new(1, 1))),
-            summary: builder_filter9.summary().to_vec(),
-        };
-
-        self.scope().add_operator_with_indices_no_path(
-            Box::new(operator_filter9),
-            builder_filter9.index(),
-            builder_filter9.global(),
-        );
-        ghost_indexes.push((current_index, builder_filter9.index()));
-        ghost_indexes2.push((current_index, builder_filter9.index()));
-        current_index += 1;
-
-        // CREATE FILTER GHOST OPERATOR 10
-        let mut builder_filter10 = OperatorBuilder::new("Filter10".to_owned(), self.scope()); // scope comes from stream
-        builder_filter10.set_notify(false);
-        builder_filter10.set_shape(1, 1);
-
-        let operator_logic_filter10 = move |_progress: &mut SharedProgress<S::Timestamp>| false;
-
-        let operator_filter10 = FakeOperator {
-            shape: builder_filter10.shape().clone(),
-            address: builder_filter10.address().clone(),
-            activations: self.scope().activations().clone(),
-            logic: operator_logic_filter10,
-            shared_progress: Rc::new(RefCell::new(SharedProgress::new(1, 1))),
-            summary: builder_filter10.summary().to_vec(),
-        };
-
-        self.scope().add_operator_with_indices_no_path(
-            Box::new(operator_filter10),
-            builder_filter10.index(),
-            builder_filter10.global(),
-        );
-        ghost_indexes.push((current_index, builder_filter10.index()));
-        ghost_indexes2.push((current_index, builder_filter10.index()));
-        current_index += 1;
+            vec_builder_filter.push(builder_filter);
+        }
 
         // CREATE MAP GHOST OPERATOR
         let mut builder_map = OperatorBuilder::new("Map".to_owned(), self.scope()); // scope comes from stream
@@ -900,16 +681,10 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
             }
             prev_ghost = ghost.1;
         }
-        ghost_operators.push(builder_filter1.index());
-        ghost_operators.push(builder_filter2.index());
-        ghost_operators.push(builder_filter3.index());
-        ghost_operators.push(builder_filter4.index());
-        ghost_operators.push(builder_filter5.index());
-        ghost_operators.push(builder_filter6.index());
-        ghost_operators.push(builder_filter7.index());
-        ghost_operators.push(builder_filter8.index());
-        ghost_operators.push(builder_filter9.index());
-        ghost_operators.push(builder_filter10.index());
+
+        for builder_filter in vec_builder_filter {
+            ghost_operators.push(builder_filter.index());
+        }
 
         ghost_operators.push(builder_map.index());
 
