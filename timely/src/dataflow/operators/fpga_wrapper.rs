@@ -23,12 +23,12 @@ use std::collections::HashMap;
 use std::ffi::c_void;
 
 // Various parameters
-const NUMBER_OF_INPUTS: usize = 8; // make sure to sync with caller (e.g. `hello_fpga.rs`)
+const NUMBER_OF_INPUTS: usize = 16; // make sure to sync with caller (e.g. `hello_fpga.rs`)
 const NUMBER_OF_FILTER_OPERATORS: usize = 10;
 const NUMBER_OF_MAP_OPERATORS: usize = 1;
 const OPERATOR_COUNT: usize = NUMBER_OF_FILTER_OPERATORS + NUMBER_OF_MAP_OPERATORS;
-const PARAM: usize = 1;
-const PARAM_OUTPUT: usize = 1;
+const PARAM: usize = 2;
+const PARAM_OUTPUT: usize = 2;
 const FRONTIER_PARAM: usize = 3;
 const FRONTIER_LENGTH: usize = FRONTIER_PARAM * 8;
 const MAX_LENGTH: usize = PARAM * 8 + FRONTIER_PARAM * 8;
@@ -211,6 +211,7 @@ fn run(hc: *const HardwareCommon) {
     let o_mem_ptr: *mut u64 = unsafe { (*hc).o_mem } as *mut u64;
     generate_fpga_output(h_mem_ptr, o_mem_ptr);
 
+    read_hc_u64(hc);
     #[cfg(not(feature = "no-fpga"))]
     fpga_communication(hc);
 }
