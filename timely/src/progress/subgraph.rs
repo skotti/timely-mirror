@@ -878,7 +878,7 @@ impl<T: Timestamp> PerOperatorState<T> {
                     }
                 }
 
-                for (output, produced) in shared_progress.wrapper_produceds.get_mut(ghost).unwrap().iter_mut().enumerate() {
+                for (_output, produced) in shared_progress.wrapper_produceds.get_mut(ghost).unwrap().iter_mut().enumerate() {
                     for (time, delta) in produced.drain() {
                         //pointstamps.update((Location::from(target), time.clone()), delta);
                         //temp_active.push(Reverse(target.node));
