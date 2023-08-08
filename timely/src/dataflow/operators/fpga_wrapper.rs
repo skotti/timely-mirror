@@ -12,7 +12,6 @@ use crate::progress::{operate::SharedProgress, Antichain, ChangeBatch, Operate, 
 use crate::scheduling::{Activations, Schedule};
 
 use crate::progress::frontier::MutableAntichain;
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::convert::TryInto;
 use std::rc::Rc;
@@ -520,7 +519,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                     current_length += 1;
 
                     for i in 0..borrow.len() {
-                        let frontier = borrow[i].borrow().frontier();
+                        let frontier = borrow[i].frontier();
                         if frontier.len() == 0 {
                             *memory.offset(current_length as isize) = 0;
                             current_length += 1;
@@ -603,7 +602,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                     current_length += 1;
 
                     for i in 0..borrow.len() {
-                        let frontier = borrow[i].borrow().frontier();
+                        let frontier = borrow[i].frontier();
                         if frontier.len() == 0 {
                             *memory.offset(current_length as isize) = 0;
                             current_length += 1;
