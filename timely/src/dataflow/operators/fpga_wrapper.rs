@@ -134,14 +134,14 @@ fn read_memory_chunk_u64(dst_ptr: *mut u64) {
 #[cfg(target_arch = "aarch64")]
 #[inline]
 fn dmb() {
-    unsafe { core::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst) };
+    core::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
 }
 
 /// Fence needed for syncing memory operations
 #[cfg(target_arch = "x86_64")]
 #[inline]
 fn dmb() {
-    unsafe { core::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst) };
+    core::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
 }
 
 /// Writes to the first cache line
