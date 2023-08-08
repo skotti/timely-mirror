@@ -66,8 +66,11 @@ fn generate_fpga_output(input_ptr: *mut u64, output_ptr: *mut u64) {
     }
     offset += OPERATOR_COUNT;
 
-    //
-    offset += OPERATOR_COUNT + 1;
+    // Safety check, otherwise we overwrite values
+    assert!(offset <= FRONTIER_LENGTH);
+
+    // Set offset to past frontier end, begining of data section
+    offset = FRONTIER_LENGTH;
 
     //
     let same_value = input_arr[offset];
