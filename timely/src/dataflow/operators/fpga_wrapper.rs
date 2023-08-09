@@ -54,14 +54,14 @@ fn generate_fpga_output(input_ptr: *mut u64, output_ptr: *mut u64) {
     // Cast input buffer ptr to array
     let input_arr = unsafe { std::slice::from_raw_parts(input_ptr, 144) };
     let mut offset = 0; // Keep track while iterate through array
-    assert_eq!(0, input_arr[0]);
+    // dbg!(input_arr[0]); // <--- iteration count
     offset += 1;
 
     //
     let same_value = input_arr[offset];
     for i in 0..OPERATOR_COUNT {
         let i = i + offset;
-        assert!(0 == input_arr[i] || 1 == input_arr[i] || 3 == input_arr[i]);
+        assert!(0 == input_arr[i] || input_arr[i] % 2 == 1);
         assert_eq!(same_value, input_arr[i]); // values should be the same across
     }
     offset += OPERATOR_COUNT;
@@ -76,14 +76,14 @@ fn generate_fpga_output(input_ptr: *mut u64, output_ptr: *mut u64) {
     let same_value = input_arr[offset];
     for i in 0..NUMBER_OF_INPUTS {
         let i = i + offset;
-        assert!(0 == input_arr[i] || 43 == input_arr[i]);
+        assert!(0 == input_arr[i] || input_arr[i] % 2 == 1);
         assert_eq!(same_value, input_arr[i]); // values should be the same across
     }
 
     //
     let first_val: u64;
     let second_val: u64;
-    if same_value == 43 {
+    if same_value != 0 {
         first_val = 1;
         second_val = NUMBER_OF_INPUTS.try_into().unwrap();
     } else {
