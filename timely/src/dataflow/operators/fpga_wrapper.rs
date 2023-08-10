@@ -22,12 +22,12 @@ use std::collections::HashMap;
 use std::ffi::c_void;
 
 // Various parameters
-const NUMBER_OF_INPUTS: usize = 8; // make sure to sync with caller (e.g. `hello_fpga.rs`)
-const NUMBER_OF_FILTER_OPERATORS: usize = 10;
-const NUMBER_OF_MAP_OPERATORS: usize = 1;
+const NUMBER_OF_INPUTS: usize = 16; // make sure to sync with caller (e.g. `hello_fpga.rs`)
+const NUMBER_OF_FILTER_OPERATORS: usize = 1;
+const NUMBER_OF_MAP_OPERATORS: usize = 0;
 const OPERATOR_COUNT: usize = NUMBER_OF_FILTER_OPERATORS + NUMBER_OF_MAP_OPERATORS;
-const PARAM: usize = 1;
-const PARAM_OUTPUT: usize = 1;
+const PARAM: usize = 2;
+const PARAM_OUTPUT: usize = 2;
 const FRONTIER_PARAM: usize = 3;
 const FRONTIER_LENGTH: usize = FRONTIER_PARAM * 8;
 const MAX_LENGTH: usize = PARAM * 8 + FRONTIER_PARAM * 8;
@@ -148,8 +148,8 @@ fn dmb() {
     core::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
 }
 
-/// Writes to the first cache line
-fn write_to_memory(val: [u64; 16], area: *mut std::ffi::c_void) {
+/// Writes frontiers to first cache line
+fn write_frontiers(val: &[u64], area: *mut std::ffi::c_void) {
     // Treat as `uint64_t *`
     let area = area as *mut u64;
 
@@ -158,64 +158,75 @@ fn write_to_memory(val: [u64; 16], area: *mut std::ffi::c_void) {
     }
     dmb();
 }
+/// Writes data to second cache line
+fn write_data(val: &[u64], area: *mut std::ffi::c_void) {
+    // Treat as `uint64_t *`
+    let area = area as *mut u64;
 
-/// Reads from the second cache line
-fn read_from_memory(area: *mut std::ffi::c_void) -> [u64; 16] {
-    let mut res: [u64; 16] = [0; 16];
+    for i in 0..16 as usize {
+        unsafe { *area.offset((16 + i).try_into().unwrap()) = val[i] };
+    }
+    dmb();
+}
+
+/// Read results from the two cache lines
+fn read_from_memory(area: *mut std::ffi::c_void) -> ([u64; 16], [u64; 16]) {
+    let mut cache_line_1: [u64; 16] = [0; 16];
+    let mut cache_line_2: [u64; 16] = [0; 16];
 
     // Treat as `uint64_t *`
     let area = area as *mut u64;
 
     // Read
     for i in 0..16 {
-        res[i] = unsafe { *(area.offset((16 + i).try_into().unwrap())) };
+        cache_line_1[i] = unsafe { *(area.offset(i.try_into().unwrap())) };
+    }
+    for i in 0..16 {
+        cache_line_2[i] = unsafe { *(area.offset((16 + i).try_into().unwrap())) };
     }
     dmb();
 
-    res
+    (cache_line_1, cache_line_2)
 }
 
-/// Communicates to FPGA via cache line using [`2fast2forward`](https://gitlab.inf.ethz.ch/PROJECT-Enzian/fpga-sources/enzian-applications/2fast2forward)
-fn fpga_communication(hc: *const HardwareCommon) {
-    let val: [u64; 16] = [420; 16]; // Using the same value for each element due to a quirk in provided bitstream reordering some values
+/// Communicates to FPGA via cache lines using [`2fast2forward`](https://gitlab.inf.ethz.ch/PROJECT-Enzian/fpga-sources/enzian-applications/2fast2forward)
+fn fpga_communication(hc: *const HardwareCommon, h_mem_ptr: *mut u64, o_mem_ptr: *mut u64) {
+    let input_arr = unsafe { std::slice::from_raw_parts(h_mem_ptr, 144) };
+    let output_arr = unsafe { std::slice::from_raw_parts_mut(o_mem_ptr, 144) };
+    let val: &[u64] = &input_arr[FRONTIER_LENGTH..FRONTIER_LENGTH + 16];
+    let frontiers: &[u64] = &input_arr[1..1 + 16];
 
     // Get pointer to memory
     let area = unsafe { (*hc).area };
 
-    // Write to cache line
-    write_to_memory(val, area);
+    // Write to cache lines
+    write_frontiers(frontiers, area);
+    write_data(val, area);
 
-    // Read from other cache line
-    let res = read_from_memory(area);
+    // Read results from cache lines
+    let (line_1, line_2) = read_from_memory(area);
 
-    // Use the input we gave to FPGA to calculate the output we expect
-    // The expected output being the number left shifted and the LSB set to `1`.
-    let mut expected_result: [u64; 16] = [0; 16];
-    for i in 0..val.len() {
-        let val = val[i];
-        // Perform the left shift and set the lowest bit to 1
-        let res = (val << 1) | 1;
-        expected_result[i] = res
+    // Copy results to output arrays
+    for i in 0..line_1.len() {
+        output_arr[i] = line_1[i];
     }
-
-    // Debug prints
-    // dbg!(val);
-    // dbg!(expected_result);
-    // dbg!(res);
-
-    // Check result
-    // Based on current implementation
-    assert_eq!(expected_result, res);
+    for i in 0..line_2.len() {
+        output_arr[16 + i] = line_2[i];
+    }
 }
 
 /// Sends data to FPGA and receives reponse
 fn run(hc: *const HardwareCommon) {
     let h_mem_ptr: *mut u64 = unsafe { (*hc).h_mem } as *mut u64;
     let o_mem_ptr: *mut u64 = unsafe { (*hc).o_mem } as *mut u64;
+
+    // Only run when `no-fpga` feature is used
+    #[cfg(feature = "no-fpga")]
     generate_fpga_output(h_mem_ptr, o_mem_ptr);
 
+    // Only run when using FPGA
     #[cfg(not(feature = "no-fpga"))]
-    fpga_communication(hc);
+    fpga_communication(hc, h_mem_ptr, o_mem_ptr);
 }
 
 /// Wrapper operator to store ghost operators
