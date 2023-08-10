@@ -170,23 +170,15 @@ fn write_data(val: &[u64], area: *mut std::ffi::c_void) {
 }
 
 /// Read results from the two cache lines
-fn read_from_memory(area: *mut std::ffi::c_void) -> ([u64; 16], [u64; 16]) {
-    let mut cache_line_1: [u64; 16] = [0; 16];
-    let mut cache_line_2: [u64; 16] = [0; 16];
-
+fn read_from_memory(area: *mut std::ffi::c_void, output_arr: &mut [u64]) {
     // Treat as `uint64_t *`
     let area = area as *mut u64;
 
-    // Read
-    for i in 0..16 {
-        cache_line_1[i] = unsafe { *(area.offset(i.try_into().unwrap())) };
-    }
-    for i in 0..16 {
-        cache_line_2[i] = unsafe { *(area.offset((16 + i).try_into().unwrap())) };
+    // Read both cache lines (they are 16 times u64 each)
+    for i in 0..32 {
+        output_arr[i] = unsafe { *(area.offset(i.try_into().unwrap())) };
     }
     dmb();
-
-    (cache_line_1, cache_line_2)
 }
 
 /// Communicates to FPGA via cache lines using [`2fast2forward`](https://gitlab.inf.ethz.ch/PROJECT-Enzian/fpga-sources/enzian-applications/2fast2forward)
@@ -204,15 +196,7 @@ fn fpga_communication(hc: *const HardwareCommon, h_mem_ptr: *mut u64, o_mem_ptr:
     write_data(data, area);
 
     // Read results from cache lines
-    let (line_1, line_2) = read_from_memory(area);
-
-    // Copy results to output arrays
-    for i in 0..line_1.len() {
-        output_arr[i] = line_1[i];
-    }
-    for i in 0..line_2.len() {
-        output_arr[16 + i] = line_2[i];
-    }
+    read_from_memory(area, &mut output_arr[0..32]);
 }
 
 /// Sends data to FPGA and receives reponse
