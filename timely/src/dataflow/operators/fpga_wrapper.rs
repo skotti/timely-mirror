@@ -193,7 +193,7 @@ fn read_from_memory(area: *mut std::ffi::c_void) -> ([u64; 16], [u64; 16]) {
 fn fpga_communication(hc: *const HardwareCommon, h_mem_ptr: *mut u64, o_mem_ptr: *mut u64) {
     let input_arr = unsafe { std::slice::from_raw_parts(h_mem_ptr, 144) };
     let output_arr = unsafe { std::slice::from_raw_parts_mut(o_mem_ptr, 144) };
-    let val: &[u64] = &input_arr[FRONTIER_LENGTH..FRONTIER_LENGTH + 16];
+    let data: &[u64] = &input_arr[FRONTIER_LENGTH..FRONTIER_LENGTH + 16];
     let frontiers: &[u64] = &input_arr[1..1 + 16];
 
     // Get pointer to memory
@@ -201,7 +201,7 @@ fn fpga_communication(hc: *const HardwareCommon, h_mem_ptr: *mut u64, o_mem_ptr:
 
     // Write to cache lines
     write_frontiers(frontiers, area);
-    write_data(val, area);
+    write_data(data, area);
 
     // Read results from cache lines
     let (line_1, line_2) = read_from_memory(area);
