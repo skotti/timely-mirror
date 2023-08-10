@@ -189,26 +189,103 @@ fn read_from_memory(area: *mut std::ffi::c_void) -> ([u64; 16], [u64; 16]) {
     (cache_line_1, cache_line_2)
 }
 
-/// Communicates to FPGA via cache lines using [`2fast2forward`](https://gitlab.inf.ethz.ch/PROJECT-Enzian/fpga-sources/enzian-applications/2fast2forward)
+/// Simply prints contents of a `[u64; 16]` array in a single line
+fn print_array(arr: &[u64]) {
+    for elem in arr {
+        print!("{elem} ");
+    }
+    println!();
+}
+
+/// Compare outputs received from FPGA with expected output
+fn check_results(
+    initial_data: &[u64],
+    frontiers: &[u64],
+    res_line_1: [u64; 16],
+    res_line_2: [u64; 16],
+) {
+    // The value to filter by. Anything `< 5` is set to `0`
+    let filter_value = 5;
+    // dbg!(filter_value);
+
+    // Number of inputs
+    let input_count = 16;
+    // dbg!(input_count);
+
+    // // Pretty print
+    // print!("initial_data: ");
+    // print_array(initial_data);
+    // print!("frontiers:    ");
+    // print_array(frontiers);
+    // print!("data:         ");
+    // print_array(&data);
+    // print!("res_line_1:   ");
+    // print_array(&res_line_1);
+    // print!("res_line_2:   ");
+    // print_array(&res_line_2);
+
+    // Replicate filter process on CPU to get expected result
+    let expected_data: [u64; 16] = initial_data
+        .iter()
+        .map(|&x| if x < (5 << 1 | 1) { 0 } else { x })
+        .collect::<Vec<u64>>()
+        .try_into()
+        .unwrap();
+
+    // Filtered data contents from second cache line should be in first when done
+    assert_eq!(res_line_1, expected_data);
+
+    // Count amount of numbers that got filtered
+    let filtered_count: u64 = initial_data
+        .iter()
+        .filter(|&x| x < &filter_value)
+        .count()
+        .try_into()
+        .unwrap();
+    // dbg!(filtered_count);
+
+    // First entry is number of valid outputs which should match `input_count`
+    // (assuming all inputs were valid)
+    // assert_eq!(res_line_2[0], input_count); // TODO: proper valid count
+
+    // Second entry is count of remaining values after filter
+    assert_eq!(res_line_2[1], input_count - filtered_count);
+}
+
+/// Communicates to FPGA via cache line using [`2fast2forward`](https://gitlab.inf.ethz.ch/PROJECT-Enzian/fpga-sources/enzian-applications/2fast2forward)
 fn fpga_communication(hc: *const HardwareCommon, h_mem_ptr: *mut u64, o_mem_ptr: *mut u64) {
     let input_arr = unsafe { std::slice::from_raw_parts(h_mem_ptr, 144) };
-    let output_arr = unsafe { std::slice::from_raw_parts_mut(o_mem_ptr, 144) };
-    let data: &[u64] = &input_arr[FRONTIER_LENGTH..FRONTIER_LENGTH + 16];
+    let output_arr: &mut [u64] = unsafe { std::slice::from_raw_parts_mut(o_mem_ptr, 144) };
+    let initial_data: &[u64] = &input_arr[FRONTIER_LENGTH..FRONTIER_LENGTH + 16];
     let frontiers: &[u64] = &input_arr[1..1 + 16];
+    // let frontiers: [u64; 16] = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+    // // Pre-process data
+    // // left-shift by one and set LSB to `1` to mark as ready
+    // let mut data: [u64; 16] = [0; 16];
+    // for i in 0..initial_data.len() {
+    //     // data[i] = initial_data[i] << 1 | 1;
+    //     data[i] = initial_data[i];
+    // }
 
     // Get pointer to memory
     let area = unsafe { (*hc).area };
 
     // Write to cache lines
     write_frontiers(frontiers, area);
-    write_data(data, area);
+    write_data(initial_data, area);
 
-    // Read results from cache lines
+    // dbg!(initial_data.len());
+
+    // // Busy wait loop
+    // std::thread::sleep(std::time::Duration::from_millis(1));
+
+    // Read from other cache line
     let (line_1, line_2) = read_from_memory(area);
-
-    // Copy results to output arrays
+    check_results(initial_data, frontiers, line_1, line_2);
     for i in 0..line_1.len() {
-        output_arr[i] = line_1[i];
+        // output_arr[i] = line_1[i] % 2; // TODO: Not sure if this is correct
+        output_arr[i] = line_1[i]; // TODO: Not sure if this is correct
     }
     for i in 0..line_2.len() {
         output_arr[16 + i] = line_2[i];
@@ -227,6 +304,8 @@ fn run(hc: *const HardwareCommon) {
     // Only run when using FPGA
     #[cfg(not(feature = "no-fpga"))]
     fpga_communication(hc, h_mem_ptr, o_mem_ptr);
+
+    // read_hc_u64(hc);
 }
 
 /// Wrapper operator to store ghost operators
