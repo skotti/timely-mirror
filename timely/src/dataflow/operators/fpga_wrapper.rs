@@ -54,6 +54,7 @@ fn generate_fpga_output(input_ptr: *mut u64, output_ptr: *mut u64) {
     // Cast input buffer ptr to array
     let input_arr = unsafe { std::slice::from_raw_parts(input_ptr, 144) };
     let mut offset = 0; // Keep track while iterate through array
+
     // dbg!(input_arr[0]); // <--- iteration count
     offset += 1;
 
