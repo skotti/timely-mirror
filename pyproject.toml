@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "timely-on-fpga"
+version = "0.1.0"
+description = ""
+authors = ["Georg Teufelberger <tgeorg@student.ethz.ch>"]
+readme = "README.md"
+packages = [{include = "timely_on_fpga"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pandas = "^2.0.3"
+matplotlib = "^3.7.2"
+ipykernel = "^6.25.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
