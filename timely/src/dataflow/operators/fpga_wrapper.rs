@@ -171,12 +171,12 @@ fn write_data(val: &[u64], area: *mut std::ffi::c_void) {
 
 /// Read results from the two cache lines
 fn read_from_memory(area: *mut std::ffi::c_void, output_arr: &mut [u64]) {
-    // Treat as `uint64_t *`
-    let area = area as *mut u64;
+    // Treat as array slice
+    let area_arr = unsafe { std::slice::from_raw_parts(area as *mut u64, 32) };
 
     // Read both cache lines (they are 16 times u64 each)
     for i in 0..32 {
-        output_arr[i] = unsafe { *(area.offset(i.try_into().unwrap())) };
+        output_arr[i] = area_arr[i];
     }
     dmb();
 }
