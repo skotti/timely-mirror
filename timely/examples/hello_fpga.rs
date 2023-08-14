@@ -26,7 +26,7 @@ fn main() {
 
         let num_rounds = 20;
         for round in 0..num_rounds {
-            let number_of_inputs = 8;
+            let number_of_inputs = 16;
             for _j in 0..number_of_inputs {
                 input.send(round + 21); // max = 0
             }
