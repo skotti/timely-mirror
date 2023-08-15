@@ -577,7 +577,6 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                     }
                 }
 
-                //let start6 = Instant::now();
                 output_wrapper.session(time).give_vec(&mut vector2);
 
                 for (_i, j) in ghost_indexes.iter() {
