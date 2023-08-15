@@ -534,6 +534,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                             }
                         }
                     }
+
                     for _i in current_length..FRONTIER_LENGTH {
                         *input_memory.offset(current_length as isize) = 0;
                         current_length += 1;
