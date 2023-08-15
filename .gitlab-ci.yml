@@ -1,0 +1,19 @@
+# Official language image. Look for the different tagged releases at:
+# https://hub.docker.com/r/library/rust/tags/
+image: "rust:latest"
+
+# Print version info for debugging
+print-info:
+  script:
+    - rustc --version && cargo --version
+
+# Build `hello_fpga.rs`
+build-fpga:
+  script:
+    - cargo build --example hello_fpga
+
+# Build `hello_fpga.rs` without FPGA support and run it
+build-no-fpga:
+  script:
+    - cargo build --features no-fpga --example hello_fpga
+    - cargo run --features no-fpga --example hello_fpga
