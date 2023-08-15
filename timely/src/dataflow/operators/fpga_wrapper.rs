@@ -553,29 +553,29 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                     for i in current_length..MAX_LENGTH {
                         *input_memory.offset(i as isize) = 0;
                     }
+                }
 
-                    run(hc); // changes should be reflected in hc
-                    let memory_out = (*hc).o_mem as *mut u64;
-                    let memory_out = std::slice::from_raw_parts(memory_out, MAX_LENGTH_OUT);
+                run(hc); // changes should be reflected in hc
+                let memory_out = unsafe { (*hc).o_mem as *mut u64 };
+                let memory_out = unsafe { std::slice::from_raw_parts(memory_out, MAX_LENGTH_OUT) };
 
-                    for i in 0..DATA_LENGTH {
-                        let val = memory_out[i] as u64;
-                        let shifted_val = val >> 1;
-                        if val != 0 {
-                            vector2.push(shifted_val);
-                        }
+                for i in 0..DATA_LENGTH {
+                    let val = memory_out[i] as u64;
+                    let shifted_val = val >> 1;
+                    if val != 0 {
+                        vector2.push(shifted_val);
                     }
+                }
 
-                    for (i, j) in ghost_indexes.iter() {
-                        let consumed_value = memory_out[PROGRESS_START_INDEX + 4 * i] as i64;
-                        let produced_value = memory_out[PROGRESS_START_INDEX + 4 * i + 1] as i64;
-                        let internals_time = (memory_out[PROGRESS_START_INDEX + 4 * i + 2] >> 1) as u64;
-                        let internals_value = memory_out[PROGRESS_START_INDEX + 4 * i + 3] as i64;
+                for (i, j) in ghost_indexes.iter() {
+                    let consumed_value = memory_out[PROGRESS_START_INDEX + 4 * i] as i64;
+                    let produced_value = memory_out[PROGRESS_START_INDEX + 4 * i + 1] as i64;
+                    let internals_time = (memory_out[PROGRESS_START_INDEX + 4 * i + 2] >> 1) as u64;
+                    let internals_value = memory_out[PROGRESS_START_INDEX + 4 * i + 3] as i64;
 
-                        consumed.insert(*j, consumed_value);
-                        internals.insert(*j, (internals_time, internals_value));
-                        produced.insert(*j, produced_value);
-                    }
+                    consumed.insert(*j, consumed_value);
+                    internals.insert(*j, (internals_time, internals_value));
+                    produced.insert(*j, produced_value);
                 }
 
                 output_wrapper.session(time).give_vec(&mut vector2);
@@ -617,31 +617,31 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                     for i in current_length..MAX_LENGTH {
                         *memory.offset(i as isize) = 0;
                     }
+                }
+                run(hc);
 
-                    run(hc);
+                let memory_out = unsafe { (*hc).o_mem as *mut u64 };
+                let memory_out = unsafe { std::slice::from_raw_parts(memory_out, MAX_LENGTH_OUT) };
 
-                    let memory_out = (*hc).o_mem as *mut u64;
-                    let memory_out = std::slice::from_raw_parts(memory_out, MAX_LENGTH_OUT);
-
-                    for i in 0..DATA_LENGTH {
-                        let val = memory_out[i] as u64;
-                        let shifted_val = val >> 1;
-                        if val != 0 {
-                            vector2.push(shifted_val);
-                        }
-                    }
-
-                    for (i, j) in ghost_indexes.iter() {
-                        let consumed_value = memory_out[PROGRESS_START_INDEX + 4 * i] as i64;
-                        let produced_value = memory_out[PROGRESS_START_INDEX + 4 * i + 1] as i64;
-                        let internals_time = (memory_out[PROGRESS_START_INDEX + 4 * i + 2] >> 1) as u64;
-                        let internals_value = memory_out[PROGRESS_START_INDEX + 4 * i + 3] as i64;
-
-                        consumed.insert(*j, consumed_value);
-                        internals.insert(*j, (internals_time, internals_value));
-                        produced.insert(*j, produced_value);
+                for i in 0..DATA_LENGTH {
+                    let val = memory_out[i] as u64;
+                    let shifted_val = val >> 1;
+                    if val != 0 {
+                        vector2.push(shifted_val);
                     }
                 }
+
+                for (i, j) in ghost_indexes.iter() {
+                    let consumed_value = memory_out[PROGRESS_START_INDEX + 4 * i] as i64;
+                    let produced_value = memory_out[PROGRESS_START_INDEX + 4 * i + 1] as i64;
+                    let internals_time = (memory_out[PROGRESS_START_INDEX + 4 * i + 2] >> 1) as u64;
+                    let internals_value = memory_out[PROGRESS_START_INDEX + 4 * i + 3] as i64;
+
+                    consumed.insert(*j, consumed_value);
+                    internals.insert(*j, (internals_time, internals_value));
+                    produced.insert(*j, produced_value);
+                }
+
                 let id_wrap = ghost_indexes[ghost_indexes.len() - 1].1;
 
                 if vector2.len() > 0 {
