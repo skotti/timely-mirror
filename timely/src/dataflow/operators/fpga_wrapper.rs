@@ -90,7 +90,6 @@ fn generate_fpga_output(input_ptr: *mut u64, output_ptr: *mut u64) {
             }
         }
         assert!(0 == input_arr[i] || input_arr[i] % 2 == 1);
-        // assert_eq!(same_value, input_arr[i]); // values should be the same across
     }
 
     //
