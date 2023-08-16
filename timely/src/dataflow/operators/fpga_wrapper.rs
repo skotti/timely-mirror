@@ -76,20 +76,24 @@ fn generate_fpga_output(input_ptr: *mut u64, output_ptr: *mut u64) {
     offset = FRONTIER_LENGTH;
 
     //
-    let same_value = input_arr[offset];
+    let mut valid_inputs = 0;
+    let mut unfiltered_inputs = 0;
     for i in 0..NUMBER_OF_INPUTS {
-        let i = i + offset;
+        let i = i + FRONTIER_LENGTH;
+
+        // Check if input is valid
+        if input_arr[i] % 2 == 1 {
+            valid_inputs += 1;
+            // Check if input filtered
+            if input_arr[i] >= (5 << 1 | 1) {
+                unfiltered_inputs += 1;
+            }
+        }
         assert!(0 == input_arr[i] || input_arr[i] % 2 == 1);
         // assert_eq!(same_value, input_arr[i]); // values should be the same across
     }
 
     //
-    let second_val: u64;
-    if same_value != 0 {
-        second_val = NUMBER_OF_INPUTS.try_into().unwrap();
-    } else {
-        second_val = 0;
-    }
     // Cast buffer ptr to array
     let output_arr: &mut [u64] = unsafe { std::slice::from_raw_parts_mut(output_ptr, 144) };
     let mut my_offset = 0;
@@ -101,8 +105,8 @@ fn generate_fpga_output(input_ptr: *mut u64, output_ptr: *mut u64) {
 
     // 1100 - operator many times
     for _i in 0..OPERATOR_COUNT {
-        output_arr[my_offset + 0] = second_val;
-        output_arr[my_offset + 1] = second_val;
+        output_arr[my_offset + 0] = valid_inputs;
+        output_arr[my_offset + 1] = unfiltered_inputs;
         output_arr[my_offset + 2] = 0;
         output_arr[my_offset + 3] = 0;
 
