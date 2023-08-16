@@ -97,10 +97,10 @@ fn generate_fpga_output(input_ptr: *mut u64, output_ptr: *mut u64) {
     let output_arr: &mut [u64] = unsafe { std::slice::from_raw_parts_mut(output_ptr, 144) };
     let mut my_offset = 0;
     // 1...1 - number of inputs times
-    for _i in 0..NUMBER_OF_INPUTS {
-        output_arr[my_offset] = first_val;
-        my_offset += 1;
+    for i in 0..NUMBER_OF_INPUTS {
+        output_arr[i] = first_val;
     }
+    my_offset += NUMBER_OF_INPUTS;
 
     // 1100 - operator many times
     for _i in 0..OPERATOR_COUNT {
