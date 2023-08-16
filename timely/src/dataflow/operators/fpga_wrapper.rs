@@ -84,13 +84,10 @@ fn generate_fpga_output(input_ptr: *mut u64, output_ptr: *mut u64) {
     }
 
     //
-    let first_val: u64;
     let second_val: u64;
     if same_value != 0 {
-        first_val = 1;
         second_val = NUMBER_OF_INPUTS.try_into().unwrap();
     } else {
-        first_val = 0;
         second_val = 0;
     }
     // Cast buffer ptr to array
@@ -98,7 +95,7 @@ fn generate_fpga_output(input_ptr: *mut u64, output_ptr: *mut u64) {
     let mut my_offset = 0;
     // 1...1 - number of inputs times
     for i in 0..NUMBER_OF_INPUTS {
-        output_arr[i] = first_val;
+        output_arr[i] = input_arr[i + FRONTIER_LENGTH];
     }
     my_offset += NUMBER_OF_INPUTS;
 
