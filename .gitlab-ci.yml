@@ -17,3 +17,12 @@ build-no-fpga:
   script:
     - cargo build --features no-fpga --example hello_fpga
     - cargo run --features no-fpga --example hello_fpga
+
+build-no-fpga-10f10m:
+  script:
+    # Update values to 10 filters, 10 maps
+    - "sed -i 's/const NUMBER_OF_FILTER_OPERATORS: usize = [0-9]\\+;/const NUMBER_OF_FILTER_OPERATORS: usize = 10;/g' timely/src/dataflow/operators/fpga_wrapper.rs"
+    - "sed -i 's/const NUMBER_OF_MAP_OPERATORS: usize = [0-9]\\+;/const NUMBER_OF_MAP_OPERATORS: usize = 10;/g' timely/src/dataflow/operators/fpga_wrapper.rs"
+    # compile and run
+    - cargo build --features no-fpga --example hello_fpga
+    - cargo run --features no-fpga --example hello_fpga
