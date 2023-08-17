@@ -21,20 +21,26 @@ use std::ptr;
 use std::collections::HashMap;
 use std::ffi::c_void;
 
+extern "C" {
+    fn malloc(size: usize) -> *mut std::ffi::c_void;
+}
+
 // Various parameters
 const NUMBER_OF_INPUTS: usize = 16; // make sure to sync with caller (e.g. `hello_fpga.rs`)
+const TR_SIZE_OUT: isize = 144 * 8;
 const NUMBER_OF_FILTER_OPERATORS: usize = 1;
 const NUMBER_OF_MAP_OPERATORS: usize = 0;
 const OPERATOR_COUNT: usize = NUMBER_OF_FILTER_OPERATORS + NUMBER_OF_MAP_OPERATORS;
-const PARAM: usize = 2;
-const PARAM_OUTPUT: usize = 2;
+const PARAM: usize = 8; // <-- should be `2`
+const PARAM_OUTPUT: usize = 8; // <-- should be `2`
 const FRONTIER_PARAM: usize = 3;
 const FRONTIER_LENGTH: usize = FRONTIER_PARAM * 8;
-const MAX_LENGTH: usize = PARAM * 8 + FRONTIER_PARAM * 8;
+const MAX_LENGTH_IN: usize = PARAM * 8 + FRONTIER_PARAM * 8;
 const DATA_LENGTH: usize = PARAM_OUTPUT * 8;
 const PROGRESS_START_INDEX: usize = PARAM_OUTPUT * 8;
 const PROGRESS_OUTPUT: usize = 10; // ceil((#operators * 4)/8)
 const MAX_LENGTH_OUT: usize = PARAM_OUTPUT * 8 + PROGRESS_OUTPUT * 8;
+const TIME_INDEX: usize = MAX_LENGTH_OUT;
 
 #[derive(Debug)]
 #[repr(C)]
@@ -44,6 +50,22 @@ pub struct HardwareCommon {
     pub h_mem: *mut c_void,
     /// Output memory
     pub o_mem: *mut c_void,
+
+    /// Outstanding queue
+    pub i_queue: std::collections::VecDeque<*mut u64>,
+
+    /// Input queue
+    pub h_queue: std::collections::VecDeque<*mut u64>,
+
+    /// Output queue
+    pub o_queue: std::collections::VecDeque<*mut u64>,
+
+    /// Memory queue
+    pub mem_queue: std::collections::VecDeque<*mut u64>,
+
+    /// time queue?
+    pub t_queue: std::collections::VecDeque<std::time::Instant>,
+
     /// the mmapped cache lines
     pub area: *mut c_void,
 }
@@ -76,41 +98,51 @@ fn generate_fpga_output(input_ptr: *mut u64, output_ptr: *mut u64) {
     offset = FRONTIER_LENGTH;
 
     //
-    let mut valid_inputs = 0;
-    let mut unfiltered_inputs = 0;
+    let same_value = input_arr[offset];
     for i in 0..NUMBER_OF_INPUTS {
-        let i = i + FRONTIER_LENGTH;
-
-        // Check if input is valid
-        if input_arr[i] % 2 == 1 {
-            valid_inputs += 1;
-            // Check if input filtered
-            if input_arr[i] >= (5 << 1 | 1) {
-                unfiltered_inputs += 1;
-            }
-        }
+        let i = i + offset;
         assert!(0 == input_arr[i] || input_arr[i] % 2 == 1);
+        assert_eq!(same_value, input_arr[i]); // values should be the same across
     }
 
     //
+    let first_val: u64;
+    let second_val: u64;
+    if same_value != 0 {
+        first_val = 22529;
+        second_val = 24;
+    } else {
+        first_val = 0;
+        second_val = 0;
+    }
     // Cast buffer ptr to array
     let output_arr: &mut [u64] = unsafe { std::slice::from_raw_parts_mut(output_ptr, 144) };
     let mut my_offset = 0;
+
+    let unknown_value1 = 24;
+    let unknown_value2 = 40;
     // 1...1 - number of inputs times
-    for i in 0..NUMBER_OF_INPUTS {
-        output_arr[i] = input_arr[i + FRONTIER_LENGTH];
+    for _i in 0..unknown_value1 {
+        output_arr[my_offset] = first_val;
+        my_offset += 1;
     }
-    my_offset += NUMBER_OF_INPUTS;
+    for _i in 0..unknown_value2 {
+        output_arr[my_offset] = 0;
+        my_offset += 1;
+    }
 
     // 1100 - operator many times
     for _i in 0..OPERATOR_COUNT {
-        output_arr[my_offset + 0] = valid_inputs;
-        output_arr[my_offset + 1] = unfiltered_inputs;
+        output_arr[my_offset + 0] = second_val;
+        output_arr[my_offset + 1] = second_val;
         output_arr[my_offset + 2] = 0;
         output_arr[my_offset + 3] = 0;
 
         my_offset += 4;
     }
+
+    // // Mark as valid
+    // unsafe { *output_ptr.offset(TR_SIZE_OUT / 8 - 1) = 0 };
 }
 
 /// Debug function to read the written to memory area
@@ -134,6 +166,22 @@ fn read_memory_chunk_u64(dst_ptr: *mut u64) {
         print!("{res} ");
     }
     println!();
+}
+
+/// Checks whether the invalid bit is set or not
+/// If the invalid bit is gone, that means the FPGA has written to the location
+fn overwritten(mem: *mut u64) -> bool {
+    let result = unsafe { *mem.offset(TR_SIZE_OUT / 8 - 1) != u64::MAX };
+    result
+}
+
+/// Adjusted version of the original C code.
+/// Where the original version used some memory queue to store allocated chunks of memory,
+/// this simply runs `malloc`
+/// The reason for this change being that we don't deal with the same slowdown from memory alloc as the original code
+fn get_mem() -> *mut u64 {
+    let size_of_u64 = 8;
+    unsafe { malloc(size_of_u64 * (TR_SIZE_OUT as usize)) as *mut u64 }
 }
 
 /// Fence needed for syncing memory operations
@@ -186,12 +234,64 @@ fn read_from_memory(area: *mut std::ffi::c_void, output_arr: &mut [u64]) {
     dmb();
 }
 
+/// Simply prints contents of a `[u64; 16]` array in a single line
+fn print_array(arr: &[u64]) {
+    for elem in arr {
+        print!("{elem} ");
+    }
+    println!();
+}
+
+/// Compare outputs received from FPGA with expected output
+fn check_results(initial_data: &[u64], output: &[u64]) {
+    let res_line_1: &[u64] = &output[0..16];
+    let res_line_2: &[u64] = &output[16..32];
+
+    // The value to filter by. Anything `< 5` is set to `0`
+    let filter_value = 5;
+
+    // Replicate filter process on CPU to get expected result
+    let expected_data: [u64; 16] = initial_data
+        .iter()
+        .map(|&x| if x < (5 << 1 | 1) { 0 } else { x })
+        .collect::<Vec<u64>>()
+        .try_into()
+        .unwrap();
+
+    // Filtered data contents from second cache line should be in first when done
+    assert_eq!(res_line_1, expected_data);
+
+    // Count amount of numbers that are considered valid
+    let valid_input_count: u64 = initial_data
+        .iter()
+        .filter(|&x| x % 2 == 1)
+        .count()
+        .try_into()
+        .unwrap();
+
+    // Count amount of numbers that got filtered
+    let filtered_count: u64 = initial_data
+        .iter()
+        .filter(|&x| x < &filter_value)
+        .count()
+        .try_into()
+        .unwrap();
+
+    // First entry is number of valid outputs
+    // (valid meaning LSB is 1)
+    assert_eq!(res_line_2[0], valid_input_count);
+
+    // Second entry is count of remaining values after filter
+    assert_eq!(res_line_2[1], (NUMBER_OF_INPUTS as u64) - filtered_count);
+}
+
 /// Communicates to FPGA via cache lines using [`2fast2forward`](https://gitlab.inf.ethz.ch/PROJECT-Enzian/fpga-sources/enzian-applications/2fast2forward)
 fn fpga_communication(hc: *const HardwareCommon, h_mem_ptr: *mut u64, o_mem_ptr: *mut u64) {
     let input_arr = unsafe { std::slice::from_raw_parts(h_mem_ptr, 144) };
-    let output_arr = unsafe { std::slice::from_raw_parts_mut(o_mem_ptr, 144) };
+    let output_arr2 = unsafe { std::slice::from_raw_parts_mut(o_mem_ptr, 144) };
     let data: &[u64] = &input_arr[FRONTIER_LENGTH..FRONTIER_LENGTH + 16];
     let frontiers: &[u64] = &input_arr[1..1 + 16];
+    let output_arr: &mut [u64] = &mut [0; 32];
 
     // Get pointer to memory
     let area = unsafe { (*hc).area };
@@ -199,44 +299,144 @@ fn fpga_communication(hc: *const HardwareCommon, h_mem_ptr: *mut u64, o_mem_ptr:
     // Write to cache lines
     write_frontiers(frontiers, area);
     write_data(data, area);
+    // // Busy wait loop
+    // std::thread::sleep(std::time::Duration::from_millis(1));
 
     // Read results from cache lines
     read_from_memory(area, &mut output_arr[0..32]);
+
+    // Check FPGA output
+    check_results(data, &output_arr[0..32]);
+    print!("output_arr: ");
+    print_array(&output_arr);
+    dbg!();
+    // assert_eq!(output_arr, &mut output_arr2[0..32]);
 }
 
-/// Sends data to FPGA and receives reponse
-fn run(hc: *const HardwareCommon) {
-    let h_mem_ptr: *mut u64 = unsafe { (*hc).h_mem } as *mut u64;
-    let o_mem_ptr: *mut u64 = unsafe { (*hc).o_mem } as *mut u64;
+/// Sends data to FPGA
+fn send_input(hc: *const HardwareCommon, mut input: Vec<u64>) {
+    let i_queue = unsafe { &mut (*(hc as *mut HardwareCommon)).i_queue };
+    let h_queue = unsafe { &mut (*(hc as *mut HardwareCommon)).h_queue };
+    let o_queue = unsafe { &mut (*(hc as *mut HardwareCommon)).o_queue };
 
-    // Only run when `no-fpga` feature is used
-    #[cfg(feature = "no-fpga")]
+    if !o_queue.is_empty() {
+        todo!();
+    }
+
+    let h_mem;
+    // If outstanding queue is empty
+    // Queue new input directly
+    if i_queue.is_empty() {
+        // no outstanding inputs, can send new input
+        h_mem = get_mem();
+
+        // why div by 8?
+        for i in 0..MAX_LENGTH_IN / 8 {
+            unsafe { *h_mem.offset(i.try_into().unwrap()) = input[i] };
+        }
+    } else {
+        // If outstanding queue is non-empty, get top element from outstanding queue
+        // and enqueue current input into outstanding queue
+        h_mem = i_queue.pop_front().unwrap();
+        let i_mem = get_mem();
+        for i in 0..MAX_LENGTH_IN / 8 {
+            // why div by 8?
+
+            unsafe { *i_mem.offset(i.try_into().unwrap()) = input[i] };
+        }
+        i_queue.push_back(i_mem);
+    }
+
+    let o_mem_ptr = get_mem();
+
+    // Mark as unready
+    unsafe { *o_mem_ptr.offset(TR_SIZE_OUT / 8 - 1) = u64::MAX };
+
+    // Enqueue input and output memory pointers
+    h_queue.push_back(h_mem);
+    o_queue.push_back(o_mem_ptr);
+
+    // let h_mem_ptr: *mut u64 = unsafe { (*hc).h_mem } as *mut u64;
+    // let o_mem_ptr: *mut u64 = unsafe { (*hc).o_mem } as *mut u64;
+
+
+    let h_mem_ptr = input.as_mut_ptr();
     generate_fpga_output(h_mem_ptr, o_mem_ptr);
+
+    print!("o_mem: ");
+    let output_arr = unsafe { std::slice::from_raw_parts_mut(o_mem_ptr, 144) };
+    print_array(output_arr);
 
     // Only run when using FPGA
     #[cfg(not(feature = "no-fpga"))]
     fpga_communication(hc, h_mem_ptr, o_mem_ptr);
+    dbg!();
+    // Mark as valid
+    unsafe { *o_mem_ptr.offset(TR_SIZE_OUT / 8 - 1) = 0 };
+
+}
+
+/// Receives FPGA response
+fn check_output(hc: *const HardwareCommon, output: *mut u64) -> bool {
+    let o_queue = unsafe { &mut (*(hc as *mut HardwareCommon)).o_queue };
+    let h_queue = unsafe { &mut (*(hc as *mut HardwareCommon)).h_queue };
+    let i_queue = unsafe { &mut (*(hc as *mut HardwareCommon)).i_queue };
+
+    let mut send_again: bool = false;
+    if o_queue.is_empty() && i_queue.is_empty() {
+        return false;
+    }
+    if !i_queue.is_empty() {
+        if o_queue.is_empty() {
+            send_again = true;
+        } else {
+            todo!();
+        }
+    }
+
+    if send_again {
+        todo!();
+    }
+    let o_mem = o_queue.pop_front().unwrap();
+    if !overwritten(o_mem) {
+        return false;
+    }
+
+    // dbg!("before");
+    // dbg!(size_out);
+    // dbg!(o_mem);
+    // dbg!(unsafe { *o_mem });
+    // read_memory_chunk_u64(o_mem);
+    unsafe { ptr::copy_nonoverlapping(o_mem, output, (TR_SIZE_OUT / 8) as usize) };
+
+    let h_mem = h_queue.pop_front().unwrap();
+    // output[size_out/8] = h_mem[0]; // <--- why?
+    unsafe { *output.offset(TR_SIZE_OUT / 8) = *h_mem.offset(0) };
+
+    true
 }
 
 /// Wrapper operator to store ghost operators
 struct FpgaOperator<T, L>
 where
     T: Timestamp,
-    L: FnMut(&mut SharedProgress<T>) -> bool + 'static,
+    L: FnMut(&mut SharedProgress<T>) -> u64 + 'static,
 {
     shape: OperatorShape,
     address: Vec<usize>,
+    collector_address: Vec<usize>,
     logic: L,
     shared_progress: Rc<RefCell<SharedProgress<T>>>,
     activations: Rc<RefCell<Activations>>,
     summary: Vec<Vec<Antichain<T::Summary>>>,
 
     ghost_indexes: Vec<(usize, usize)>,
+    counter: Rc<RefCell<u64>>,
 }
 impl<T, L> Schedule for FpgaOperator<T, L>
 where
     T: Timestamp,
-    L: FnMut(&mut SharedProgress<T>) -> bool + 'static,
+    L: FnMut(&mut SharedProgress<T>) -> u64 + 'static,
 {
     fn name(&self) -> &str {
         self.shape.name()
@@ -246,14 +446,22 @@ where
     }
     fn schedule(&mut self) -> bool {
         let shared_progress = &mut *self.shared_progress.borrow_mut();
-        (self.logic)(shared_progress)
+        let counter = &mut *self.counter.borrow_mut();
+        let inputs = (self.logic)(shared_progress);
+        *counter += inputs;
+
+        // activates FpgaCollector
+        self.activations
+            .borrow_mut()
+            .activate(&self.collector_address[..]);
+        false
     }
 }
 
 impl<T, L> Operate<T> for FpgaOperator<T, L>
 where
     T: Timestamp,
-    L: FnMut(&mut SharedProgress<T>) -> bool + 'static,
+    L: FnMut(&mut SharedProgress<T>) -> u64 + 'static,
 {
     fn inputs(&self) -> usize {
         self.shape.inputs()
@@ -283,6 +491,84 @@ where
                 .iter_mut()
                 .for_each(|output| output.update(T::minimum(), self.shape.peers() as i64));
         }
+
+        (self.summary.clone(), self.shared_progress.clone())
+    }
+
+    // initialize self.frontier antichains as indicated by hosting scope.
+    fn set_external_summary(&mut self) {
+        // should we schedule the operator here, or just await the first invocation?
+        self.schedule();
+    }
+
+    fn notify_me(&self) -> bool {
+        self.shape.notify()
+    }
+}
+
+/// Collector operator to collect ouputs
+struct FpgaCollector<T, L>
+where
+    T: Timestamp,
+    L: FnMut(&mut SharedProgress<T>) -> usize + 'static,
+{
+    shape: OperatorShape,
+    address: Vec<usize>,
+    logic: L,
+    shared_progress: Rc<RefCell<SharedProgress<T>>>,
+    activations: Rc<RefCell<Activations>>,
+    summary: Vec<Vec<Antichain<T::Summary>>>,
+    counter: Rc<RefCell<u64>>,
+}
+
+impl<T, L> Schedule for FpgaCollector<T, L>
+where
+    T: Timestamp,
+    L: FnMut(&mut SharedProgress<T>) -> usize + 'static,
+{
+    fn name(&self) -> &str {
+        self.shape.name()
+    }
+    fn path(&self) -> &[usize] {
+        &self.address[..]
+    }
+    fn schedule(&mut self) -> bool {
+        //let start = Instant::now();
+        let shared_progress = &mut *self.shared_progress.borrow_mut();
+        let counter = &mut *self.counter.borrow_mut();
+        let consumed = (self.logic)(shared_progress) as u64;
+        if *counter - consumed > 0 {
+            *counter -= consumed;
+            self.activations.borrow_mut().activate(&self.address[..]);
+        } else {
+            *counter = 0;
+        }
+        *counter != 0
+    }
+}
+
+impl<T, L> Operate<T> for FpgaCollector<T, L>
+where
+    T: Timestamp,
+    L: FnMut(&mut SharedProgress<T>) -> usize + 'static,
+{
+    fn inputs(&self) -> usize {
+        self.shape.inputs()
+    }
+    fn outputs(&self) -> usize {
+        self.shape.outputs()
+    }
+
+    // we need a different get_internal_summary function for FpgaOperator, as we need to use wrapper_internals
+    // to pass initial frontier values to each ghost operator
+    fn get_internal_summary(
+        &mut self,
+    ) -> (
+        Vec<Vec<Antichain<T::Summary>>>,
+        Rc<RefCell<SharedProgress<T>>>,
+    ) {
+        // Request the operator to be scheduled at least once.
+        //self.activations.borrow_mut().activate(&self.address[..]);
 
         (self.summary.clone(), self.shared_progress.clone())
     }
@@ -477,12 +763,8 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         ]));
         let mut started = false;
 
-        let mut vector = Vec::with_capacity(8192);
-        let mut vector2 = Vec::with_capacity(8192);
-
-        let mut produced = HashMap::with_capacity(32);
-        let mut consumed = HashMap::with_capacity(32);
-        let mut internals = HashMap::with_capacity(32);
+        let mut vector = Vec::with_capacity(MAX_LENGTH_IN);
+        let ghost_i = ghost_indexes.to_vec();
 
         let raw_logic = move |progress: &mut SharedProgress<S::Timestamp>| {
             let mut borrow = frontier.borrow_mut();
@@ -504,9 +786,11 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
             use crate::communication::message::RefOrMut;
 
             let mut has_data = false;
+            let mut inputs = 0;
 
             while let Some(message) = input_wrapper.next() {
                 has_data = true;
+                inputs += 1;
                 let (time, data) = match message.as_ref_or_mut() {
                     RefOrMut::Ref(reference) => (&reference.time, RefOrMut::Ref(&reference.data)),
                     RefOrMut::Mut(reference) => {
@@ -517,159 +801,79 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
 
                 let mut current_length = 0;
 
-                unsafe {
-                    let input_memory = (*hc).h_mem as *mut u64;
-                    *input_memory.offset(current_length as isize) = *time;
-                    current_length += 1;
+                let mut input_memory = Vec::new();
+                input_memory.push(*time);
+                current_length += 1;
 
-                    for i in 0..borrow.len() {
-                        let frontier = borrow[i].frontier();
-                        if frontier.len() == 0 {
-                            *input_memory.offset(current_length as isize) = 0;
-                            current_length += 1;
-                        } else {
-                            for val in frontier.iter() {
-                                *input_memory.offset(current_length as isize) = (*val << 1) | 1u64;
-                                current_length += 1;
-                            }
-                        }
-                    }
-
-                    for _i in current_length..FRONTIER_LENGTH {
-                        *input_memory.offset(current_length as isize) = 0;
-                        current_length += 1;
-                    }
-
-                    if vector.len() == 0 {
-                        *input_memory.offset(current_length as isize) = 0 as u64;
+                for i in 0..borrow.len() {
+                    let frontier = borrow[i].frontier();
+                    if frontier.len() == 0 {
+                        input_memory.push(0 as u64);
                         current_length += 1;
                     } else {
-                        for val in vector.iter() {
-                            *input_memory.offset(current_length as isize) = ((*val << 1) | 1u64) as u64;
+                        for val in frontier.iter() {
+                            input_memory.push(((*val << 1) | 1u64) as u64);
                             current_length += 1;
                         }
                     }
+                }
 
-                    for i in current_length..MAX_LENGTH {
-                        *input_memory.offset(i as isize) = 0;
+                for _i in current_length..FRONTIER_LENGTH {
+                    input_memory.push(0 as u64);
+                    current_length += 1;
+                }
+
+                if vector.len() == 0 {
+                    input_memory.push(0 as u64);
+                    current_length += 1;
+                } else {
+                    for val in vector.iter() {
+                        input_memory.push(((*val << 1) | 1u64) as u64);
+                        current_length += 1;
                     }
                 }
 
-                run(hc); // changes should be reflected in hc
-                let memory_out = unsafe { (*hc).o_mem as *mut u64 };
-                let memory_out = unsafe { std::slice::from_raw_parts(memory_out, MAX_LENGTH_OUT) };
-
-                for i in 0..DATA_LENGTH {
-                    let val = memory_out[i] as u64;
-                    let shifted_val = val >> 1;
-                    if val != 0 {
-                        vector2.push(shifted_val);
-                    }
+                for _i in current_length..MAX_LENGTH_IN {
+                    input_memory.push(0 as u64);
                 }
 
-                for (i, j) in ghost_indexes.iter() {
-                    let consumed_value = memory_out[PROGRESS_START_INDEX + 4 * i] as i64;
-                    let produced_value = memory_out[PROGRESS_START_INDEX + 4 * i + 1] as i64;
-                    let internals_time = (memory_out[PROGRESS_START_INDEX + 4 * i + 2] >> 1) as u64;
-                    let internals_value = memory_out[PROGRESS_START_INDEX + 4 * i + 3] as i64;
-
-                    consumed.insert(*j, consumed_value);
-                    internals.insert(*j, (internals_time, internals_value));
-                    produced.insert(*j, produced_value);
-                }
-
-                output_wrapper.session(time).give_vec(&mut vector2);
-
-                for (_i, j) in ghost_indexes.iter() {
-                    let mut cb = ChangeBatch::new_from(time.clone(), *consumed.get(j).unwrap());
-                    let mut cb1 = ChangeBatch::new_from(time.clone(), *produced.get(j).unwrap());
-                    let mut cb2 = ChangeBatch::new_from(
-                        internals.get(j).unwrap().0 as u64,
-                        internals.get(j).unwrap().1 as i64,
-                    );
-                    cb.drain_into(&mut progress.wrapper_consumeds.get_mut(j).unwrap()[0]);
-                    cb1.drain_into(&mut progress.wrapper_produceds.get_mut(j).unwrap()[0]);
-                    cb2.drain_into(&mut progress.wrapper_internals.get_mut(j).unwrap()[0]);
-                }
+                send_input(hc, input_memory);
+                vector.clear();
             }
 
             if !has_data {
                 let mut current_length = 0;
 
-                unsafe {
-                    let memory = (*hc).h_mem as *mut u64;
-                    *memory.offset(current_length as isize) = 0;
-                    current_length += 1;
+                let mut input = Vec::new();
+                inputs += 1;
+                input.push(u64::MAX);
+                current_length += 1;
 
-                    for i in 0..borrow.len() {
-                        let frontier = borrow[i].frontier();
-                        if frontier.len() == 0 {
-                            *memory.offset(current_length as isize) = 0;
+                for i in 0..borrow.len() {
+                    let frontier = borrow[i].frontier();
+                    if frontier.len() == 0 {
+                        input.push(0 as u64);
+                        current_length += 1;
+                    } else {
+                        for val in frontier.iter() {
+                            input.push(((*val << 1) | 1u64) as u64);
                             current_length += 1;
-                        } else {
-                            for val in frontier.iter() {
-                                *memory.offset(current_length as isize) = (*val << 1) | 1u64;
-                                current_length += 1;
-                            }
                         }
                     }
-
-                    for i in current_length..MAX_LENGTH {
-                        *memory.offset(i as isize) = 0;
-                    }
-                }
-                run(hc);
-
-                let memory_out = unsafe { (*hc).o_mem as *mut u64 };
-                let memory_out = unsafe { std::slice::from_raw_parts(memory_out, MAX_LENGTH_OUT) };
-
-                for i in 0..DATA_LENGTH {
-                    let val = memory_out[i] as u64;
-                    let shifted_val = val >> 1;
-                    if val != 0 {
-                        vector2.push(shifted_val);
-                    }
                 }
 
-                for (i, j) in ghost_indexes.iter() {
-                    let consumed_value = memory_out[PROGRESS_START_INDEX + 4 * i] as i64;
-                    let produced_value = memory_out[PROGRESS_START_INDEX + 4 * i + 1] as i64;
-                    let internals_time = (memory_out[PROGRESS_START_INDEX + 4 * i + 2] >> 1) as u64;
-                    let internals_value = memory_out[PROGRESS_START_INDEX + 4 * i + 3] as i64;
-
-                    consumed.insert(*j, consumed_value);
-                    internals.insert(*j, (internals_time, internals_value));
-                    produced.insert(*j, produced_value);
+                for _i in current_length..FRONTIER_LENGTH {
+                    input.push(0 as u64);
+                    current_length += 1;
                 }
 
-                let id_wrap = ghost_indexes[ghost_indexes.len() - 1].1;
-
-                if vector2.len() > 0 {
-                    output_wrapper
-                        .session(&(internals.get(&id_wrap).unwrap().0 as u64))
-                        .give_vec(&mut vector2);
-
-                    let mut cb1 = ChangeBatch::new_from(
-                        internals.get(&id_wrap).unwrap().0 as u64,
-                        *produced.get(&id_wrap).unwrap(),
-                    );
-                    let mut cb2 = ChangeBatch::new_from(
-                        internals.get(&id_wrap).unwrap().0 as u64,
-                        internals.get(&id_wrap).unwrap().1 as i64,
-                    );
-                    cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&id_wrap).unwrap()[0]);
-                    cb2.drain_into(&mut progress.wrapper_internals.get_mut(&id_wrap).unwrap()[0]);
+                for _i in current_length..MAX_LENGTH_IN {
+                    input.push(0 as u64);
                 }
+                send_input(hc, input);
+
             }
-
-            vector.clear();
-            vector2.clear();
-            produced.clear();
-            consumed.clear();
-            internals.clear();
-            output_wrapper.cease();
-
-            false
+            inputs
         };
 
         let mut ghost_operators = Vec::new();
@@ -691,30 +895,144 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
             ghost_operators.push(builder_map.index());
         }
 
+        // create collector operator
+        let mut builder_collector = OperatorBuilder::new("Collector".to_owned(), self.scope());
+        builder_collector.set_notify(false);
+
+        let shared_progress = Rc::new(RefCell::new(SharedProgress::new_ghosts(
+            builder_wrapper.shape().inputs(),
+            builder_wrapper.shape().outputs(),
+            ghost_operators.clone(),
+        )));
+        let counter = Rc::new(RefCell::new(0 as u64));
+
         builder_wrapper.set_notify(false);
         let operator = FpgaOperator {
             shape: builder_wrapper.shape().clone(),
             address: builder_wrapper.address().clone(),
+            collector_address: builder_collector.address().clone(),
             activations: self.scope().activations().clone(),
             logic: raw_logic,
-            shared_progress: Rc::new(RefCell::new(SharedProgress::new_ghosts(
-                builder_wrapper.shape().inputs(),
-                builder_wrapper.shape().outputs(),
-                ghost_operators.clone(),
-            ))),
+            shared_progress: Rc::clone(&shared_progress),
             summary: builder_wrapper.summary().to_vec(),
             ghost_indexes: ghost_indexes2,
+            counter: Rc::clone(&counter),
         };
 
+        let collector_logic = move |progress: &mut SharedProgress<S::Timestamp>| {
+            let mut vector2 = Vec::with_capacity(DATA_LENGTH);
+            let mut produced = HashMap::with_capacity(32);
+            let mut consumed = HashMap::with_capacity(32);
+            let mut internals = HashMap::with_capacity(32);
+            let mut o_counter = 0;
+
+            let mut output = vec![0; MAX_LENGTH_OUT + 1];
+            // let mut output = vec![0; (TR_SIZE_OUT as usize) + 1];
+            // dbg!(output.len());
+            // dbg!();
+            while check_output(hc, output.as_mut_ptr()) {
+                o_counter += 1;
+
+                for i in 0..DATA_LENGTH {
+                    let val = output[i] as u64;
+                    let shifted_val = val >> 1;
+                    if val != 0 {
+                        vector2.push(shifted_val);
+                    }
+                }
+
+                for (i, j) in ghost_i.iter() {
+                    let consumed_value = output[PROGRESS_START_INDEX + 4 * i] as i64;
+                    let produced_value = output[PROGRESS_START_INDEX + 4 * i + 1] as i64;
+                    let internals_time = (output[PROGRESS_START_INDEX + 4 * i + 2] >> 1) as u64;
+                    let internals_value = output[PROGRESS_START_INDEX + 4 * i + 3] as i64;
+
+                    consumed.insert(*j, consumed_value);
+                    internals.insert(*j, (internals_time, internals_value));
+                    produced.insert(*j, produced_value);
+                }
+                let time = output[TIME_INDEX];
+                let has_data = time != u64::MAX;
+                if has_data {
+                    output_wrapper.session(&time).give_vec(&mut vector2);
+
+                    for (_i, j) in ghost_i.iter() {
+                        let mut cb = ChangeBatch::new_from(time.clone(), *consumed.get(j).unwrap());
+                        let mut cb1 =
+                            ChangeBatch::new_from(time.clone(), *produced.get(j).unwrap());
+                        let mut cb2 = ChangeBatch::new_from(
+                            internals.get(j).unwrap().0 as u64,
+                            internals.get(j).unwrap().1 as i64,
+                        );
+                        cb.drain_into(&mut progress.wrapper_consumeds.get_mut(j).unwrap()[0]);
+                        cb1.drain_into(&mut progress.wrapper_produceds.get_mut(j).unwrap()[0]);
+                        cb2.drain_into(&mut progress.wrapper_internals.get_mut(j).unwrap()[0]);
+                    }
+                } else {
+                    let id_wrap = ghost_i[ghost_i.len() - 1].1;
+
+                    if vector2.len() > 0 {
+                        output_wrapper
+                            .session(&(internals.get(&id_wrap).unwrap().0 as u64))
+                            .give_vec(&mut vector2);
+
+                        let mut cb1 = ChangeBatch::new_from(
+                            internals.get(&id_wrap).unwrap().0 as u64,
+                            *produced.get(&id_wrap).unwrap(),
+                        );
+                        let mut cb2 = ChangeBatch::new_from(
+                            internals.get(&id_wrap).unwrap().0 as u64,
+                            internals.get(&id_wrap).unwrap().1 as i64,
+                        );
+                        cb1.drain_into(
+                            &mut progress.wrapper_produceds.get_mut(&id_wrap).unwrap()[0],
+                        );
+                        cb2.drain_into(
+                            &mut progress.wrapper_internals.get_mut(&id_wrap).unwrap()[0],
+                        );
+                    }
+                }
+                output_wrapper.cease();
+                produced.clear();
+                consumed.clear();
+                internals.clear();
+            }
+            o_counter
+        };
+
+        let collector = FpgaCollector {
+            shape: builder_collector.shape().clone(),
+            address: builder_collector.address().clone(),
+            activations: self.scope().activations().clone(),
+            logic: collector_logic,
+            shared_progress: Rc::clone(&shared_progress),
+            summary: builder_collector.summary().to_vec(),
+            counter: Rc::clone(&counter),
+        };
+
+        // add fpga operator to scope
         self.scope().add_operator_with_indices(
             Box::new(operator),
             builder_wrapper.index(),
             builder_wrapper.global(),
         );
 
+        // add fpga collector to scope
+        self.scope().add_operator_with_indices(
+            Box::new(collector),
+            builder_collector.index(),
+            builder_collector.global(),
+        );
+
         // we also need to create a map from ghost to wrapper
         self.scope().add_fpga_operator(
             builder_wrapper.index(),
+            ghost_operators.clone(),
+            ghost_edges.clone(),
+        );
+
+        self.scope().add_fpga_collector(
+            builder_collector.index(),
             ghost_operators.clone(),
             ghost_edges.clone(),
         );

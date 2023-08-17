@@ -1,17 +1,19 @@
 extern crate timely;
 
 use timely::dataflow::{InputHandle, ProbeHandle};
-use timely::dataflow::operators::{Input, Filter, Probe};
+use timely::dataflow::operators::{Input, Filter, Probe, FpgaWrapper};
+use std::convert::TryInto;
 
 fn main() {
 
-    let mut args = std::env::args();
-    args.next();
-    let rate: usize = args.next().expect("Must specify rate").parse().expect("Rate must be an usize");
-    let duration_s: usize = args.next().expect("Must specify duration_s").parse().expect("duration_s must be an usize");
+    //let mut args = std::env::args();
+    //args.next();
+    //let rate: usize = args.next().expect("Must specify rate").parse().expect("Rate must be an usize");
+    //let duration_s: usize = args.next().expect("Must specify duration_s").parse().expect("duration_s must be an usize");
 
-    timely::execute_from_args(args, move |worker| {
-
+    timely::execute_from_args(std::env::args(), move |worker, hc| {
+        let rate = 10;
+        let duration_s = 1;
         let index = worker.index();
         let peers = worker.peers();
 
@@ -27,7 +29,7 @@ fn main() {
         worker.dataflow(|scope| {
             scope
                 .input_from(&mut input)     // read input.
-                .filter(|_| false)          // do nothing.
+                .fpga_wrapper(hc)           // do nothing.
                 .probe_with(&mut probe);    // observe output.
         });
 
@@ -72,24 +74,24 @@ fn main() {
             //   3. Geometrically increase outstanding batches.
 
             // Technique 1:
-            // let target_ns = if acknowledged_ns >= inserted_ns { elapsed_ns } else { inserted_ns };
+            let target_ns = if acknowledged_ns >= inserted_ns { elapsed_ns } else { inserted_ns };
 
             // Technique 2:
             // let target_ns = elapsed_ns & !((1 << 20) - 1);
 
             // Technique 3:
-            let target_ns = {
-                let delta: u64 = inserted_ns - acknowledged_ns;
-                let bits = ::std::mem::size_of::<u64>() * 8 - delta.leading_zeros() as usize;
-                let scale = ::std::cmp::max((1 << bits) / 4, 1024);
-                elapsed_ns & !(scale - 1)
-            };
+            // let target_ns = {
+            //     let delta: u64 = inserted_ns - acknowledged_ns;
+            //     let bits = ::std::mem::size_of::<u64>() * 8 - delta.leading_zeros() as usize;
+            //     let scale = ::std::cmp::max((1 << bits) / 4, 1024);
+            //     elapsed_ns & !(scale - 1)
+            // };
 
             // Common for each technique.
             if inserted_ns < target_ns {
 
                 while ((insert_counter * ns_per_request) as u64) < target_ns {
-                    input.send(insert_counter);
+                    input.send(insert_counter.try_into().unwrap());
                     insert_counter += peers;
                 }
                 input.advance_to(target_ns);

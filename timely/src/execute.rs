@@ -75,6 +75,11 @@ fn initialize() -> *const HardwareCommon {
     let hc: HardwareCommon = HardwareCommon {
         h_mem: unsafe { malloc(SIZE) },
         o_mem: unsafe { malloc(SIZE) },
+        i_queue: std::collections::VecDeque::new(),
+        o_queue: std::collections::VecDeque::new(),
+        h_queue: std::collections::VecDeque::new(),
+        mem_queue: std::collections::VecDeque::new(),
+        t_queue: std::collections::VecDeque::new(),
         area,
     };
 

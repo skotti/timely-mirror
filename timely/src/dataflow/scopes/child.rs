@@ -109,6 +109,10 @@ where
         self.subgraph.borrow_mut().add_fpga_operator(wrapper, ghost, ghost_edges);
     }
 
+    fn add_fpga_collector(&mut self, collector: usize, ghost: Vec<usize>, ghost_edges: Vec<(usize, usize)>) {
+        self.subgraph.borrow_mut().add_fpga_collector(collector, ghost, ghost_edges);
+    }
+
     fn allocate_operator_index(&mut self) -> usize {
         self.subgraph.borrow_mut().allocate_child_id()
     }

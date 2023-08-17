@@ -177,6 +177,12 @@ where
 
     }
 
+    /// Add device side collectors to subgraph
+    pub fn add_fpga_collector(&mut self, collector: usize, ghost: Vec<usize>, ghost_edges: Vec<(usize, usize)>) {
+        self.wrapper_ghost.borrow_mut().insert(collector, ghost);
+        self.wrapper_ghost_edges.borrow_mut().insert(collector, ghost_edges);
+    }
+
     /// Reorganize edges
     pub fn reorganize_edges(&mut self) {
         let mut start_source = Source { node: 0, port: 0 };
@@ -208,8 +214,12 @@ where
             let end_source = Source::new(vector[vector.len() - 1], 0);
 
             // pushed two additional edges between normal nodes and ghost node
-            self.ghost_edge_stash.push((start_source, start_target));
-            self.ghost_edge_stash.push((end_source, end_target));
+            if !self.ghost_edge_stash.contains(&(start_source, start_target)) {
+                self.ghost_edge_stash.push((start_source, start_target));
+            }
+            if !self.ghost_edge_stash.contains(&(end_source, end_target)) {
+                self.ghost_edge_stash.push((end_source, end_target));
+            }
 
             //let edges_vector = self.wrapper_ghost_edges.borrow_mut().get_mut(&wrapper).unwrap();
             for edge in self.wrapper_ghost_edges.borrow_mut().get_mut(&wrapper).unwrap().iter() {
