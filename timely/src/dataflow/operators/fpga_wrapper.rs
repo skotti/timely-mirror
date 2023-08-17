@@ -517,41 +517,46 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
 
                 let mut current_length = 0;
 
-                unsafe {
-                    let input_memory = (*hc).h_mem as *mut u64;
-                    *input_memory.offset(current_length as isize) = *time;
-                    current_length += 1;
+                let mut input_memory = Vec::new();
+                input_memory.push(*time);
+                current_length += 1;
 
-                    for i in 0..borrow.len() {
-                        let frontier = borrow[i].frontier();
-                        if frontier.len() == 0 {
-                            *input_memory.offset(current_length as isize) = 0;
-                            current_length += 1;
-                        } else {
-                            for val in frontier.iter() {
-                                *input_memory.offset(current_length as isize) = (*val << 1) | 1u64;
-                                current_length += 1;
-                            }
-                        }
-                    }
-
-                    for _i in current_length..FRONTIER_LENGTH {
-                        *input_memory.offset(current_length as isize) = 0;
-                        current_length += 1;
-                    }
-
-                    if vector.len() == 0 {
-                        *input_memory.offset(current_length as isize) = 0 as u64;
+                for i in 0..borrow.len() {
+                    let frontier = borrow[i].frontier();
+                    if frontier.len() == 0 {
+                        input_memory.push(0 as u64);
                         current_length += 1;
                     } else {
-                        for val in vector.iter() {
-                            *input_memory.offset(current_length as isize) = ((*val << 1) | 1u64) as u64;
+                        for val in frontier.iter() {
+                            input_memory.push(((*val << 1) | 1u64) as u64);
                             current_length += 1;
                         }
                     }
+                }
 
-                    for i in current_length..MAX_LENGTH {
-                        *input_memory.offset(i as isize) = 0;
+                for _i in current_length..FRONTIER_LENGTH {
+                    input_memory.push(0 as u64);
+                    current_length += 1;
+                }
+
+                if vector.len() == 0 {
+                    input_memory.push(0 as u64);
+                    current_length += 1;
+                } else {
+                    for val in vector.iter() {
+                        input_memory.push(((*val << 1) | 1u64) as u64);
+                        current_length += 1;
+                    }
+                }
+
+                for _i in current_length..MAX_LENGTH {
+                    input_memory.push(0 as u64);
+                }
+
+                unsafe {
+                    let input_memory2 = (*hc).h_mem as *mut u64;
+                    for (i, value) in input_memory.iter().enumerate() {
+                        *input_memory2.offset(i as isize) = *value;
                     }
                 }
 
@@ -596,26 +601,31 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
             if !has_data {
                 let mut current_length = 0;
 
-                unsafe {
-                    let memory = (*hc).h_mem as *mut u64;
-                    *memory.offset(current_length as isize) = 0;
-                    current_length += 1;
+                let mut input = Vec::new();
+                input.push(0);
+                current_length += 1;
 
-                    for i in 0..borrow.len() {
-                        let frontier = borrow[i].frontier();
-                        if frontier.len() == 0 {
-                            *memory.offset(current_length as isize) = 0;
+                for i in 0..borrow.len() {
+                    let frontier = borrow[i].frontier();
+                    if frontier.len() == 0 {
+                        input.push(0 as u64);
+                        current_length += 1;
+                    } else {
+                        for val in frontier.iter() {
+                            input.push(((*val << 1) | 1u64) as u64);
                             current_length += 1;
-                        } else {
-                            for val in frontier.iter() {
-                                *memory.offset(current_length as isize) = (*val << 1) | 1u64;
-                                current_length += 1;
-                            }
                         }
                     }
+                }
 
-                    for i in current_length..MAX_LENGTH {
-                        *memory.offset(i as isize) = 0;
+                for _i in current_length..MAX_LENGTH {
+                    input.push(0 as u64);
+                }
+
+                unsafe {
+                    let memory = (*hc).h_mem as *mut u64;
+                    for (i, value) in input.iter().enumerate() {
+                        *memory.offset(i as isize) = *value;
                     }
                 }
                 run(hc);
