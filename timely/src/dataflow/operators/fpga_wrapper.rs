@@ -72,9 +72,6 @@ fn generate_fpga_output(input_ptr: *mut u64, output_ptr: *mut u64) {
     // Safety check, otherwise we overwrite values
     assert!(offset <= FRONTIER_LENGTH);
 
-    // Set offset to past frontier end, begining of data section
-    offset = FRONTIER_LENGTH;
-
     //
     let mut valid_inputs = 0;
     let mut unfiltered_inputs = 0;
