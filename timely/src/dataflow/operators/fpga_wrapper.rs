@@ -515,40 +515,40 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                 let mut current_length = 0;
 
                 unsafe {
-                    let input_memory = (*hc).h_mem as *mut u64;
-                    *input_memory.offset(current_length as isize) = *time;
+                    let input_memory = unsafe {std::slice::from_raw_parts_mut((*hc).h_mem as *mut u64, MAX_LENGTH)};
+                    input_memory[current_length]= *time;
                     current_length += 1;
 
                     for i in 0..borrow.len() {
                         let frontier = borrow[i].frontier();
                         if frontier.len() == 0 {
-                            *input_memory.offset(current_length as isize) = 0;
+                            input_memory[current_length] = 0;
                             current_length += 1;
                         } else {
                             for val in frontier.iter() {
-                                *input_memory.offset(current_length as isize) = (*val << 1) | 1u64;
+                                input_memory[current_length] = (*val << 1) | 1u64;
                                 current_length += 1;
                             }
                         }
                     }
 
                     for _i in current_length..FRONTIER_LENGTH {
-                        *input_memory.offset(current_length as isize) = 0;
+                        input_memory[current_length] = 0;
                         current_length += 1;
                     }
 
                     if vector.len() == 0 {
-                        *input_memory.offset(current_length as isize) = 0 as u64;
+                        input_memory[current_length] = 0;
                         current_length += 1;
                     } else {
                         for val in vector.iter() {
-                            *input_memory.offset(current_length as isize) = ((*val << 1) | 1u64) as u64;
+                            input_memory[current_length] = ((*val << 1) | 1u64) as u64;
                             current_length += 1;
                         }
                     }
 
                     for i in current_length..MAX_LENGTH {
-                        *input_memory.offset(i as isize) = 0;
+                        input_memory[i] = 0;
                     }
                 }
 
@@ -594,25 +594,25 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                 let mut current_length = 0;
 
                 unsafe {
-                    let input_memory = (*hc).h_mem as *mut u64;
-                    *input_memory.offset(current_length as isize) = 0;
+                    let input_memory = unsafe {std::slice::from_raw_parts_mut((*hc).h_mem as *mut u64, MAX_LENGTH)};
+                    input_memory[current_length] = 0;
                     current_length += 1;
 
                     for i in 0..borrow.len() {
                         let frontier = borrow[i].frontier();
                         if frontier.len() == 0 {
-                            *input_memory.offset(current_length as isize) = 0;
+                            input_memory[current_length] = 0;
                             current_length += 1;
                         } else {
                             for val in frontier.iter() {
-                                *input_memory.offset(current_length as isize) = (*val << 1) | 1u64;
+                                input_memory[current_length] = (*val << 1) | 1u64;
                                 current_length += 1;
                             }
                         }
                     }
 
                     for i in current_length..MAX_LENGTH {
-                        *input_memory.offset(i as isize) = 0;
+                        input_memory[i] = 0;
                     }
                 }
                 run(hc);
