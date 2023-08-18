@@ -514,8 +514,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
 
                 let mut current_length = 0;
 
-                let input_memory = unsafe {std::slice::from_raw_parts_mut((*hc).h_mem as *mut u64, MAX_LENGTH)};
-                input_memory[current_length]= *time;
+                let input_memory =
+                    unsafe { std::slice::from_raw_parts_mut((*hc).h_mem as *mut u64, MAX_LENGTH) };
+                input_memory[current_length] = *time;
                 current_length += 1;
 
                 for i in 0..borrow.len() {
@@ -591,7 +592,8 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
             if !has_data {
                 let mut current_length = 0;
 
-                let input_memory = unsafe {std::slice::from_raw_parts_mut((*hc).h_mem as *mut u64, MAX_LENGTH)};
+                let input_memory =
+                    unsafe { std::slice::from_raw_parts_mut((*hc).h_mem as *mut u64, MAX_LENGTH) };
                 input_memory[current_length] = 0;
                 current_length += 1;
 
