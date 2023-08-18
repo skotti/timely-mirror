@@ -594,25 +594,25 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                 let mut current_length = 0;
 
                 unsafe {
-                    let memory = (*hc).h_mem as *mut u64;
-                    *memory.offset(current_length as isize) = 0;
+                    let input_memory = (*hc).h_mem as *mut u64;
+                    *input_memory.offset(current_length as isize) = 0;
                     current_length += 1;
 
                     for i in 0..borrow.len() {
                         let frontier = borrow[i].frontier();
                         if frontier.len() == 0 {
-                            *memory.offset(current_length as isize) = 0;
+                            *input_memory.offset(current_length as isize) = 0;
                             current_length += 1;
                         } else {
                             for val in frontier.iter() {
-                                *memory.offset(current_length as isize) = (*val << 1) | 1u64;
+                                *input_memory.offset(current_length as isize) = (*val << 1) | 1u64;
                                 current_length += 1;
                             }
                         }
                     }
 
                     for i in current_length..MAX_LENGTH {
-                        *memory.offset(i as isize) = 0;
+                        *input_memory.offset(i as isize) = 0;
                     }
                 }
                 run(hc);
