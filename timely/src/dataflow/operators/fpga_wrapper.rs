@@ -110,19 +110,6 @@ fn generate_fpga_output(input_ptr: *mut u64, output_ptr: *mut u64) {
     }
 }
 
-/// Debug function to read the written to memory area
-fn read_hc_u64(hc: *const HardwareCommon) {
-    dbg!("read_hc_u64");
-
-    print!("o_mem: ");
-    let o_mem_ptr: *mut u64 = unsafe { (*hc).o_mem as *mut u64 };
-    read_memory_chunk_u64(o_mem_ptr);
-
-    print!("h_mem: ");
-    let h_mem_ptr: *mut u64 = unsafe { (*hc).h_mem as *mut u64 };
-    read_memory_chunk_u64(h_mem_ptr);
-}
-
 /// Reads a chunk of memory as array of `u64`
 fn read_memory_chunk_u64(dst_ptr: *mut u64) {
     let entries = 144;
