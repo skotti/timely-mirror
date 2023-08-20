@@ -14,7 +14,6 @@ use std::ffi::c_void;
 extern "C" {
     fn open(pathname: *const libc::c_char, flags: c_int) -> c_int;
     fn get_nprocs() -> i32;
-    fn malloc(size: usize) -> *mut std::ffi::c_void;
 }
 
 const SIZE: usize = 0x1000;
