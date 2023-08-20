@@ -40,8 +40,6 @@ const MAX_LENGTH_OUT: usize = PARAM_OUTPUT * 8 + PROGRESS_OUTPUT * 8;
 #[repr(C)]
 /// Data structure to store FPGA related data
 pub struct HardwareCommon {
-    /// Output memory
-    pub o_mem: *mut c_void,
     /// the mmapped cache lines
     pub area: *mut c_void,
 }
@@ -50,7 +48,7 @@ unsafe impl Send for HardwareCommon {}
 unsafe impl Sync for HardwareCommon {}
 
 /// Writes a specific hardcoded bit pattern to simulate FPGA output
-fn generate_fpga_output(input_arr: [u64; MAX_LENGTH], output_ptr: *mut u64) {
+fn generate_fpga_output(input_arr: [u64; MAX_LENGTH]) -> [u64; MAX_LENGTH_OUT] {
     // Cast input buffer ptr to array
     let mut offset = 0; // Keep track while iterate through array
 
@@ -88,7 +86,7 @@ fn generate_fpga_output(input_arr: [u64; MAX_LENGTH], output_ptr: *mut u64) {
 
     //
     // Cast buffer ptr to array
-    let output_arr: &mut [u64] = unsafe { std::slice::from_raw_parts_mut(output_ptr, 144) };
+    let mut output_arr: [u64; MAX_LENGTH_OUT] = [0; MAX_LENGTH_OUT];
     let mut my_offset = 0;
     // 1...1 - number of inputs times
     for i in 0..NUMBER_OF_INPUTS {
@@ -105,6 +103,8 @@ fn generate_fpga_output(input_arr: [u64; MAX_LENGTH], output_ptr: *mut u64) {
 
         my_offset += 4;
     }
+
+    output_arr
 }
 
 /// Reads a chunk of memory as array of `u64`
@@ -168,8 +168,11 @@ fn read_from_memory(area: *mut std::ffi::c_void, output_arr: &mut [u64]) {
 }
 
 /// Communicates to FPGA via cache lines using [`2fast2forward`](https://gitlab.inf.ethz.ch/PROJECT-Enzian/fpga-sources/enzian-applications/2fast2forward)
-fn fpga_communication(hc: *const HardwareCommon, input_arr: [u64; MAX_LENGTH], o_mem_ptr: *mut u64) {
-    let output_arr = unsafe { std::slice::from_raw_parts_mut(o_mem_ptr, 144) };
+fn fpga_communication(
+    hc: *const HardwareCommon,
+    input_arr: [u64; MAX_LENGTH],
+) -> [u64; MAX_LENGTH_OUT] {
+    let mut output_arr: [u64; MAX_LENGTH_OUT] = [0; MAX_LENGTH_OUT];
     let data: &[u64] = &input_arr[FRONTIER_LENGTH..FRONTIER_LENGTH + 16];
     let frontiers: &[u64] = &input_arr[1..1 + 16];
 
@@ -182,19 +185,21 @@ fn fpga_communication(hc: *const HardwareCommon, input_arr: [u64; MAX_LENGTH], o
 
     // Read results from cache lines
     read_from_memory(area, &mut output_arr[0..32]);
+
+    output_arr
 }
 
 /// Sends data to FPGA and receives reponse
-fn run(hc: *const HardwareCommon, h_mem_arr: [u64; MAX_LENGTH]) {
-    let o_mem_ptr: *mut u64 = unsafe { (*hc).o_mem } as *mut u64;
-
+fn run(hc: *const HardwareCommon, h_mem_arr: [u64; MAX_LENGTH]) -> [u64; MAX_LENGTH_OUT] {
     // Only run when `no-fpga` feature is used
     #[cfg(feature = "no-fpga")]
-    generate_fpga_output(h_mem_arr, o_mem_ptr);
+    let output_arr = generate_fpga_output(h_mem_arr);
 
     // Only run when using FPGA
     #[cfg(not(feature = "no-fpga"))]
-    fpga_communication(hc, h_mem_arr, o_mem_ptr);
+    let output_arr = fpga_communication(hc, h_mem_arr);
+
+    output_arr
 }
 
 /// Wrapper operator to store ghost operators
@@ -532,9 +537,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                     input_memory[i] = 0;
                 }
 
-                run(hc, input_memory); // changes should be reflected in hc
-                let memory_out = unsafe { (*hc).o_mem as *mut u64 };
-                let memory_out = unsafe { std::slice::from_raw_parts(memory_out, MAX_LENGTH_OUT) };
+                let memory_out = run(hc, input_memory); // changes should be reflected in hc
 
                 for i in 0..DATA_LENGTH {
                     let val = memory_out[i] as u64;
@@ -593,10 +596,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                 for i in current_length..MAX_LENGTH {
                     input_memory[i] = 0;
                 }
-                run(hc, input_memory);
-
-                let memory_out = unsafe { (*hc).o_mem as *mut u64 };
-                let memory_out = unsafe { std::slice::from_raw_parts(memory_out, MAX_LENGTH_OUT) };
+                let memory_out = run(hc, input_memory);
 
                 for i in 0..DATA_LENGTH {
                     let val = memory_out[i] as u64;
