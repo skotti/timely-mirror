@@ -40,8 +40,6 @@ const MAX_LENGTH_OUT: usize = PARAM_OUTPUT * 8 + PROGRESS_OUTPUT * 8;
 #[repr(C)]
 /// Data structure to store FPGA related data
 pub struct HardwareCommon {
-    /// Input memory
-    pub h_mem: *mut c_void,
     /// Output memory
     pub o_mem: *mut c_void,
     /// the mmapped cache lines
@@ -52,9 +50,8 @@ unsafe impl Send for HardwareCommon {}
 unsafe impl Sync for HardwareCommon {}
 
 /// Writes a specific hardcoded bit pattern to simulate FPGA output
-fn generate_fpga_output(input_ptr: *mut u64, output_ptr: *mut u64) {
+fn generate_fpga_output(input_arr: [u64; MAX_LENGTH], output_ptr: *mut u64) {
     // Cast input buffer ptr to array
-    let input_arr = unsafe { std::slice::from_raw_parts(input_ptr, 144) };
     let mut offset = 0; // Keep track while iterate through array
 
     // dbg!(input_arr[0]); // <--- iteration count
@@ -171,8 +168,7 @@ fn read_from_memory(area: *mut std::ffi::c_void, output_arr: &mut [u64]) {
 }
 
 /// Communicates to FPGA via cache lines using [`2fast2forward`](https://gitlab.inf.ethz.ch/PROJECT-Enzian/fpga-sources/enzian-applications/2fast2forward)
-fn fpga_communication(hc: *const HardwareCommon, h_mem_ptr: *mut u64, o_mem_ptr: *mut u64) {
-    let input_arr = unsafe { std::slice::from_raw_parts(h_mem_ptr, 144) };
+fn fpga_communication(hc: *const HardwareCommon, input_arr: [u64; MAX_LENGTH], o_mem_ptr: *mut u64) {
     let output_arr = unsafe { std::slice::from_raw_parts_mut(o_mem_ptr, 144) };
     let data: &[u64] = &input_arr[FRONTIER_LENGTH..FRONTIER_LENGTH + 16];
     let frontiers: &[u64] = &input_arr[1..1 + 16];
@@ -189,17 +185,16 @@ fn fpga_communication(hc: *const HardwareCommon, h_mem_ptr: *mut u64, o_mem_ptr:
 }
 
 /// Sends data to FPGA and receives reponse
-fn run(hc: *const HardwareCommon) {
-    let h_mem_ptr: *mut u64 = unsafe { (*hc).h_mem } as *mut u64;
+fn run(hc: *const HardwareCommon, h_mem_arr: [u64; MAX_LENGTH]) {
     let o_mem_ptr: *mut u64 = unsafe { (*hc).o_mem } as *mut u64;
 
     // Only run when `no-fpga` feature is used
     #[cfg(feature = "no-fpga")]
-    generate_fpga_output(h_mem_ptr, o_mem_ptr);
+    generate_fpga_output(h_mem_arr, o_mem_ptr);
 
     // Only run when using FPGA
     #[cfg(not(feature = "no-fpga"))]
-    fpga_communication(hc, h_mem_ptr, o_mem_ptr);
+    fpga_communication(hc, h_mem_arr, o_mem_ptr);
 }
 
 /// Wrapper operator to store ghost operators
@@ -501,8 +496,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
 
                 let mut current_length = 0;
 
-                let input_memory =
-                    unsafe { std::slice::from_raw_parts_mut((*hc).h_mem as *mut u64, MAX_LENGTH) };
+                let mut input_memory: [u64; MAX_LENGTH] = [0; MAX_LENGTH];
                 input_memory[current_length] = *time;
                 current_length += 1;
 
@@ -538,7 +532,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                     input_memory[i] = 0;
                 }
 
-                run(hc); // changes should be reflected in hc
+                run(hc, input_memory); // changes should be reflected in hc
                 let memory_out = unsafe { (*hc).o_mem as *mut u64 };
                 let memory_out = unsafe { std::slice::from_raw_parts(memory_out, MAX_LENGTH_OUT) };
 
@@ -579,8 +573,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
             if !has_data {
                 let mut current_length = 0;
 
-                let input_memory =
-                    unsafe { std::slice::from_raw_parts_mut((*hc).h_mem as *mut u64, MAX_LENGTH) };
+                let mut input_memory: [u64; MAX_LENGTH] = [0; MAX_LENGTH];
                 input_memory[current_length] = 0;
                 current_length += 1;
 
@@ -600,7 +593,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                 for i in current_length..MAX_LENGTH {
                     input_memory[i] = 0;
                 }
-                run(hc);
+                run(hc, input_memory);
 
                 let memory_out = unsafe { (*hc).o_mem as *mut u64 };
                 let memory_out = unsafe { std::slice::from_raw_parts(memory_out, MAX_LENGTH_OUT) };

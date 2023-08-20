@@ -73,7 +73,6 @@ fn initialize() -> *const HardwareCommon {
     }
 
     let hc: HardwareCommon = HardwareCommon {
-        h_mem: unsafe { malloc(SIZE) },
         o_mem: unsafe { malloc(SIZE) },
         area,
     };
