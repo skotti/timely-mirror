@@ -537,7 +537,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                     input_memory[i] = 0;
                 }
 
-                let memory_out = run(hc, input_memory); // changes should be reflected in hc
+                let memory_out = run(hc, input_memory);
 
                 for i in 0..DATA_LENGTH {
                     let val = memory_out[i] as u64;
