@@ -75,6 +75,9 @@ pub trait Scope: ScopeParent {
     /// Add device side operator's indexes
     fn add_fpga_operator(&mut self, wrapper: usize, ghost: Vec<usize>, ghost_edges: Vec<(usize, usize)>);
 
+    /// Add device side collector's indexes
+    fn add_fpga_collector(&mut self, wrapper: usize, ghost: Vec<usize>, ghost_edges: Vec<(usize, usize)>);
+
     /// Creates a dataflow subgraph.
     ///
     /// This method allows the user to create a nested scope with any timestamp that

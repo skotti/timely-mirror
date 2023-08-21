@@ -24,7 +24,8 @@ fn main() {
         let mut epoch_start = Instant::now();
         let mut hist = hdrhist::HDRHist::new();
 
-        let num_rounds = 20;
+        // let num_rounds = 20;
+        let num_rounds = 2;
         for round in 0..num_rounds {
             let number_of_inputs = 16;
             for _j in 0..number_of_inputs {
@@ -53,4 +54,6 @@ fn main() {
         );
         println!("epoch latency (nanos):\n{}", hist.summary_string());
     }).unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(100));
+    dbg!("All done");
 }

@@ -72,6 +72,11 @@ fn initialize() -> *const HardwareCommon {
     }
 
     let hc: HardwareCommon = HardwareCommon {
+        i_queue: std::collections::VecDeque::new(),
+        o_queue: std::collections::VecDeque::new(),
+        h_queue: std::collections::VecDeque::new(),
+        mem_queue: std::collections::VecDeque::new(),
+        t_queue: std::collections::VecDeque::new(),
         area,
     };
 
