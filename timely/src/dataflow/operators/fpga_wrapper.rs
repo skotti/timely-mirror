@@ -681,6 +681,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
             ghost_indexes: ghost_indexes2,
         };
 
+        // add fpga operator to scope
         self.scope().add_operator_with_indices(
             Box::new(operator),
             builder_wrapper.index(),
