@@ -189,7 +189,7 @@ fn fpga_communication(
     output_arr
 }
 
-/// Sends data to FPGA and receives reponse
+/// Sends data to FPGA and receives response
 fn run(hc: *const HardwareCommon, h_mem_arr: [u64; MAX_LENGTH_IN]) -> [u64; MAX_LENGTH_OUT] {
     // Only run when `no-fpga` feature is used
     #[cfg(feature = "no-fpga")]
