@@ -30,7 +30,7 @@ const PARAM: usize = 2;
 const PARAM_OUTPUT: usize = 2;
 const FRONTIER_PARAM: usize = 3;
 const FRONTIER_LENGTH: usize = FRONTIER_PARAM * 8;
-const MAX_LENGTH: usize = PARAM * 8 + FRONTIER_PARAM * 8;
+const MAX_LENGTH_IN: usize = PARAM * 8 + FRONTIER_PARAM * 8;
 const DATA_LENGTH: usize = PARAM_OUTPUT * 8;
 const PROGRESS_START_INDEX: usize = PARAM_OUTPUT * 8;
 const PROGRESS_OUTPUT: usize = 10; // ceil((#operators * 4)/8)
@@ -48,7 +48,7 @@ unsafe impl Send for HardwareCommon {}
 unsafe impl Sync for HardwareCommon {}
 
 /// Writes a specific hardcoded bit pattern to simulate FPGA output
-fn generate_fpga_output(input_arr: [u64; MAX_LENGTH]) -> [u64; MAX_LENGTH_OUT] {
+fn generate_fpga_output(input_arr: [u64; MAX_LENGTH_IN]) -> [u64; MAX_LENGTH_OUT] {
     // Cast input buffer ptr to array
     let mut offset = 0; // Keep track while iterate through array
 
@@ -170,7 +170,7 @@ fn read_from_memory(area: *mut std::ffi::c_void, output_arr: &mut [u64]) {
 /// Communicates to FPGA via cache lines using [`2fast2forward`](https://gitlab.inf.ethz.ch/PROJECT-Enzian/fpga-sources/enzian-applications/2fast2forward)
 fn fpga_communication(
     hc: *const HardwareCommon,
-    input_arr: [u64; MAX_LENGTH],
+    input_arr: [u64; MAX_LENGTH_IN],
 ) -> [u64; MAX_LENGTH_OUT] {
     let mut output_arr: [u64; MAX_LENGTH_OUT] = [0; MAX_LENGTH_OUT];
     let data: &[u64] = &input_arr[FRONTIER_LENGTH..FRONTIER_LENGTH + 16];
@@ -190,7 +190,7 @@ fn fpga_communication(
 }
 
 /// Sends data to FPGA and receives reponse
-fn run(hc: *const HardwareCommon, h_mem_arr: [u64; MAX_LENGTH]) -> [u64; MAX_LENGTH_OUT] {
+fn run(hc: *const HardwareCommon, h_mem_arr: [u64; MAX_LENGTH_IN]) -> [u64; MAX_LENGTH_OUT] {
     // Only run when `no-fpga` feature is used
     #[cfg(feature = "no-fpga")]
     let output_arr = generate_fpga_output(h_mem_arr);
@@ -501,7 +501,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
 
                 let mut current_length = 0;
 
-                let mut input_memory: [u64; MAX_LENGTH] = [0; MAX_LENGTH];
+                let mut input_memory: [u64; MAX_LENGTH_IN] = [0; MAX_LENGTH_IN];
                 input_memory[current_length] = *time;
                 current_length += 1;
 
@@ -533,7 +533,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                     }
                 }
 
-                for i in current_length..MAX_LENGTH {
+                for i in current_length..MAX_LENGTH_IN {
                     input_memory[i] = 0;
                 }
 
@@ -576,7 +576,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
             if !has_data {
                 let mut current_length = 0;
 
-                let mut input_memory: [u64; MAX_LENGTH] = [0; MAX_LENGTH];
+                let mut input_memory: [u64; MAX_LENGTH_IN] = [0; MAX_LENGTH_IN];
                 input_memory[current_length] = 0;
                 current_length += 1;
 
@@ -593,7 +593,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                     }
                 }
 
-                for i in current_length..MAX_LENGTH {
+                for i in current_length..MAX_LENGTH_IN {
                     input_memory[i] = 0;
                 }
                 let memory_out = run(hc, input_memory);
