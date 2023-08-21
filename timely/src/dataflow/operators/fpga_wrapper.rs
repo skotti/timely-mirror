@@ -461,8 +461,8 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
         ]));
         let mut started = false;
 
-        let mut vector = Vec::with_capacity(8192);
-        let mut vector2 = Vec::with_capacity(8192);
+        let mut vector = Vec::with_capacity(MAX_LENGTH_IN);
+        let mut vector2 = Vec::with_capacity(MAX_LENGTH_OUT);
 
         let mut produced = HashMap::with_capacity(32);
         let mut consumed = HashMap::with_capacity(32);
