@@ -666,17 +666,20 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
             ghost_operators.push(builder_map.index());
         }
 
+        // Acquire handle to shared progress
+        let shared_progress = Rc::new(RefCell::new(SharedProgress::new_ghosts(
+            builder_wrapper.shape().inputs(),
+            builder_wrapper.shape().outputs(),
+            ghost_operators.clone(),
+        )));
+
         builder_wrapper.set_notify(false);
         let operator = FpgaOperator {
             shape: builder_wrapper.shape().clone(),
             address: builder_wrapper.address().clone(),
             activations: self.scope().activations().clone(),
             logic: raw_logic,
-            shared_progress: Rc::new(RefCell::new(SharedProgress::new_ghosts(
-                builder_wrapper.shape().inputs(),
-                builder_wrapper.shape().outputs(),
-                ghost_operators.clone(),
-            ))),
+            shared_progress: Rc::clone(&shared_progress),
             summary: builder_wrapper.summary().to_vec(),
             ghost_indexes: ghost_indexes2,
         };
