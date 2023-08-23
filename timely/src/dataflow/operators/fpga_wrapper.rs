@@ -195,14 +195,6 @@ fn read_from_fpga(hc: *const HardwareCommon) -> [u64; MAX_LENGTH_OUT] {
     output_arr
 }
 
-fn fpga_communication(
-    hc: *const HardwareCommon,
-    input_arr: [u64; MAX_LENGTH_IN],
-) -> [u64; MAX_LENGTH_OUT] {
-    send_to_fpga(hc, input_arr);
-    read_from_fpga(hc)
-}
-
 /// Sends data to FPGA and receives response
 fn run(hc: *const HardwareCommon, h_mem_arr: [u64; MAX_LENGTH_IN]) -> [u64; MAX_LENGTH_OUT] {
     // Only run when `no-fpga` feature is used
@@ -211,7 +203,10 @@ fn run(hc: *const HardwareCommon, h_mem_arr: [u64; MAX_LENGTH_IN]) -> [u64; MAX_
 
     // Only run when using FPGA
     #[cfg(not(feature = "no-fpga"))]
-    let output_arr = fpga_communication(hc, h_mem_arr);
+    let output_arr = {
+        send_to_fpga(hc, h_mem_arr);
+        read_from_fpga(hc)
+    };
 
     output_arr
 }
