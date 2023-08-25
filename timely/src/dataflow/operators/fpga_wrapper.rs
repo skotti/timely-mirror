@@ -184,6 +184,7 @@ fn print_array(arr: &[u64]) {
     println!();
 }
 
+/// Sends data to FPGA
 /// Communicates to FPGA via cache lines using [`2fast2forward`](https://gitlab.inf.ethz.ch/PROJECT-Enzian/fpga-sources/enzian-applications/2fast2forward)
 fn send_to_fpga(hc: *const HardwareCommon, input_arr: [u64; MAX_LENGTH_IN]) {
     let data: &[u64] = &input_arr[FRONTIER_LENGTH..FRONTIER_LENGTH + 16];
