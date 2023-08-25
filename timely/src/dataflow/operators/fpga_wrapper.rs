@@ -238,11 +238,7 @@ fn check_results(initial_data: &[u64], output: &[u64]) {
 }
 
 /// Communicates to FPGA via cache lines using [`2fast2forward`](https://gitlab.inf.ethz.ch/PROJECT-Enzian/fpga-sources/enzian-applications/2fast2forward)
-fn fpga_communication(
-    hc: *const HardwareCommon,
-    input_arr: [u64; MAX_LENGTH_IN],
-) -> [u64; MAX_LENGTH_OUT] {
-    let mut output_arr: [u64; MAX_LENGTH_OUT] = [0; MAX_LENGTH_OUT];
+fn send_to_fpga(hc: *const HardwareCommon, input_arr: [u64; MAX_LENGTH_IN]) {
     let data: &[u64] = &input_arr[FRONTIER_LENGTH..FRONTIER_LENGTH + 16];
     let frontiers: &[u64] = &input_arr[1..1 + 16];
 
@@ -252,6 +248,15 @@ fn fpga_communication(
     // Write to cache lines
     write_frontiers(frontiers, area);
     write_data(data, area);
+}
+
+/// Reads response from FPGA
+/// Communicates to FPGA via cache lines using [`2fast2forward`](https://gitlab.inf.ethz.ch/PROJECT-Enzian/fpga-sources/enzian-applications/2fast2forward)
+fn read_from_fpga(hc: *const HardwareCommon) -> [u64; MAX_LENGTH_OUT] {
+    // Get pointer to memory
+    let area = unsafe { (*hc).area };
+
+    let mut output_arr: [u64; MAX_LENGTH_OUT] = [0; MAX_LENGTH_OUT];
 
     // Read results from cache lines
     read_from_memory(area, &mut output_arr[0..32]);
@@ -296,7 +301,10 @@ fn send_input(hc: *const HardwareCommon, input: [u64; MAX_LENGTH_IN]) {
 
     // Only run when using FPGA
     #[cfg(not(feature = "no-fpga"))]
-    let mut output_arr = fpga_communication(hc, input);
+    let mut output_arr = {
+        send_to_fpga(hc, input);
+        read_from_fpga(hc)
+    };
 
     // `has_data` check
     output_arr[MAX_LENGTH_OUT - 1] = input[0]; // TODO this should be done before running FPGA so we don't wait on FPGA
