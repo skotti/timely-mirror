@@ -13,10 +13,8 @@ use crate::scheduling::{Activations, Schedule};
 
 use crate::progress::frontier::MutableAntichain;
 use std::cell::RefCell;
-use std::convert::TryInto;
 use std::rc::Rc;
 
-use std::ptr;
 
 use std::collections::HashMap;
 use std::ffi::c_void;
