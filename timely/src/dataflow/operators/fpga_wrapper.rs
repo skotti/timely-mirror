@@ -121,27 +121,6 @@ fn dmb() {
     core::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
 }
 
-/// Writes frontiers to first cache line
-fn write_frontiers(val: &[u64], area: *mut std::ffi::c_void) {
-    // Treat as `uint64_t *`
-    let area = area as *mut u64;
-
-    for i in 0..16 as usize {
-        unsafe { *area.offset(i.try_into().unwrap()) = val[i] };
-    }
-    dmb();
-}
-/// Writes data to second cache line
-fn write_data(val: &[u64], area: *mut std::ffi::c_void) {
-    // Treat as `uint64_t *`
-    let area = area as *mut u64;
-
-    for i in 0..16 as usize {
-        unsafe { *area.offset((16 + i).try_into().unwrap()) = val[i] };
-    }
-    dmb();
-}
-
 /// Read results from the two cache lines
 fn read_from_memory(area: *mut std::ffi::c_void, output_arr: &mut [u64]) {
     // Cache size in terms of `u64` element size
@@ -166,9 +145,20 @@ fn send_to_fpga(hc: *const HardwareCommon, input_arr: [u64; MAX_LENGTH_IN]) {
     // Get pointer to memory
     let area = unsafe { (*hc).area };
 
+    // Treat as `uint64_t *`
+    let area = area as *mut u64;
+
     // Write to cache lines
-    write_frontiers(frontiers, area);
-    write_data(data, area);
+    // Write frontiers to first cache line
+    for i in 0..16 as usize {
+        unsafe { *area.offset(i.try_into().unwrap()) = frontiers[i] };
+    }
+    dmb();
+    // Write data to second cache line
+    for i in 0..16 as usize {
+        unsafe { *area.offset((16 + i).try_into().unwrap()) = data[i] };
+    }
+    dmb();
 }
 
 /// Reads response from FPGA
