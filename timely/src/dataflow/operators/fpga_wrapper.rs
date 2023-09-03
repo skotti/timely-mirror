@@ -121,21 +121,6 @@ fn dmb() {
     core::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
 }
 
-/// Read results from the two cache lines
-fn read_from_memory(area: *mut std::ffi::c_void, output_arr: &mut [u64]) {
-    // Cache size in terms of `u64` element size
-    let used_cache_size = 32;
-
-    // Treat as array slice
-    let area_arr = unsafe { std::slice::from_raw_parts(area as *mut u64, used_cache_size) };
-
-    // Read both cache lines (they are 16 times u64 each)
-    for i in 0..used_cache_size {
-        output_arr[i] = area_arr[i];
-    }
-    dmb();
-}
-
 /// Sends data to FPGA
 /// Communicates to FPGA via cache lines using [`2fast2forward`](https://gitlab.inf.ethz.ch/PROJECT-Enzian/fpga-sources/enzian-applications/2fast2forward)
 fn send_to_fpga(hc: *const HardwareCommon, input_arr: [u64; MAX_LENGTH_IN]) {
@@ -167,11 +152,18 @@ fn send_to_fpga(hc: *const HardwareCommon, input_arr: [u64; MAX_LENGTH_IN]) {
 fn read_from_fpga(hc: *const HardwareCommon) -> [u64; MAX_LENGTH_OUT] {
     // Get pointer to memory
     let area = unsafe { (*hc).area };
+    // Cache size in terms of `u64` element size
+    let used_cache_size = 32;
+    // Treat as array slice
+    let area_arr = unsafe { std::slice::from_raw_parts(area as *mut u64, used_cache_size) };
 
     let mut output_arr: [u64; MAX_LENGTH_OUT] = [0; MAX_LENGTH_OUT];
 
-    // Read results from cache lines
-    read_from_memory(area, &mut output_arr[0..32]);
+    // Read both cache lines (they are 16 times u64 each)
+    for i in 0..used_cache_size {
+        output_arr[i] = area_arr[i];
+    }
+    dmb();
 
     output_arr
 }
