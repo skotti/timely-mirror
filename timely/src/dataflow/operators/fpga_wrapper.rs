@@ -145,18 +145,19 @@ fn send_to_fpga(hc: *const HardwareCommon, input_arr: [u64; MAX_LENGTH_IN]) {
     // Get pointer to memory
     let area = unsafe { (*hc).area };
 
-    // Treat as `uint64_t *`
-    let area = area as *mut u64;
+    // Treat as `uint64_t` array
+    let used_cache_size = 32;
+    let area = unsafe { std::slice::from_raw_parts_mut(area as *mut u64, used_cache_size) };
 
     // Write to cache lines
     // Write frontiers to first cache line
     for i in 0..16 as usize {
-        unsafe { *area.offset(i.try_into().unwrap()) = frontiers[i] };
+        area[i] = frontiers[i];
     }
     dmb();
     // Write data to second cache line
     for i in 0..16 as usize {
-        unsafe { *area.offset((16 + i).try_into().unwrap()) = data[i] };
+        area[16 + i] = data[i];
     }
     dmb();
 }
