@@ -158,7 +158,11 @@ fn read_from_fpga(hc: *const HardwareCommon) -> [u64; MAX_LENGTH_OUT] {
     let mut output_arr: [u64; MAX_LENGTH_OUT] = [0; MAX_LENGTH_OUT];
 
     // Read both cache lines (they are 16 times u64 each)
-    for i in 0..used_cache_size {
+    for i in 0..16 {
+        output_arr[i] = area_arr[i];
+    }
+    dmb();
+    for i in 16..32 {
         output_arr[i] = area_arr[i];
     }
     dmb();
