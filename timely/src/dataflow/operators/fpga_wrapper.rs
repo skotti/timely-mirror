@@ -13,6 +13,7 @@ use crate::scheduling::{Activations, Schedule};
 
 use crate::progress::frontier::MutableAntichain;
 use std::cell::RefCell;
+use std::convert::TryInto;
 use std::rc::Rc;
 
 
@@ -119,6 +120,57 @@ fn dmb() {
     core::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
 }
 
+/// Simply prints contents of a `[u64; 16]` array in a single line
+fn print_array(arr: &[u64]) {
+    for elem in arr {
+        print!("{elem} ");
+    }
+    println!();
+}
+
+/// Compare outputs received from FPGA with expected output
+fn check_results(initial_data: &[u64], output: &[u64]) {
+    let res_line_1: &[u64] = &output[0..16];
+    let res_line_2: &[u64] = &output[16..32];
+
+    // The value to filter by. Anything `< 5` is set to `0`
+    let filter_value = 5;
+
+    // Replicate filter process on CPU to get expected result
+    let expected_data: [u64; 16] = initial_data
+        .iter()
+        .map(|&x| if x < (5 << 1 | 1) { 0 } else { x })
+        .collect::<Vec<u64>>()
+        .try_into()
+        .unwrap();
+
+    // Filtered data contents from second cache line should be in first when done
+    assert_eq!(res_line_1, expected_data);
+
+    // Count amount of numbers that are considered valid
+    let valid_input_count: u64 = initial_data
+        .iter()
+        .filter(|&x| x % 2 == 1)
+        .count()
+        .try_into()
+        .unwrap();
+
+    // Count amount of numbers that got filtered
+    let filtered_count: u64 = initial_data
+        .iter()
+        .filter(|&x| x < &filter_value)
+        .count()
+        .try_into()
+        .unwrap();
+
+    // First entry is number of valid outputs
+    // (valid meaning LSB is 1)
+    assert_eq!(res_line_2[0], valid_input_count);
+
+    // Second entry is count of remaining values after filter
+    assert_eq!(res_line_2[1], (NUMBER_OF_INPUTS as u64) - filtered_count);
+}
+
 /// Sends data to FPGA
 /// Communicates to FPGA via cache lines using [`2fast2forward`](https://gitlab.inf.ethz.ch/PROJECT-Enzian/fpga-sources/enzian-applications/2fast2forward)
 fn send_to_fpga(hc: *const HardwareCommon, input_arr: [u64; MAX_LENGTH_IN]) {
@@ -182,6 +234,14 @@ fn run(hc: *const HardwareCommon, h_mem_arr: [u64; MAX_LENGTH_IN]) -> [u64; MAX_
         send_to_fpga(hc, h_mem_arr);
         read_from_fpga(hc)
     };
+    let data: &[u64] = &h_mem_arr[FRONTIER_LENGTH..FRONTIER_LENGTH + 16];
+
+    // Check FPGA output
+    check_results(data, &output_arr[0..32]);
+
+    // Compare against simulated FPGA
+    let o_mem2 = generate_fpga_output(h_mem_arr);
+    assert_eq!(&output_arr[0..32], &o_mem2[0..32]);
 
     output_arr
 }
