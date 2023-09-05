@@ -49,9 +49,6 @@ fn generate_fpga_output(input_arr: [u64; MAX_LENGTH_IN]) -> [u64; MAX_LENGTH_OUT
     // Cast input buffer ptr to array
     let mut offset = 0; // Keep track while iterate through array
 
-    // dbg!(input_arr[0]); // <--- iteration count
-    offset += 1;
-
     //
     let same_value = input_arr[offset];
     for i in 0..OPERATOR_COUNT {
@@ -169,7 +166,7 @@ fn run(hc: *const HardwareCommon, h_mem_arr: [u64; MAX_LENGTH_IN]) -> [u64; MAX_
     // Only run when using FPGA
     #[cfg(not(feature = "no-fpga"))]
     let output_arr = {
-        let frontiers: &[u64] = &h_mem_arr[1..1 + 16];
+        let frontiers: &[u64] = &h_mem_arr[0..16];
         let data: &[u64] = &h_mem_arr[FRONTIER_LENGTH..FRONTIER_LENGTH + 16];
         fpga_communication(hc, frontiers, data)
     };
@@ -477,8 +474,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                 let mut current_length = 0;
 
                 let mut input_memory: [u64; MAX_LENGTH_IN] = [0; MAX_LENGTH_IN];
-                input_memory[current_length] = *time;
-                current_length += 1;
+                // dbg!(*time);
 
                 for i in 0..borrow.len() {
                     let frontier = borrow[i].frontier();
@@ -552,8 +548,6 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
                 let mut current_length = 0;
 
                 let mut input_memory: [u64; MAX_LENGTH_IN] = [0; MAX_LENGTH_IN];
-                input_memory[current_length] = 0;
-                current_length += 1;
 
                 for i in 0..borrow.len() {
                     let frontier = borrow[i].frontier();
