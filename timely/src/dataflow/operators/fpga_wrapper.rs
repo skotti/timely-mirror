@@ -26,7 +26,6 @@ const NUMBER_OF_INPUTS: usize = BATCH_SIZE; // make sure to sync with caller (e.
 const NUMBER_OF_FILTER_OPERATORS: usize = 1;
 const NUMBER_OF_MAP_OPERATORS: usize = 0;
 const OPERATOR_COUNT: usize = NUMBER_OF_FILTER_OPERATORS + NUMBER_OF_MAP_OPERATORS;
-const PARAM: usize = 2;
 const PARAM_OUTPUT: usize = 2;
 const FRONTIER_LENGTH: usize = CACHE_LINE_SIZE;
 const MAX_LENGTH_IN: usize = FRONTIER_LENGTH + NUMBER_OF_INPUTS;
