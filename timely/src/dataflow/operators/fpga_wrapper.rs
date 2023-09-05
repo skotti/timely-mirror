@@ -140,17 +140,19 @@ fn fpga_communication(
     }
     dmb();
 
-    // Write data to second cache line
-    for i in 0..CACHE_LINE_SIZE as usize {
-        cache_line_2[i] = data[i];
-    }
-    dmb();
+    for k in 0..BATCH_LINES {
+        // Write data to second cache line
+        for i in 0..CACHE_LINE_SIZE as usize {
+            cache_line_2[i] = data[i + (CACHE_LINE_SIZE * k)];
+        }
+        dmb();
 
-    // Read data out
-    for i in 0..CACHE_LINE_SIZE {
-        output_arr[i] = cache_line_1[i];
+        // Read data out
+        for i in 0..CACHE_LINE_SIZE {
+            output_arr[i + (CACHE_LINE_SIZE * k)] = cache_line_1[i];
+        }
+        dmb();
     }
-    dmb();
 
     // Read summary
     for i in 0..CACHE_LINE_SIZE {
