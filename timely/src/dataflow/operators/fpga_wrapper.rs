@@ -121,10 +121,9 @@ fn dmb() {
 /// Communicates to FPGA via cache lines using [`2fast2forward`](https://gitlab.inf.ethz.ch/PROJECT-Enzian/fpga-sources/enzian-applications/2fast2forward)
 fn fpga_communication(
     hc: *const HardwareCommon,
-    input_arr: [u64; MAX_LENGTH_IN],
+    frontiers: &[u64],
+    data: &[u64],
 ) -> [u64; MAX_LENGTH_OUT] {
-    let data: &[u64] = &input_arr[FRONTIER_LENGTH..FRONTIER_LENGTH + 16];
-    let frontiers: &[u64] = &input_arr[1..1 + 16];
     let mut output_arr: [u64; MAX_LENGTH_OUT] = [0; MAX_LENGTH_OUT];
 
     // Get pointer to memory
@@ -169,7 +168,11 @@ fn run(hc: *const HardwareCommon, h_mem_arr: [u64; MAX_LENGTH_IN]) -> [u64; MAX_
 
     // Only run when using FPGA
     #[cfg(not(feature = "no-fpga"))]
-    let output_arr = fpga_communication(hc, h_mem_arr);
+    let output_arr = {
+        let frontiers: &[u64] = &h_mem_arr[1..1 + 16];
+        let data: &[u64] = &h_mem_arr[FRONTIER_LENGTH..FRONTIER_LENGTH + 16];
+        fpga_communication(hc, frontiers, data)
+    };
 
     output_arr
 }
