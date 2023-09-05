@@ -15,7 +15,6 @@ use crate::progress::frontier::MutableAntichain;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-
 use std::collections::HashMap;
 use std::ffi::c_void;
 
@@ -119,11 +118,14 @@ fn dmb() {
     core::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
 }
 
-/// Sends data to FPGA
 /// Communicates to FPGA via cache lines using [`2fast2forward`](https://gitlab.inf.ethz.ch/PROJECT-Enzian/fpga-sources/enzian-applications/2fast2forward)
-fn send_to_fpga(hc: *const HardwareCommon, input_arr: [u64; MAX_LENGTH_IN]) {
+fn fpga_communication(
+    hc: *const HardwareCommon,
+    input_arr: [u64; MAX_LENGTH_IN],
+) -> [u64; MAX_LENGTH_OUT] {
     let data: &[u64] = &input_arr[FRONTIER_LENGTH..FRONTIER_LENGTH + 16];
     let frontiers: &[u64] = &input_arr[1..1 + 16];
+    let mut output_arr: [u64; MAX_LENGTH_OUT] = [0; MAX_LENGTH_OUT];
 
     // Get pointer to memory
     let area = unsafe { (*hc).area };
@@ -132,6 +134,7 @@ fn send_to_fpga(hc: *const HardwareCommon, input_arr: [u64; MAX_LENGTH_IN]) {
     let used_cache_size = 32;
     let area = unsafe { std::slice::from_raw_parts_mut(area as *mut u64, used_cache_size) };
 
+    // Sends data to FPGA
     // Write to cache lines
     // Write frontiers to first cache line
     for i in 0..16 as usize {
@@ -143,27 +146,15 @@ fn send_to_fpga(hc: *const HardwareCommon, input_arr: [u64; MAX_LENGTH_IN]) {
         area[16 + i] = data[i];
     }
     dmb();
-}
 
-/// Reads response from FPGA
-/// Communicates to FPGA via cache lines using [`2fast2forward`](https://gitlab.inf.ethz.ch/PROJECT-Enzian/fpga-sources/enzian-applications/2fast2forward)
-fn read_from_fpga(hc: *const HardwareCommon) -> [u64; MAX_LENGTH_OUT] {
-    // Get pointer to memory
-    let area = unsafe { (*hc).area };
-    // Cache size in terms of `u64` element size
-    let used_cache_size = 32;
-    // Treat as array slice
-    let area_arr = unsafe { std::slice::from_raw_parts(area as *mut u64, used_cache_size) };
-
-    let mut output_arr: [u64; MAX_LENGTH_OUT] = [0; MAX_LENGTH_OUT];
-
+    // Reads response from FPGA
     // Read both cache lines (they are 16 times u64 each)
     for i in 0..16 {
-        output_arr[i] = area_arr[i];
+        output_arr[i] = area[i];
     }
     dmb();
     for i in 16..32 {
-        output_arr[i] = area_arr[i];
+        output_arr[i] = area[i];
     }
     dmb();
 
@@ -178,10 +169,7 @@ fn run(hc: *const HardwareCommon, h_mem_arr: [u64; MAX_LENGTH_IN]) -> [u64; MAX_
 
     // Only run when using FPGA
     #[cfg(not(feature = "no-fpga"))]
-    let output_arr = {
-        send_to_fpga(hc, h_mem_arr);
-        read_from_fpga(hc)
-    };
+    let output_arr = fpga_communication(hc, h_mem_arr);
 
     output_arr
 }
