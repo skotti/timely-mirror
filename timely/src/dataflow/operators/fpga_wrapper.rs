@@ -19,8 +19,10 @@ use std::collections::HashMap;
 use std::ffi::c_void;
 
 // Various parameters
+const BATCH_LINES: usize = 1;
 const CACHE_LINE_SIZE: usize = 16;
-const NUMBER_OF_INPUTS: usize = 16; // make sure to sync with caller (e.g. `hello_fpga.rs`)
+const BATCH_SIZE: usize = BATCH_LINES * CACHE_LINE_SIZE;
+const NUMBER_OF_INPUTS: usize = BATCH_SIZE; // make sure to sync with caller (e.g. `hello_fpga.rs`)
 const NUMBER_OF_FILTER_OPERATORS: usize = 1;
 const NUMBER_OF_MAP_OPERATORS: usize = 0;
 const OPERATOR_COUNT: usize = NUMBER_OF_FILTER_OPERATORS + NUMBER_OF_MAP_OPERATORS;
@@ -167,7 +169,7 @@ fn run(hc: *const HardwareCommon, h_mem_arr: [u64; MAX_LENGTH_IN]) -> [u64; MAX_
     #[cfg(not(feature = "no-fpga"))]
     let output_arr = {
         let frontiers: &[u64] = &h_mem_arr[0..FRONTIER_LENGTH];
-        let data: &[u64] = &h_mem_arr[FRONTIER_LENGTH..FRONTIER_LENGTH + 16];
+        let data: &[u64] = &h_mem_arr[FRONTIER_LENGTH..FRONTIER_LENGTH + BATCH_SIZE];
         fpga_communication(hc, frontiers, data)
     };
 
