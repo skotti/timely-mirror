@@ -134,10 +134,6 @@ fn fpga_communication(
         )
     };
 
-    // Treat as `uint64_t` array
-    let used_cache_size = 32;
-    let area = unsafe { std::slice::from_raw_parts_mut(area as *mut u64, used_cache_size) };
-
     // Sends data to FPGA
     // Write to cache lines
     // Write frontiers to first cache line
