@@ -134,25 +134,25 @@ fn fpga_communication(
         )
     };
 
-    // Sends data to FPGA
-    // Write to cache lines
     // Write frontiers to first cache line
     for i in 0..CACHE_LINE_SIZE as usize {
         cache_line_1[i] = frontiers[i];
     }
     dmb();
+
     // Write data to second cache line
     for i in 0..CACHE_LINE_SIZE as usize {
         cache_line_2[i] = data[i];
     }
     dmb();
 
-    // Reads response from FPGA
-    // Read both cache lines (they are 16 times u64 each)
+    // Read data out
     for i in 0..CACHE_LINE_SIZE {
         output_arr[i] = cache_line_1[i];
     }
     dmb();
+
+    // Read summary
     for i in 0..CACHE_LINE_SIZE {
         output_arr[i + 16] = cache_line_2[i];
     }
