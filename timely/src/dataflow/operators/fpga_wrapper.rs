@@ -166,7 +166,7 @@ fn run(hc: *const HardwareCommon, h_mem_arr: [u64; MAX_LENGTH_IN]) -> [u64; MAX_
     // Only run when using FPGA
     #[cfg(not(feature = "no-fpga"))]
     let output_arr = {
-        let frontiers: &[u64] = &h_mem_arr[0..16];
+        let frontiers: &[u64] = &h_mem_arr[0..FRONTIER_LENGTH];
         let data: &[u64] = &h_mem_arr[FRONTIER_LENGTH..FRONTIER_LENGTH + 16];
         fpga_communication(hc, frontiers, data)
     };
