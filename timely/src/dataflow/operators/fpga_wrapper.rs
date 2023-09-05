@@ -19,15 +19,15 @@ use std::collections::HashMap;
 use std::ffi::c_void;
 
 // Various parameters
+const CACHE_LINE_SIZE: usize = 16;
 const NUMBER_OF_INPUTS: usize = 16; // make sure to sync with caller (e.g. `hello_fpga.rs`)
 const NUMBER_OF_FILTER_OPERATORS: usize = 1;
 const NUMBER_OF_MAP_OPERATORS: usize = 0;
 const OPERATOR_COUNT: usize = NUMBER_OF_FILTER_OPERATORS + NUMBER_OF_MAP_OPERATORS;
 const PARAM: usize = 2;
 const PARAM_OUTPUT: usize = 2;
-const FRONTIER_PARAM: usize = 3;
-const FRONTIER_LENGTH: usize = FRONTIER_PARAM * 8;
-const MAX_LENGTH_IN: usize = PARAM * 8 + FRONTIER_PARAM * 8;
+const FRONTIER_LENGTH: usize = CACHE_LINE_SIZE;
+const MAX_LENGTH_IN: usize = PARAM * 8 + FRONTIER_LENGTH;
 const DATA_LENGTH: usize = PARAM_OUTPUT * 8;
 const PROGRESS_START_INDEX: usize = PARAM_OUTPUT * 8;
 const PROGRESS_OUTPUT: usize = 10; // ceil((#operators * 4)/8)
