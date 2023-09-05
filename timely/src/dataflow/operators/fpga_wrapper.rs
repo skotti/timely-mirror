@@ -13,6 +13,7 @@ use crate::scheduling::{Activations, Schedule};
 
 use crate::progress::frontier::MutableAntichain;
 use std::cell::RefCell;
+use std::convert::TryInto;
 use std::rc::Rc;
 
 use std::collections::HashMap;
@@ -124,7 +125,14 @@ fn fpga_communication(
     let mut output_arr: [u64; MAX_LENGTH_OUT] = [0; MAX_LENGTH_OUT];
 
     // Get pointer to memory
-    let area = unsafe { (*hc).area };
+    let area = unsafe { (*hc).area } as *mut u64;
+    let cache_line_1 = unsafe { std::slice::from_raw_parts_mut(area, CACHE_LINE_SIZE) };
+    let cache_line_2 = unsafe {
+        std::slice::from_raw_parts_mut(
+            area.offset(CACHE_LINE_SIZE.try_into().unwrap()),
+            CACHE_LINE_SIZE,
+        )
+    };
 
     // Treat as `uint64_t` array
     let used_cache_size = 32;
@@ -134,23 +142,23 @@ fn fpga_communication(
     // Write to cache lines
     // Write frontiers to first cache line
     for i in 0..16 as usize {
-        area[i] = frontiers[i];
+        cache_line_1[i] = frontiers[i];
     }
     dmb();
     // Write data to second cache line
     for i in 0..16 as usize {
-        area[16 + i] = data[i];
+        cache_line_2[i] = data[i];
     }
     dmb();
 
     // Reads response from FPGA
     // Read both cache lines (they are 16 times u64 each)
     for i in 0..16 {
-        output_arr[i] = area[i];
+        output_arr[i] = cache_line_1[i];
     }
     dmb();
-    for i in 16..32 {
-        output_arr[i] = area[i];
+    for i in 0..16 {
+        output_arr[i + 16] = cache_line_2[i];
     }
     dmb();
 
