@@ -154,7 +154,7 @@ fn fpga_communication(
 
     // Read summary
     for i in 0..CACHE_LINE_SIZE {
-        output_arr[i + 16] = cache_line_2[i];
+        output_arr[i + DATA_LENGTH] = cache_line_2[i];
     }
     dmb();
 
