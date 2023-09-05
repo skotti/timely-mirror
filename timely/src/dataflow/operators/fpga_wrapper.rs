@@ -30,7 +30,7 @@ const FRONTIER_LENGTH: usize = CACHE_LINE_SIZE;
 const MAX_LENGTH_IN: usize = FRONTIER_LENGTH + NUMBER_OF_INPUTS;
 const DATA_LENGTH: usize = PARAM_OUTPUT * 8;
 const PROGRESS_START_INDEX: usize = PARAM_OUTPUT * 8;
-const PROGRESS_OUTPUT: usize = 10; // ceil((#operators * 4)/8)
+const PROGRESS_OUTPUT: usize = CACHE_LINE_SIZE;
 const MAX_LENGTH_OUT: usize = PARAM_OUTPUT * 8 + PROGRESS_OUTPUT * 8;
 
 #[derive(Debug)]
