@@ -15,12 +15,13 @@ use crate::progress::frontier::MutableAntichain;
 use std::cell::RefCell;
 use std::convert::TryInto;
 use std::rc::Rc;
+use std::time::Instant;
 
 use std::collections::HashMap;
 use std::ffi::c_void;
 
 // Various parameters
-const BATCH_LINES: usize = 4;
+const BATCH_LINES: usize = 1;
 const CACHE_LINE_SIZE: usize = 16;
 const BATCH_SIZE: usize = BATCH_LINES * CACHE_LINE_SIZE;
 const NUMBER_OF_INPUTS: usize = BATCH_SIZE; // make sure to sync with caller (e.g. `hello_fpga.rs`)
@@ -134,6 +135,7 @@ fn fpga_communication(
         )
     };
 
+    let start = Instant::now();
     // Write frontiers to first cache line
     for i in 0..CACHE_LINE_SIZE as usize {
         cache_line_1[i] = frontiers[i];
@@ -159,6 +161,9 @@ fn fpga_communication(
         output_arr[i + DATA_LENGTH] = cache_line_2[i];
     }
     dmb();
+    let epoch_end = Instant::now();
+    let total_nanos = (epoch_end - start).as_nanos();
+    println!("FPGA-latency: {total_nanos}");
 
     output_arr
 }
