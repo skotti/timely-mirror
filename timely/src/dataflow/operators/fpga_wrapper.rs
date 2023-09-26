@@ -21,7 +21,7 @@ use std::collections::HashMap;
 use std::ffi::c_void;
 
 // Various parameters
-const BATCH_LINES: usize = 2;
+const BATCH_LINES: usize = 4;
 const CACHE_LINE_SIZE: usize = 16;
 const BATCH_SIZE: usize = BATCH_LINES * CACHE_LINE_SIZE;
 const NUMBER_OF_INPUTS: usize = BATCH_SIZE; // make sure to sync with caller (e.g. `hello_fpga.rs`)
