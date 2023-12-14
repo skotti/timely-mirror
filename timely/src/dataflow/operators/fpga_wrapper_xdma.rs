@@ -14,6 +14,8 @@ use crate::dataflow::operators::generic::builder_raw::OperatorShape;
 use crate::dataflow::channels::pullers::Counter as PullCounter;
 use crate::dataflow::channels::pushers::buffer::Buffer as PushBuffer;
 use crate::dataflow::channels::pushers::{Counter as PushCounter, Tee};
+use fakeoperator::FakeOperator;
+use fakeoperator::FpgaOperator;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -45,7 +47,7 @@ pub struct HardwareCommon {
 unsafe impl Send for HardwareCommon{}
 unsafe impl Sync for HardwareCommon{}
 
-#[link(name = "fpgalibrary")]
+#[link(name = "xdma_shim")]
 extern "C" {
     fn run(hc: * const HardwareCommon, input_size: i64, output_size: i64);
 }
@@ -60,7 +62,7 @@ unsafe fn my_run(hc: * const HardwareCommon) {
 }
 
 /// Wrapper operator to store ghost operators
-struct FpgaOperator<T, L>
+/*struct FpgaOperator<T, L>
     where
         T: Timestamp,
         L: FnMut(&mut SharedProgress<T>)->bool+'static,
@@ -123,9 +125,9 @@ impl<T, L> Operate<T> for FpgaOperator<T, L>
 
     fn notify_me(&self) -> bool { self.shape.notify() }
 }
-
+*/
 /// Ghost operator, resides on the FPGA side
-struct FakeOperator<T, L>
+/*struct FakeOperator<T, L>
     where
         T: Timestamp,
         L: FnMut(&mut SharedProgress<T>)->bool+'static,
@@ -196,21 +198,22 @@ impl<T, L> Operate<T> for FakeOperator<T, L>
 
     fn notify_me(&self) -> bool { self.shape.notify() }
 }
+*/
 
 /// Wrapper to run on FPGA
-pub trait FpgaWrapper<S: Scope/*, D: Data*/> {
+pub trait FpgaWrapperXDMA<S: Scope/*, D: Data*/> {
 
     /// Wrapper function
-    fn fpga_wrapper(&self, hc: *const HardwareCommon) -> Stream<S, u64>;
+    fn fpga_wrapper_xdma(&self, hc: *const HardwareCommon) -> Stream<S, u64>;
 
 }
 
 // return value should be the value of the last operator
 
-impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
+impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
 
 
-    fn fpga_wrapper(&self, hc: *const HardwareCommon) -> Stream<S, u64> {
+    fn fpga_wrapper_xdma(&self, hc: *const HardwareCommon) -> Stream<S, u64> {
 
         // this should correspond to the way the data will be read on the fpga
         let mut ghost_indexes = Vec::new();

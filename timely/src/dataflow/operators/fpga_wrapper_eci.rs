@@ -11,6 +11,8 @@ use crate::dataflow::{Scope, Stream};
 use crate::progress::{operate::SharedProgress, Antichain, ChangeBatch, Operate, Timestamp};
 use crate::scheduling::{Activations, Schedule};
 
+use crate::dataflow::operators::FakeOperator;
+
 use crate::progress::frontier::MutableAntichain;
 use std::cell::RefCell;
 use std::convert::TryInto;
@@ -186,7 +188,7 @@ fn run(hc: *const HardwareCommon, h_mem_arr: [u64; MAX_LENGTH_IN]) -> [u64; MAX_
 }
 
 /// Wrapper operator to store ghost operators
-struct FpgaOperator<T, L>
+/*struct FpgaOperator<T, L>
 where
     T: Timestamp,
     L: FnMut(&mut SharedProgress<T>) -> bool + 'static,
@@ -264,9 +266,9 @@ where
         self.shape.notify()
     }
 }
-
+*/
 /// Ghost operator, resides on the FPGA side
-struct FakeOperator<T, L>
+/*struct FakeOperator<T, L>
 where
     T: Timestamp,
     L: FnMut(&mut SharedProgress<T>) -> bool + 'static,
@@ -351,17 +353,18 @@ where
         self.shape.notify()
     }
 }
+*/
 
 /// Wrapper to run on FPGA
-pub trait FpgaWrapper<S: Scope> {
+pub trait FpgaWrapperECI<S: Scope> {
     /// Wrapper function
-    fn fpga_wrapper(&self, hc: *const HardwareCommon) -> Stream<S, u64>;
+    fn fpga_wrapper_eci(&self, hc: *const HardwareCommon) -> Stream<S, u64>;
 }
 
 // return value should be the value of the last operator
 
-impl<S: Scope<Timestamp = u64>> FpgaWrapper<S> for Stream<S, u64> {
-    fn fpga_wrapper(&self, hc: *const HardwareCommon) -> Stream<S, u64> {
+impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
+    fn fpga_wrapper_eci(&self, hc: *const HardwareCommon) -> Stream<S, u64> {
         // this should correspond to the way the data will be read on the fpga
         let mut ghost_indexes = Vec::new();
         let mut ghost_indexes2 = Vec::new();

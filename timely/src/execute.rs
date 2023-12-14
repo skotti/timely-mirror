@@ -4,7 +4,7 @@ use crate::communication::{initialize_from, Configuration, Allocator, allocator:
 use crate::dataflow::scopes::Child;
 use crate::worker::Worker;
 
-use crate::dataflow::operators::fpga_wrapper::HardwareCommon;
+use crate::dataflow::operators::fpga_wrapper_xdma::HardwareCommon;
 
 use libc::c_int;
 use libc::{MAP_FAILED, MAP_FIXED, MAP_SHARED, PROT_READ, PROT_WRITE};
@@ -13,22 +13,22 @@ use std::ffi::c_void;
 
 use crate::dataflow::operators::fpga_wrapper::HardwareCommon;
 
-
-#[link(name = "fpgalibrary")]
+#[cfg(feature = "xdma")]
+#[link(name = "xdma_shim")]
 extern "C" {
     fn initialize() -> * const HardwareCommon;
     fn closeHardware(hc: * const HardwareCommon);
 }
 
-
+#[cfg(feature = "eci")]
 extern "C" {
     fn open(pathname: *const libc::c_char, flags: c_int) -> c_int;
     fn get_nprocs() -> i32;
-}
 
-const SIZE: usize = 0x1000;
+static SIZE: usize = 0x1000;
 
 /// Gets a file descriptor to the FPGA memory section
+#[cfg(feature = "eci")]
 fn get_fpga_mem() -> i32 {
     let path = std::ffi::CString::new("/dev/fpgamem").unwrap();
 
@@ -38,6 +38,7 @@ fn get_fpga_mem() -> i32 {
 }
 
 /// Takes a file descriptor to mmap into
+#[cfg(feature = "eci")]
 fn mmap_wrapper(fd: c_int, no_cpus: c_int) -> Result<*mut c_void, std::io::Error> {
     let area = unsafe {
         libc::mmap(
@@ -59,11 +60,13 @@ fn mmap_wrapper(fd: c_int, no_cpus: c_int) -> Result<*mut c_void, std::io::Error
 }
 
 /// Runs munmap over the given pointer
+#[cfg(feature = "eci")]
 fn munmap_wrapper(area: *mut c_void, no_cpus: libc::size_t) {
     unsafe { libc::munmap(area, 0x10000000000 * no_cpus) };
 }
 
 /// Allocate resources needed for computation
+#[cfg(feature = "eci")]
 fn initialize() -> *const HardwareCommon {
     let area;
     #[cfg(feature = "no-fpga")]
@@ -91,6 +94,7 @@ fn initialize() -> *const HardwareCommon {
 }
 
 /// Free allocated resources again
+#[cfg(feature = "eci")]
 fn close_hardware(hc: *const HardwareCommon) {
     // Unmap mmap'd memory area
     let nprocs = unsafe { get_nprocs() };
@@ -99,6 +103,7 @@ fn close_hardware(hc: *const HardwareCommon) {
 
     // As for the malloc'd memory:
     // We simply leak the malloc'd memory as it gets free'd on exit anyway.
+}
 }
 
 /// Executes a single-threaded timely dataflow computation.
