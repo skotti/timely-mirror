@@ -51,7 +51,8 @@ pub mod probe;
 pub mod to_stream;
 pub mod capture;
 pub mod branch;
-pub mod fpga_wrapper;
+pub mod fpga_wrapper_eci;
+pub mod fpga_wrapper_xdma;
 pub mod ok_err;
 
 pub mod aggregation;

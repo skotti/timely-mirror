@@ -11,6 +11,16 @@ use libc::{MAP_FAILED, MAP_FIXED, MAP_SHARED, PROT_READ, PROT_WRITE};
 use std::convert::TryInto;
 use std::ffi::c_void;
 
+use crate::dataflow::operators::fpga_wrapper::HardwareCommon;
+
+
+#[link(name = "fpgalibrary")]
+extern "C" {
+    fn initialize() -> * const HardwareCommon;
+    fn closeHardware(hc: * const HardwareCommon);
+}
+
+
 extern "C" {
     fn open(pathname: *const libc::c_char, flags: c_int) -> c_int;
     fn get_nprocs() -> i32;
@@ -271,7 +281,12 @@ where
     let (allocators, other) = config.try_build()?;
 
     initialize_from(allocators, other, move |allocator| {
-        let hwcommon = initialize();
+
+        let hwcommon;
+        unsafe {
+            hwcommon = initialize();
+        }
+
 
         let mut worker = Worker::new(allocator);
 
@@ -298,7 +313,9 @@ where
         let result = func(&mut worker, hwcommon);
         while worker.step_or_park(None) { }
 
-        close_hardware(hwcommon);
+        unsafe {
+            closeHardware(hwcommon);
+        }
         result
     })
 }
