@@ -2,31 +2,12 @@ extern crate timely;
 extern crate hdrhist;
 
 use timely::dataflow::{InputHandle, ProbeHandle};
-use timely::dataflow::operators::{Input, Exchange, Inspect, Probe, FpgaWrapper};
-//use timely::dataflow::operators::fpga_wrapper::HardwareCommon;
+use timely::dataflow::operators::{Input, Exchange, Inspect, Probe, FpgaWrapperXDMA};
 use std::time::{Duration, Instant};
 
 
-/*#[link(name = "fpgalibrary")]
-extern "C" {
-    fn initialize() -> * const HardwareCommon;
-    fn closeHardware(hc: * const HardwareCommon);
-}*/
-
-
 fn main() {
-    // initializes and runs a timely dataflow.
-    /*let hwcommon;
-    unsafe {
-        hwcommon = initialize();
-    }*/
     timely::execute_from_args(std::env::args(),  |worker, hc| {
-
-       // let hc;
-       // unsafe {
-       //     hc = initialize();
-       // }
-
         //let index = worker.index();
         let mut input = InputHandle::new();
         let mut probe = ProbeHandle::new();
@@ -35,7 +16,7 @@ fn main() {
 
         worker.dataflow(|scope| {
             scope.input_from(&mut input)
-                 .fpga_wrapper(hc)
+                 .fpga_wrapper_xdma(hc)
                  //.inspect(move |x| println!("worker {}:\thello {}", index, x))
                  .probe_with(&mut probe);
         });
@@ -44,9 +25,9 @@ fn main() {
         let start = Instant::now();
         let mut epoch_start = Instant::now();
         let mut hist = hdrhist::HDRHist::new();
-        let num_rounds = 10_000;
+        let num_rounds = 1;
         for round in 0..num_rounds {
-	        for _j in 0..8 {
+	        for _j in 0..16 {
                 input.send(round + 21);// max = 0
 	        }
             
@@ -71,12 +52,6 @@ fn main() {
         println!("total time (nanos): {}, throughput: {}", total_nanos, epoch_throughput);
         println!("epoch latency (nanos):\n{}", hist.summary_string());
 
-        //unsafe {
-        //    closeHardware(hc);
-        //}
     }).unwrap();
-    /*unsafe {
-    	closeHardware(hwcommon);
-    }*/
 	dbg!("Done");
 }

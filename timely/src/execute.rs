@@ -4,19 +4,20 @@ use crate::communication::{initialize_from, Configuration, Allocator, allocator:
 use crate::dataflow::scopes::Child;
 use crate::worker::Worker;
 
-use crate::dataflow::operators::fpga_wrapper_xdma::HardwareCommon;
-
 use libc::c_int;
 use libc::{MAP_FAILED, MAP_FIXED, MAP_SHARED, PROT_READ, PROT_WRITE};
 use std::convert::TryInto;
 use std::ffi::c_void;
 
-use crate::dataflow::operators::fpga_wrapper::HardwareCommon;
+#[cfg(feature = "xdma")]
+use crate::dataflow::operators::fpga_wrapper_xdma::HardwareCommon;
+#[cfg(feature = "eci")]
+use crate::dataflow::operators::fpga_wrapper_eci::HardwareCommon;
 
 #[cfg(feature = "xdma")]
 #[link(name = "xdma_shim")]
 extern "C" {
-    fn initialize() -> * const HardwareCommon;
+    fn initialize(input_size: i64, output_size: i64) -> * const HardwareCommon;
     fn closeHardware(hc: * const HardwareCommon);
 }
 
@@ -289,7 +290,7 @@ where
 
         let hwcommon;
         unsafe {
-            hwcommon = initialize();
+            hwcommon = initialize(192, 192);
         }
 
 

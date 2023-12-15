@@ -1,4 +1,4 @@
-/// Ghost operator, resides on the FPGA side
+//! Common definitions of structures
 
 use std::sync::{Arc, Mutex};
 
@@ -22,21 +22,27 @@ use crate::logging::TimelyEvent::Operates;
 use crate::progress::frontier::MutableAntichain;
 use std::time::{Duration, Instant};
 
-
 /// Wrapper operator to store ghost operators
-struct FpgaOperator<T, L>
+pub struct FpgaOperator<T, L>
     where
         T: Timestamp,
         L: FnMut(&mut SharedProgress<T>)->bool+'static,
 {
-    shape: OperatorShape,
-    address: Vec<usize>,
-    logic: L,
-    shared_progress: Rc<RefCell<SharedProgress<T>>>,
-    activations: Rc<RefCell<Activations>>,
-    summary: Vec<Vec<Antichain<T::Summary>>>,
+    ///f
+    pub shape: OperatorShape,
+    ///f
+    pub address: Vec<usize>,
+    ///f
+    pub logic: L,
+    ///f
+    pub shared_progress: Rc<RefCell<SharedProgress<T>>>,
+    ///f
+    pub activations: Rc<RefCell<Activations>>,
+    ///f
+    pub summary: Vec<Vec<Antichain<T::Summary>>>,
 
-    ghost_indexes: Vec<(usize, usize)>,
+    ///f
+    pub ghost_indexes: Vec<(usize, usize)>,
 }
 
 impl<T, L> Schedule for FpgaOperator<T, L>
@@ -90,18 +96,24 @@ impl<T, L> Operate<T> for FpgaOperator<T, L>
     fn notify_me(&self) -> bool { self.shape.notify() }
 }
 
-
-struct FakeOperator<T, L>
+/// Wrapper operator to store ghost operators1
+pub struct FakeOperator<T, L>
     where
         T: Timestamp,
         L: FnMut(&mut SharedProgress<T>)->bool+'static,
 {
-    shape: OperatorShape,
-    address: Vec<usize>,
-    logic: L,
-    shared_progress: Rc<RefCell<SharedProgress<T>>>,
-    activations: Rc<RefCell<Activations>>,
-    summary: Vec<Vec<Antichain<T::Summary>>>,
+    ///f
+    pub shape: OperatorShape,
+    ///f
+    pub address: Vec<usize>,
+    ///f
+    pub logic: L,
+    ///f
+    pub shared_progress: Rc<RefCell<SharedProgress<T>>>,
+    ///f
+    pub activations: Rc<RefCell<Activations>>,
+    ///f
+    pub summary: Vec<Vec<Antichain<T::Summary>>>,
 }
 
 impl<T, L> Schedule for FakeOperator<T, L>

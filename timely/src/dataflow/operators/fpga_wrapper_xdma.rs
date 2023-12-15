@@ -14,8 +14,6 @@ use crate::dataflow::operators::generic::builder_raw::OperatorShape;
 use crate::dataflow::channels::pullers::Counter as PullCounter;
 use crate::dataflow::channels::pushers::buffer::Buffer as PushBuffer;
 use crate::dataflow::channels::pushers::{Counter as PushCounter, Tee};
-use fakeoperator::FakeOperator;
-use fakeoperator::FpgaOperator;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -27,6 +25,9 @@ use std::time::{Duration, Instant};
 
 use std::ptr;
 
+use crate::dataflow::operators::fakeoperator::FakeOperator;
+use crate::dataflow::operators::fakeoperator::FpgaOperator;
+
 //use std::collections::HashMap;
 //#[path = "../../../hardware.rs"]
 //pub mod hardware;
@@ -37,8 +38,8 @@ use std::collections::HashMap;
 #[repr(C)]
 /// Data structure to store FPGA related data
 pub struct HardwareCommon {
-    fd: i32,
-    cpid: i32,
+    fd_out: i32,
+    fd_in: i32,
     hMem: * mut c_void,
     oMem: * mut c_void
 }
@@ -52,10 +53,10 @@ extern "C" {
     fn run(hc: * const HardwareCommon, input_size: i64, output_size: i64);
 }
 
-unsafe fn my_run(hc: * const HardwareCommon) {
+unsafe fn my_run(hc: * const HardwareCommon, input_size: i64, output_size: i64) {
     use std::time::Instant;
     let start = Instant::now();
-    run(hc);
+    run(hc, input_size, output_size);
     let epoch_end = Instant::now();
     let total_nanos = (epoch_end - start).as_nanos();
     // println!("FPGA-latency: {total_nanos}");
@@ -214,6 +215,8 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
 
 
     fn fpga_wrapper_xdma(&self, hc: *const HardwareCommon) -> Stream<S, u64> {
+
+        println!("INSIDE FPGA WRAPPER");
 
         // this should correspond to the way the data will be read on the fpga
         let mut ghost_indexes = Vec::new();
@@ -551,6 +554,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
 
         let raw_logic =
             move |progress: &mut SharedProgress<S::Timestamp>| {
+                println!("Inside FPGA WRAPPER RUN");
 
                 let start1 = Instant::now();
                 let mut borrow = frontier.borrow_mut();
@@ -571,8 +575,8 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
                 // invoke supplied logic
                 use crate::communication::message::RefOrMut;
 
-                let param = 1; // number of 8 number chuncks
-                let param_output = 1;
+                let param = 2; // number of 8 number chuncks
+                let param_output = 2;
                 let frontier_param = 1;
                 let mut has_data = false;
                 /*let end1 = Instant::now();
@@ -599,7 +603,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
 
                         //let start2 = Instant::now();
                         let memory = (*hc).hMem as *mut u64;
-                        *memory.offset(current_length as isize) = *time ;
+                        //*memory.offset(current_length as isize) = *time ;
                         current_length += 1;
 
                         for i in 0 .. borrow.len() {
@@ -632,6 +636,13 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
                         for i in current_length .. max_length {
                             *memory.offset(i as isize) = 0;
                         }
+                        
+                        println!("INPUT DATA FROM TIMELY");
+                        for i in 0..max_length {
+                            print!("{} ", *memory.offset(i));
+                        }
+                        println!();
+
                         /*let end2 = Instant::now();
                         let delta2 = (end2 - start2).as_nanos();
                         println!("Delta2 = {}", delta2);*/
@@ -654,7 +665,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
 
                         //let start3 = Instant::now();
 
-                        my_run(hc);// changes should be reflected in hc
+                        my_run(hc, 24*8, 24*8);// changes should be reflected in hc
                         
                         /*let end3 = Instant::now();
                         let delta3 = (end3 - start3).as_nanos();
@@ -668,6 +679,12 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
 
                         //let start4 = Instant::now();
                         let memory_out = (*hc).oMem as *mut u64;
+
+                        println!("OUTPUT DATA FROM TIMELY");
+                        for i in 0..max_length {
+                            print!("{} ", *memory_out.offset(i));
+                        }
+                        println!();
                         //let pointer_in = memory_out.offset(0 as isize);
                         //let pointer_out = vector2.as_mut_ptr();
 
@@ -784,7 +801,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
 			            //}
 			            //println!();
 
-			            my_run(hc);
+			            my_run(hc, 24*8, 24*8);
 
 			            /*println!("PRINT OUTPUT VECTOR FROM FPGA");
                         for (i, elem) in output.iter().enumerate() {

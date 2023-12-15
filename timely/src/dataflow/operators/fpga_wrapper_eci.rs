@@ -11,7 +11,9 @@ use crate::dataflow::{Scope, Stream};
 use crate::progress::{operate::SharedProgress, Antichain, ChangeBatch, Operate, Timestamp};
 use crate::scheduling::{Activations, Schedule};
 
-use crate::dataflow::operators::FakeOperator;
+
+use crate::dataflow::operators::fakeoperator::FakeOperator;
+use crate::dataflow::operators::fakeoperator::FpgaOperator;
 
 use crate::progress::frontier::MutableAntichain;
 use std::cell::RefCell;
