@@ -1,10 +1,15 @@
 #!/bin/bash
+# Provide as parameters in this order: 
+# 1) type of benchmark (xdma, eci, pci);
+# 2) number of Timely Dataflow rounds
+# 3) data size (number of elements, 16, 32, 64, ...);
+# 4) number of operators (for now just 1)
 
-# Specify the path where you would like to run the benchmark
+# (!) Specify the path where you would like to run the benchmark
 run_dir=/home/enzian/
-# Specify the path for compiling Timely Dataflow ( the root directory of Timely Dataflow)
+# (!) Specify the path for compiling Timely Dataflow ( the root directory of Timely Dataflow)
 timely_dir=/scratch/aruzhans/timely-on-fpga-different-systems/
-# Specify the path to shared library
+# (!) Specify the path to shared library
 shared_dir=/scratch/aruzhans/timely-dataflow-on-hardware/xdma_shim/
 
 benchmark_name=benchmark_$1
