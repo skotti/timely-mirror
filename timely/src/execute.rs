@@ -1,8 +1,14 @@
 //! Starts a timely dataflow execution from configuration information and per-worker logic.
 
-use crate::communication::{initialize_from, Configuration, Allocator, allocator::AllocateBuilder, WorkerGuards};
+use crate::communication::{Params, initialize_from, Configuration, Allocator, allocator::AllocateBuilder, WorkerGuards};
 use crate::dataflow::scopes::Child;
 use crate::worker::Worker;
+
+/*struct Params {
+    rounds: i64,
+    data: i64,
+    operators: i64
+}*/
 
 use libc::c_int;
 use libc::{MAP_FAILED, MAP_FIXED, MAP_SHARED, PROT_READ, PROT_WRITE};
@@ -248,10 +254,10 @@ where
 /// // the extracted data should have data (0..10) thrice at timestamp 0.
 /// assert_eq!(recv.extract()[0].1, (0..30).map(|x| x / 3).collect::<Vec<_>>());
 /// ```
-pub fn execute<T, F>(mut config: Configuration, func: F) -> Result<WorkerGuards<T>,String>
+pub fn execute<T, F>(params: Params, mut config: Configuration, func: F) -> Result<WorkerGuards<T>,String>
 where
     T:Send+'static,
-    F: Fn(&mut Worker<Allocator>, *const HardwareCommon)->T+Send+Sync+'static {
+    F: Fn(&mut Worker<Allocator>, *const HardwareCommon, Params)->T+Send+Sync+'static {
 
     if let Configuration::Cluster { ref mut log_fn, .. } = config {
 
@@ -286,13 +292,16 @@ where
 
     let (allocators, other) = config.try_build()?;
 
-    initialize_from(allocators, other, move |allocator| {
+    initialize_from(allocators, other, params, move |allocator| {
 
         let hwcommon;
         unsafe {
-            hwcommon = initialize(192, 192);
+            hwcommon = initialize(params.data * 8 + 64, params.data * 8 + 64);
         }
 
+        println!("Param 1 = {} (initialize from)", params.rounds);
+        println!("Param 2 = {} (initialize from)", params.data);
+        println!("Param 3 = {} (initialize from)", params.operators);
 
         let mut worker = Worker::new(allocator);
 
@@ -316,7 +325,7 @@ where
             }
         }
 
-        let result = func(&mut worker, hwcommon);
+        let result = func(&mut worker, hwcommon, params);
         while worker.step_or_park(None) { }
 
         unsafe {
@@ -378,12 +387,27 @@ where
 /// host2:port
 /// host3:port
 /// ```
-pub fn execute_from_args<I, T, F>(iter: I, func: F) -> Result<WorkerGuards<T>,String>
+pub fn execute_from_args<I, T, F>(iter1: I, iter: I, func: F) -> Result<WorkerGuards<T>,String>
     where I: Iterator<Item=String>,
           T:Send+'static,
-          F: Fn(&mut Worker<Allocator>, *const HardwareCommon)->T+Send+Sync+'static, {
+          F: Fn(&mut Worker<Allocator>, *const HardwareCommon, Params)->T+Send+Sync+'static, {
+
+
+    let args_vector: Vec<String> = iter1.collect();
+
+    let param1 = args_vector[1].parse().expect("Invalid age");
+    let param2 = args_vector[2].parse().expect("Invalid age");
+    let param3 = args_vector[3].parse().expect("Invalid age");
+
+    println!("Param 1 = {}", param1);
+    println!("Param 2 = {}", param2);
+    println!("Param 3 = {}", param3);
+
     let configuration = Configuration::from_args(iter)?;
-    execute(configuration, func)
+
+    let params: Params = Params {rounds: param1, data: param2, operators: param3};
+    
+    execute(params, configuration, func)
 }
 
 /// Executes a timely dataflow from supplied allocators and logging.
@@ -407,7 +431,9 @@ where
     A: AllocateBuilder+'static,
     T: Send+'static,
     F: Fn(&mut Worker<<A as AllocateBuilder>::Allocator>)->T+Send+Sync+'static {
-    initialize_from(builders, others, move |allocator| {
+
+    let params: Params = Params {rounds: 0, data: 0, operators: 0};
+    initialize_from(builders, others, params, move |allocator| {
         let mut worker = Worker::new(allocator);
         let result = func(&mut worker);
         while worker.step_or_park(None) { }

@@ -16,6 +16,17 @@ use crate::allocator::zero_copy::initialize::initialize_networking;
 use crate::logging::{CommunicationSetup, CommunicationEvent};
 use logging_core::Logger;
 
+#[derive(Debug, Copy, Clone)]
+/// ff
+pub struct Params {
+    /// ff
+    pub rounds: i64,
+    /// ff
+    pub data: i64,
+    /// ff
+    pub operators: i64
+}
+
 
 /// Possible configurations for the communication infrastructure.
 pub enum Configuration {
@@ -194,7 +205,8 @@ pub fn initialize<T:Send+'static, F: Fn(Generic)->T+Send+Sync+'static>(
     func: F,
 ) -> Result<WorkerGuards<T>,String> {
     let (allocators, others) = config.try_build()?;
-    initialize_from(allocators, others, func)
+    let params: Params = Params {rounds: 0, data: 0, operators: 0};
+    initialize_from(allocators, others, params, func)
 }
 
 /// Initializes computation and runs a distributed computation.
@@ -251,6 +263,7 @@ pub fn initialize<T:Send+'static, F: Fn(Generic)->T+Send+Sync+'static>(
 pub fn initialize_from<A, T, F>(
     builders: Vec<A>,
     others: Box<dyn Any+Send>,
+    params: Params,
     func: F,
 ) -> Result<WorkerGuards<T>,String>
 where

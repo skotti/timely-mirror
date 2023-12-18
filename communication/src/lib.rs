@@ -104,7 +104,7 @@ use abomonation::Abomonation;
 
 pub use allocator::Generic as Allocator;
 pub use allocator::Allocate;
-pub use initialize::{initialize, initialize_from, Configuration, WorkerGuards};
+pub use initialize::{Params, initialize, initialize_from, Configuration, WorkerGuards};
 pub use message::Message;
 
 /// A composite trait for types that may be used with channels.

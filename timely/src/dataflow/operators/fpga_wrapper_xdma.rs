@@ -205,7 +205,7 @@ impl<T, L> Operate<T> for FakeOperator<T, L>
 pub trait FpgaWrapperXDMA<S: Scope/*, D: Data*/> {
 
     /// Wrapper function
-    fn fpga_wrapper_xdma(&self, hc: *const HardwareCommon) -> Stream<S, u64>;
+    fn fpga_wrapper_xdma(&self, num_data: i64, num_operators: i64, hc: *const HardwareCommon) -> Stream<S, u64>;
 
 }
 
@@ -214,7 +214,7 @@ pub trait FpgaWrapperXDMA<S: Scope/*, D: Data*/> {
 impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
 
 
-    fn fpga_wrapper_xdma(&self, hc: *const HardwareCommon) -> Stream<S, u64> {
+    fn fpga_wrapper_xdma(&self, num_data: i64, num_operators: i64, hc: *const HardwareCommon) -> Stream<S, u64> {
 
         println!("INSIDE FPGA WRAPPER");
 
@@ -575,10 +575,12 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
                 // invoke supplied logic
                 use crate::communication::message::RefOrMut;
 
-                let param = 2; // number of 8 number chuncks
-                let param_output = 2;
+                let param: i64 = num_data / 8; // number of 8 number chuncks
+                let param_output: i64 = num_data / 8;
                 let frontier_param = 1;
                 let mut has_data = false;
+
+                println!("Amount of data (fpga_wrapper) {}", num_data);
                 /*let end1 = Instant::now();
                 let delta1 = (end1 - start1).as_nanos();
                 println!("Delta1 = {}", delta1);*/
@@ -592,12 +594,12 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
                     };
                     data.swap(&mut vector);
 
-                    let mut frontier_length =  frontier_param * 8;//2 + ghost_indexes.len() + 4 * ghost_indexes.len();
-                    let mut current_length = 0;
-                    let mut max_length = param * 8 + frontier_param * 8;
-                    let mut data_length = param * 8;
+                    let mut frontier_length: i64 =  frontier_param * 8;//2 + ghost_indexes.len() + 4 * ghost_indexes.len();
+                    let mut current_length: i64 = 0;
+                    let mut max_length: i64 = param * 8 + frontier_param * 8;
+                    let mut data_length: i64 = param * 8;
                     let mut data_start_index = 0;
-                    let mut progress_start_index = param_output * 8;
+                    let mut progress_start_index: usize = (param_output * 8) as usize;
 
                     unsafe {
 
@@ -639,7 +641,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
                         
                         println!("INPUT DATA FROM TIMELY");
                         for i in 0..max_length {
-                            print!("{} ", *memory.offset(i));
+                            print!("{} ", *memory.offset(i as isize));
                         }
                         println!();
 
@@ -664,8 +666,10 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
 			            println!();*/
 
                         //let start3 = Instant::now();
+                        //
+                        println!("Amount of data (.so) {}", max_length * 8);
 
-                        my_run(hc, 24*8, 24*8);// changes should be reflected in hc
+                        my_run(hc, max_length * 8, max_length * 8);// changes should be reflected in hc
                         
                         /*let end3 = Instant::now();
                         let delta3 = (end3 - start3).as_nanos();
@@ -682,7 +686,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
 
                         println!("OUTPUT DATA FROM TIMELY");
                         for i in 0..max_length {
-                            print!("{} ", *memory_out.offset(i));
+                            print!("{} ", *memory_out.offset(i as isize));
                         }
                         println!();
                         //let pointer_in = memory_out.offset(0 as isize);
@@ -768,7 +772,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
                     let mut max_length = param * 8 + frontier_param * 8;
                     let mut data_length = param * 8;
                     let mut data_start_index = 0;
-                    let mut progress_start_index = param_output * 8;
+                    let mut progress_start_index: usize = (param_output * 8) as usize;
 
                     unsafe {
 
@@ -801,7 +805,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
 			            //}
 			            //println!();
 
-			            my_run(hc, 24*8, 24*8);
+			            my_run(hc, max_length * 8, max_length * 8);
 
 			            /*println!("PRINT OUTPUT VECTOR FROM FPGA");
                         for (i, elem) in output.iter().enumerate() {

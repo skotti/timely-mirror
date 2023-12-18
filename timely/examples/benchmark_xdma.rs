@@ -7,16 +7,20 @@ use std::time::{Duration, Instant};
 
 
 fn main() {
-    timely::execute_from_args(std::env::args(),  |worker, hc| {
+
+    timely::execute_from_args(std::env::args(), std::env::args(),  |worker, hc, params| {
         //let index = worker.index();
         let mut input = InputHandle::new();
         let mut probe = ProbeHandle::new();
 
         // create a new input, exchange data, and inspect its output
+        let num_rounds = params.rounds;
+        let num_data = params.data;
+        let num_operators = params.operators;
 
         worker.dataflow(|scope| {
             scope.input_from(&mut input)
-                 .fpga_wrapper_xdma(hc)
+                 .fpga_wrapper_xdma(num_data, num_operators, hc)
                  //.inspect(move |x| println!("worker {}:\thello {}", index, x))
                  .probe_with(&mut probe);
         });
@@ -25,13 +29,13 @@ fn main() {
         let start = Instant::now();
         let mut epoch_start = Instant::now();
         let mut hist = hdrhist::HDRHist::new();
-        let num_rounds = 1;
+        
         for round in 0..num_rounds {
-	        for _j in 0..16 {
-                input.send(round + 21);// max = 0
+	        for _j in 0..num_data {
+                input.send(round as u64 + 21);// max = 0
 	        }
             
-            input.advance_to(round + 1);
+            input.advance_to(round as u64 + 1);
 
             while probe.less_than(input.time()) {
                 worker.step();
