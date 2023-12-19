@@ -2,7 +2,7 @@
 # Provide as parameters in this order: 
 # 1) type of benchmark (xdma, eci, pci);
 # 2) number of Timely Dataflow rounds
-# 3) data size (number of elements, 16, 32, 64, ...);
+# 3) data size (number of elements, 16, 32, 64, ...), should be same as in the configuration for the FPGA bitstream;
 # 4) number of operators (for now just 1)
 
 # (!) Specify the path where you would like to run the benchmark
