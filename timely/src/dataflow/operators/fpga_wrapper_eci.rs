@@ -25,9 +25,10 @@ use std::collections::HashMap;
 use std::ffi::c_void;
 
 // Various parameters
-const BATCH_LINES: usize = 4;
-const CACHE_LINE_SIZE: usize = 16;
-const BATCH_SIZE: usize = BATCH_LINES * CACHE_LINE_SIZE;
+const CACHE_LINE_SIZE: i64 = 16;
+const MAX_CAPACITY: usize = 8192;
+
+/*const BATCH_SIZE: usize = BATCH_LINES * CACHE_LINE_SIZE;
 const NUMBER_OF_INPUTS: usize = BATCH_SIZE; // make sure to sync with caller (e.g. `hello_fpga.rs`)
 const NUMBER_OF_FILTER_OPERATORS: usize = 1;
 const NUMBER_OF_MAP_OPERATORS: usize = 0;
@@ -37,7 +38,7 @@ const MAX_LENGTH_IN: usize = FRONTIER_LENGTH + NUMBER_OF_INPUTS;
 const DATA_LENGTH: usize = BATCH_SIZE;
 const PROGRESS_START_INDEX: usize = DATA_LENGTH;
 const PROGRESS_OUTPUT: usize = CACHE_LINE_SIZE;
-const MAX_LENGTH_OUT: usize = BATCH_SIZE + CACHE_LINE_SIZE;
+const MAX_LENGTH_OUT: usize = BATCH_SIZE + CACHE_LINE_SIZE;*/
 
 #[derive(Debug)]
 #[repr(C)]
@@ -50,28 +51,38 @@ pub struct HardwareCommon {
 unsafe impl Send for HardwareCommon {}
 unsafe impl Sync for HardwareCommon {}
 
+//input_arr: [u64; MAX_LENGTH_IN]
+//output_arr: [u64; MAX_LENGTH_OUT]
+
+
+
 /// Writes a specific hardcoded bit pattern to simulate FPGA output
-fn generate_fpga_output(input_arr: [u64; MAX_LENGTH_IN]) -> [u64; MAX_LENGTH_OUT] {
+fn generate_fpga_output(input_arr: &mut Vec<u64>, num_data: i64, num_operators: i64) -> Vec<u64> {
+
     // Cast input buffer ptr to array
     let mut offset = 0; // Keep track while iterate through array
-
+    let operator_count = num_operators as usize;
+    let mut frontier_length = ((num_operators % CACHE_LINE_SIZE) + CACHE_LINE_SIZE) as usize;
+    let mut progress_length = (((num_operators * 4) % CACHE_LINE_SIZE) + CACHE_LINE_SIZE) as usize;
+    let max_length_in = num_data as usize + frontier_length;
+    let max_length_out = num_data as usize + progress_length;
     //
     let same_value = input_arr[offset];
-    for i in 0..OPERATOR_COUNT {
+    for i in 0..operator_count {
         let i = i + offset;
         assert!(0 == input_arr[i] || input_arr[i] % 2 == 1);
         assert_eq!(same_value, input_arr[i]); // values should be the same across
     }
-    offset += OPERATOR_COUNT;
+    offset += operator_count;
 
     // Safety check, otherwise we overwrite values
-    assert!(offset <= FRONTIER_LENGTH);
+    assert!(offset <= frontier_length);
 
-    //
+
     let mut valid_inputs = 0;
     let mut unfiltered_inputs = 0;
-    for i in 0..NUMBER_OF_INPUTS {
-        let i = i + FRONTIER_LENGTH;
+    for i in 0..num_data as usize{
+        let i = i + frontier_length;
 
         // Check if input is valid
         if input_arr[i] % 2 == 1 {
@@ -86,16 +97,16 @@ fn generate_fpga_output(input_arr: [u64; MAX_LENGTH_IN]) -> [u64; MAX_LENGTH_OUT
 
     //
     // Cast buffer ptr to array
-    let mut output_arr: [u64; MAX_LENGTH_OUT] = [0; MAX_LENGTH_OUT];
+    let mut output_arr = vec![0; max_length_out];
     let mut my_offset = 0;
     // 1...1 - number of inputs times
-    for i in 0..NUMBER_OF_INPUTS {
-        output_arr[i] = input_arr[i + FRONTIER_LENGTH];
+    for i in 0..num_data as usize {
+        output_arr[i] = input_arr[i + frontier_length];
     }
-    my_offset += NUMBER_OF_INPUTS;
+    my_offset += num_data as usize;
 
     // 1100 - operator many times
-    for _i in 0..OPERATOR_COUNT {
+    for _i in 0..num_operators {
         output_arr[my_offset + 0] = valid_inputs;
         output_arr[my_offset + 1] = unfiltered_inputs;
         output_arr[my_offset + 2] = 0;
@@ -126,16 +137,24 @@ fn fpga_communication(
     hc: *const HardwareCommon,
     frontiers: &[u64],
     data: &[u64],
-) -> [u64; MAX_LENGTH_OUT] {
-    let mut output_arr: [u64; MAX_LENGTH_OUT] = [0; MAX_LENGTH_OUT];
+    num_data: i64,
+    num_operators: i64
+) -> Vec<u64> {
+
+    let mut frontier_length = (num_operators % CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+    let mut progress_length = ((num_operators * 4) % CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+    let max_length_in = num_data as usize + frontier_length as usize;
+    let max_length_out = num_data as usize + progress_length as usize;
+
+    let mut output_arr= vec![0; max_length_out];
 
     // Get pointer to memory
     let area = unsafe { (*hc).area } as *mut u64;
-    let cache_line_1 = unsafe { std::slice::from_raw_parts_mut(area, CACHE_LINE_SIZE) };
+    let cache_line_1 = unsafe { std::slice::from_raw_parts_mut(area, CACHE_LINE_SIZE as usize) };
     let cache_line_2 = unsafe {
         std::slice::from_raw_parts_mut(
             area.offset(CACHE_LINE_SIZE.try_into().unwrap()),
-            CACHE_LINE_SIZE,
+            CACHE_LINE_SIZE as usize,
         )
     };
 
@@ -146,23 +165,24 @@ fn fpga_communication(
     }
     dmb();
 
-    for k in 0..BATCH_LINES {
+    let num_batch_lines = num_data / CACHE_LINE_SIZE;
+    for k in 0..num_batch_lines {
         // Write data to second cache line
         for i in 0..CACHE_LINE_SIZE as usize {
-            cache_line_2[i] = data[i + (CACHE_LINE_SIZE * k)];
+            cache_line_2[i] = data[i + (CACHE_LINE_SIZE * k) as usize];
         }
         dmb();
 
         // Read data out
-        for i in 0..CACHE_LINE_SIZE {
-            output_arr[i + (CACHE_LINE_SIZE * k)] = cache_line_1[i];
+        for i in 0..CACHE_LINE_SIZE as usize {
+            output_arr[i + (CACHE_LINE_SIZE * k) as usize] = cache_line_1[i];
         }
         dmb();
     }
 
     // Read summary
-    for i in 0..CACHE_LINE_SIZE {
-        output_arr[i + DATA_LENGTH] = cache_line_2[i];
+    for i in 0..CACHE_LINE_SIZE as usize {
+        output_arr[i + num_data as usize ] = cache_line_2[i];
     }
     dmb();
     let epoch_end = Instant::now();
@@ -173,17 +193,21 @@ fn fpga_communication(
 }
 
 /// Sends data to FPGA and receives response
-fn run(hc: *const HardwareCommon, h_mem_arr: [u64; MAX_LENGTH_IN]) -> [u64; MAX_LENGTH_OUT] {
+fn run(hc: *const HardwareCommon, num_data: i64, num_operators: i64, h_mem_arr: &mut Vec<u64>) -> Vec<u64> {
     // Only run when `no-fpga` feature is used
+
+    let mut frontier_length = (num_operators % CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+    let mut progress_length = ((num_operators * 4) % CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+
     #[cfg(feature = "no-fpga")]
-    let output_arr = generate_fpga_output(h_mem_arr);
+    let output_arr = generate_fpga_output(h_mem_arr, num_data, num_operators);
 
     // Only run when using FPGA
     #[cfg(not(feature = "no-fpga"))]
     let output_arr = {
-        let frontiers: &[u64] = &h_mem_arr[0..FRONTIER_LENGTH];
-        let data: &[u64] = &h_mem_arr[FRONTIER_LENGTH..FRONTIER_LENGTH + BATCH_SIZE];
-        fpga_communication(hc, frontiers, data)
+        let frontiers: &[u64] = &h_mem_arr[0..frontier_length];
+        let data: &[u64] = &h_mem_arr[frontier_length..frontier_length + num_data];
+        fpga_communication(hc, frontiers, data, num_data, num_operators)
     };
 
     output_arr
@@ -360,21 +384,28 @@ where
 /// Wrapper to run on FPGA
 pub trait FpgaWrapperECI<S: Scope> {
     /// Wrapper function
-    fn fpga_wrapper_eci(&self, hc: *const HardwareCommon) -> Stream<S, u64>;
+    fn fpga_wrapper_eci(&self, num_data: i64, num_operators: i64, hc: *const HardwareCommon) -> Stream<S, u64>;
 }
 
 // return value should be the value of the last operator
 
 impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
-    fn fpga_wrapper_eci(&self, hc: *const HardwareCommon) -> Stream<S, u64> {
+    fn fpga_wrapper_eci(&self, num_data: i64, num_operators: i64, hc: *const HardwareCommon) -> Stream<S, u64> {
         // this should correspond to the way the data will be read on the fpga
         let mut ghost_indexes = Vec::new();
         let mut ghost_indexes2 = Vec::new();
         // TODO: should get rid of ghost indexes
         let mut current_index = 0;
 
+        let mut frontier_length = (num_operators % CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+        let mut progress_length = ((num_operators * 4) % CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+
+        let max_length_in = num_data as usize + frontier_length as usize;
+        let max_length_out = num_data as usize + progress_length as usize;
+        let progress_start_index = max_length_in;
+
         let mut vec_builder_filter = vec![];
-        for i in 0..NUMBER_OF_FILTER_OPERATORS {
+        for i in 0..num_operators {
             // CREATE FILTER GHOST OPERATOR 1
             let mut builder_filter =
                 OperatorBuilder::new(format!("Filter{}", i + 1).to_owned(), self.scope()); // scope comes from stream
@@ -404,7 +435,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
             vec_builder_filter.push(builder_filter);
         }
 
-        let mut vec_builder_map = vec![];
+        /*let mut vec_builder_map = vec![];
         for i in 0..NUMBER_OF_MAP_OPERATORS {
             // CREATE MAP GHOST OPERATOR
             let mut builder_map =
@@ -433,7 +464,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
             current_index += 1;
             vec_builder_map.push(builder_map);
         }
-
+        */
         // create wrapper operator
 
         let mut builder_wrapper = OperatorBuilder::new("Wrapper".to_owned(), self.scope()); // scope comes from stream
@@ -449,8 +480,8 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
         ]));
         let mut started = false;
 
-        let mut vector = Vec::with_capacity(MAX_LENGTH_IN);
-        let mut vector2 = Vec::with_capacity(MAX_LENGTH_OUT);
+        let mut vector = Vec::with_capacity(MAX_CAPACITY);
+        let mut vector2 = Vec::with_capacity(MAX_CAPACITY);
 
         let mut produced = HashMap::with_capacity(32);
         let mut consumed = HashMap::with_capacity(32);
@@ -488,8 +519,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
                 data.swap(&mut vector);
 
                 let mut current_length = 0;
-
-                let mut input_memory: [u64; MAX_LENGTH_IN] = [0; MAX_LENGTH_IN];
+                let mut input_memory = vec![0; max_length_in];
                 // dbg!(*time);
 
                 for i in 0..borrow.len() {
@@ -505,7 +535,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
                     }
                 }
 
-                for _i in current_length..FRONTIER_LENGTH {
+                for _i in current_length..frontier_length as usize {
                     input_memory[current_length] = 0;
                     current_length += 1;
                 }
@@ -520,13 +550,14 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
                     }
                 }
 
-                for i in current_length..MAX_LENGTH_IN {
+                for i in current_length..max_length_in {
                     input_memory[i] = 0;
                 }
 
-                let memory_out = run(hc, input_memory);
+                let memory_out = run(hc, num_data, num_operators, &mut input_memory);
 
-                for i in 0..DATA_LENGTH {
+                let data_length = num_data;
+                for i in 0..data_length as usize{
                     let val = memory_out[i] as u64;
                     let shifted_val = val >> 1;
                     if val != 0 {
@@ -535,10 +566,10 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
                 }
 
                 for (i, j) in ghost_indexes.iter() {
-                    let consumed_value = memory_out[PROGRESS_START_INDEX + 4 * i] as i64;
-                    let produced_value = memory_out[PROGRESS_START_INDEX + 4 * i + 1] as i64;
-                    let internals_time = (memory_out[PROGRESS_START_INDEX + 4 * i + 2] >> 1) as u64;
-                    let internals_value = memory_out[PROGRESS_START_INDEX + 4 * i + 3] as i64;
+                    let consumed_value = memory_out[progress_start_index + 4 * i] as i64;
+                    let produced_value = memory_out[progress_start_index + 4 * i + 1] as i64;
+                    let internals_time = (memory_out[progress_start_index + 4 * i + 2] >> 1) as u64;
+                    let internals_value = memory_out[progress_start_index + 4 * i + 3] as i64;
 
                     consumed.insert(*j, consumed_value);
                     internals.insert(*j, (internals_time, internals_value));
@@ -563,7 +594,8 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
             if !has_data {
                 let mut current_length = 0;
 
-                let mut input_memory: [u64; MAX_LENGTH_IN] = [0; MAX_LENGTH_IN];
+                let data_length = num_data;
+                let mut input_memory = vec![0; max_length_in];
 
                 for i in 0..borrow.len() {
                     let frontier = borrow[i].frontier();
@@ -578,12 +610,12 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
                     }
                 }
 
-                for i in current_length..MAX_LENGTH_IN {
+                for i in current_length..max_length_in {
                     input_memory[i] = 0;
                 }
-                let memory_out = run(hc, input_memory);
+                let memory_out = run(hc, num_data, num_operators, &mut input_memory);
 
-                for i in 0..DATA_LENGTH {
+                for i in 0..data_length as usize {
                     let val = memory_out[i] as u64;
                     let shifted_val = val >> 1;
                     if val != 0 {
@@ -592,10 +624,10 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
                 }
 
                 for (i, j) in ghost_indexes.iter() {
-                    let consumed_value = memory_out[PROGRESS_START_INDEX + 4 * i] as i64;
-                    let produced_value = memory_out[PROGRESS_START_INDEX + 4 * i + 1] as i64;
-                    let internals_time = (memory_out[PROGRESS_START_INDEX + 4 * i + 2] >> 1) as u64;
-                    let internals_value = memory_out[PROGRESS_START_INDEX + 4 * i + 3] as i64;
+                    let consumed_value = memory_out[progress_start_index + 4 * i] as i64;
+                    let produced_value = memory_out[progress_start_index + 4 * i + 1] as i64;
+                    let internals_time = (memory_out[progress_start_index + 4 * i + 2] >> 1) as u64;
+                    let internals_value = memory_out[progress_start_index + 4 * i + 3] as i64;
 
                     consumed.insert(*j, consumed_value);
                     internals.insert(*j, (internals_time, internals_value));
@@ -647,9 +679,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
             ghost_operators.push(builder_filter.index());
         }
 
-        for builder_map in vec_builder_map {
+        /*for builder_map in vec_builder_map {
             ghost_operators.push(builder_map.index());
-        }
+        }*/
 
         // Acquire handle to shared progress
         let shared_progress = Rc::new(RefCell::new(SharedProgress::new_ghosts(

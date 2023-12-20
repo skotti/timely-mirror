@@ -7,9 +7,14 @@ use timely::dataflow::{InputHandle, ProbeHandle};
 
 fn main() {
     // initializes and runs a timely dataflow.
-    timely::execute_from_args(std::env::args(), |worker, hc| {
+    timely::execute_from_args(std::env::args(),std::env::args(), |worker, hc, params| {
         let mut input = InputHandle::new();
         let mut probe = ProbeHandle::new();
+
+        // create a new input, exchange data, and inspect its output
+        let num_rounds = params.rounds;
+        let num_data = params.data;
+        let num_operators = params.operators;
 
         // create a new input, exchange data, and inspect its output
         worker.dataflow(|scope| {
@@ -24,11 +29,9 @@ fn main() {
         let mut epoch_start = Instant::now();
         let mut hist = hdrhist::HDRHist::new();
 
-        const NUM_ROUNDS: u64 = 10_000;
-        const NUMBER_OF_INPUTS: usize = 16;
         let mut epoch_latencies: [u64; NUM_ROUNDS as usize] = [0; NUM_ROUNDS as usize];
-        for round in 0..NUM_ROUNDS {
-            for _j in 0..NUMBER_OF_INPUTS {
+        for round in 0..num_rounds {
+            for _j in 0..num_data {
                 input.send(round + 21); // max = 0
             }
             input.advance_to(round + 1);

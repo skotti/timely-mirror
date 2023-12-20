@@ -20,8 +20,9 @@ use crate::dataflow::operators::fpga_wrapper_xdma::HardwareCommon;
 #[cfg(feature = "eci")]
 use crate::dataflow::operators::fpga_wrapper_eci::HardwareCommon;
 
-#[cfg(feature = "xdma")]
+
 #[link(name = "xdma_shim")]
+#[cfg(feature = "xdma")]
 extern "C" {
     fn initialize(input_size: i64, output_size: i64) -> * const HardwareCommon;
     fn closeHardware(hc: * const HardwareCommon);
@@ -31,7 +32,7 @@ extern "C" {
 extern "C" {
     fn open(pathname: *const libc::c_char, flags: c_int) -> c_int;
     fn get_nprocs() -> i32;
-
+}
 static SIZE: usize = 0x1000;
 
 /// Gets a file descriptor to the FPGA memory section
@@ -74,7 +75,7 @@ fn munmap_wrapper(area: *mut c_void, no_cpus: libc::size_t) {
 
 /// Allocate resources needed for computation
 #[cfg(feature = "eci")]
-fn initialize() -> *const HardwareCommon {
+fn initialize(input_size: i64, output_size: i64) -> *const HardwareCommon {
     let area;
     #[cfg(feature = "no-fpga")]
     {
@@ -111,7 +112,7 @@ fn close_hardware(hc: *const HardwareCommon) {
     // As for the malloc'd memory:
     // We simply leak the malloc'd memory as it gets free'd on exit anyway.
 }
-}
+
 
 /// Executes a single-threaded timely dataflow computation.
 ///
