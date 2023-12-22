@@ -59,13 +59,23 @@ unsafe impl Sync for HardwareCommon {}
 /// Writes a specific hardcoded bit pattern to simulate FPGA output
 fn generate_fpga_output(input_arr: &mut Vec<u64>, num_data: i64, num_operators: i64) -> Vec<u64> {
 
+    println!("INPUT ARRAY");
+    for i in 0..input_arr.len() {
+        print!("{} ", input_arr[i]);
+    }
+    println!();
+
     // Cast input buffer ptr to array
     let mut offset = 0; // Keep track while iterate through array
     let operator_count = num_operators as usize;
-    let mut frontier_length = ((num_operators % CACHE_LINE_SIZE) + CACHE_LINE_SIZE) as usize;
-    let mut progress_length = (((num_operators * 4) % CACHE_LINE_SIZE) + CACHE_LINE_SIZE) as usize;
+    let mut frontier_length = ((num_operators / CACHE_LINE_SIZE) + CACHE_LINE_SIZE) as usize;
+    println!("Frontier length = {}", frontier_length);
+    let mut progress_length = (((num_operators * 4) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE) as usize;
+    println!("Progress length = {}", progress_length);
     let max_length_in = num_data as usize + frontier_length;
     let max_length_out = num_data as usize + progress_length;
+    println!("Max length in = {}", max_length_in);
+    println!("Max length out = {}", max_length_out);
     //
     let same_value = input_arr[offset];
     for i in 0..operator_count {
@@ -115,6 +125,12 @@ fn generate_fpga_output(input_arr: &mut Vec<u64>, num_data: i64, num_operators: 
         my_offset += 4;
     }
 
+    println!("OUTPUT ARRAY");
+    for i in 0..output_arr.len() {
+        print!("{} ", output_arr[i]);
+    }
+    println!();
+
     output_arr
 }
 
@@ -141,8 +157,8 @@ fn fpga_communication(
     num_operators: i64
 ) -> Vec<u64> {
 
-    let mut frontier_length = (num_operators % CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
-    let mut progress_length = ((num_operators * 4) % CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+    let mut frontier_length = (num_operators / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+    let mut progress_length = ((num_operators * 4) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
     let max_length_in = num_data as usize + frontier_length as usize;
     let max_length_out = num_data as usize + progress_length as usize;
 
@@ -196,8 +212,8 @@ fn fpga_communication(
 fn run(hc: *const HardwareCommon, num_data: i64, num_operators: i64, h_mem_arr: &mut Vec<u64>) -> Vec<u64> {
     // Only run when `no-fpga` feature is used
 
-    let mut frontier_length = (num_operators % CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
-    let mut progress_length = ((num_operators * 4) % CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+    let mut frontier_length = (num_operators / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+    let mut progress_length = ((num_operators * 4) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
 
     #[cfg(feature = "no-fpga")]
     let output_arr = generate_fpga_output(h_mem_arr, num_data, num_operators);
@@ -205,8 +221,8 @@ fn run(hc: *const HardwareCommon, num_data: i64, num_operators: i64, h_mem_arr: 
     // Only run when using FPGA
     #[cfg(not(feature = "no-fpga"))]
     let output_arr = {
-        let frontiers: &[u64] = &h_mem_arr[0..frontier_length];
-        let data: &[u64] = &h_mem_arr[frontier_length..frontier_length + num_data];
+        let frontiers: &[u64] = &h_mem_arr[0..frontier_length as usize];
+        let data: &[u64] = &h_mem_arr[frontier_length as usize..(frontier_length + num_data) as usize];
         fpga_communication(hc, frontiers, data, num_data, num_operators)
     };
 
@@ -397,12 +413,12 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
         // TODO: should get rid of ghost indexes
         let mut current_index = 0;
 
-        let mut frontier_length = (num_operators % CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
-        let mut progress_length = ((num_operators * 4) % CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+        let mut frontier_length = (num_operators / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+        let mut progress_length = ((num_operators * 4) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
 
         let max_length_in = num_data as usize + frontier_length as usize;
         let max_length_out = num_data as usize + progress_length as usize;
-        let progress_start_index = max_length_in;
+        let progress_start_index = num_data as usize;
 
         let mut vec_builder_filter = vec![];
         for i in 0..num_operators {

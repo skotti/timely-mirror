@@ -87,6 +87,7 @@ fn initialize(input_size: i64, output_size: i64) -> *const HardwareCommon {
 
     #[cfg(not(feature = "no-fpga"))]
     {
+        println!("HERE");
         let nprocs = unsafe { get_nprocs() };
         let fd = get_fpga_mem();
         area = mmap_wrapper(fd, nprocs).unwrap();
@@ -103,7 +104,7 @@ fn initialize(input_size: i64, output_size: i64) -> *const HardwareCommon {
 
 /// Free allocated resources again
 #[cfg(feature = "eci")]
-fn close_hardware(hc: *const HardwareCommon) {
+fn closeHardware(hc: *const HardwareCommon) {
     // Unmap mmap'd memory area
     let nprocs = unsafe { get_nprocs() };
     let area = unsafe { (*hc).area };
