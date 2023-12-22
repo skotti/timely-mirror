@@ -7,6 +7,7 @@
 # 4) number of operators (for now just 1)
 
 # (!) Specify the path where you would like to run the benchmark
+# Place the script to the run folder
 run_dir=/home/enzian/
 # (!) Specify the path for compiling Timely Dataflow ( the root directory of Timely Dataflow)
 timely_dir=/scratch/aruzhans/timely-on-fpga-different-systems-eci-testing/timely-on-fpga-different-systems/
@@ -28,6 +29,7 @@ cp $timely_dir/target/release/examples/benchmark_eci "$run_dir"
 cd "$shared_dir"
 make
 cp $shared_dir/libxdma_shim.so "$run_dir"
+cp $shared_dir/libxdma_shim.so "$timely_dir"/timely/
 
 cd "$run_dir"
 
