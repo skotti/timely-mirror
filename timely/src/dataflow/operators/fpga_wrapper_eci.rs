@@ -54,6 +54,7 @@ unsafe impl Sync for HardwareCommon {}
 //input_arr: [u64; MAX_LENGTH_IN]
 //output_arr: [u64; MAX_LENGTH_OUT]
 
+static mut GLOBAL_COUNTER: i32 = 0;
 
 
 /// Writes a specific hardcoded bit pattern to simulate FPGA output
@@ -148,6 +149,27 @@ fn dmb() {
     core::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
 }
 
+#[cfg(graph = "16op")]
+fn get_offset(offset_1: &mut i64, offset_1: &mut i64) {
+    unsafe {
+        println!("Original value: {}", GLOBAL_COUNTER);
+        if (GLOBAL_COUNTER % 2 == 0) {
+            offset_1 = 0;
+            offset_2 = CACHE_LINE_SIZE;
+        } else {
+            offset_1 = CACHE_LINE_SIZE;
+            offset_2 = 0;
+        }
+        GLOBAL_COUNTER = GLOBAL_COUNTER + 1;
+        println!("Modified value: {}", GLOBAL_COUNTER);
+    }
+}
+
+#[cfg(graph = "1op")]
+fn get_offset(offset_1: &mut i64, offset_1: &mut i64) {
+    offset_1 = 0;
+    offset_2 = CACHE_LINE_SIZE;
+}
 /// Communicates to FPGA via cache lines using [`2fast2forward`](https://gitlab.inf.ethz.ch/PROJECT-Enzian/fpga-sources/enzian-applications/2fast2forward)
 fn fpga_communication(
     hc: *const HardwareCommon,
@@ -157,6 +179,10 @@ fn fpga_communication(
     num_operators: i64
 ) -> Vec<u64> {
 
+    let mut offset_1 = 0;
+    let mut offset_2 = 0;
+
+    
     let mut frontier_length = (num_operators / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
     let mut progress_length = ((num_operators * 4) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
     let max_length_in = num_data as usize + frontier_length as usize;
@@ -165,11 +191,12 @@ fn fpga_communication(
     let mut output_arr= vec![0; max_length_out];
 
     // Get pointer to memory
+    // here should be the global variable that determines whch cache line is first and which is second every cycle
     let area = unsafe { (*hc).area } as *mut u64;
-    let cache_line_1 = unsafe { std::slice::from_raw_parts_mut(area, CACHE_LINE_SIZE as usize) };
+    let cache_line_1 = unsafe { std::slice::from_raw_parts_mut(area.offset(offset_1.try_into().unwrap()), CACHE_LINE_SIZE as usize) };
     let cache_line_2 = unsafe {
         std::slice::from_raw_parts_mut(
-            area.offset(CACHE_LINE_SIZE.try_into().unwrap()),
+            area.offset(offset_2.try_into().unwrap()),
             CACHE_LINE_SIZE as usize,
         )
     };
