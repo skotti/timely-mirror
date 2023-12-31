@@ -170,7 +170,9 @@ fn get_offset(offset_1: &mut i64, offset_2: &mut i64) {
     *offset_1 = 0;
     *offset_2 = CACHE_LINE_SIZE;
 }
+
 /// Communicates to FPGA via cache lines using [`2fast2forward`](https://gitlab.inf.ethz.ch/PROJECT-Enzian/fpga-sources/enzian-applications/2fast2forward)
+#[cfg(feature = "1op")]
 fn fpga_communication(
     hc: *const HardwareCommon,
     frontiers: &[u64],
@@ -212,12 +214,10 @@ fn fpga_communication(
     let start = Instant::now();
     // Write frontiers to first cache line
 
-    for j in 0..num_iter_frontier {
-        for i in 0..CACHE_LINE_SIZE as usize {
-            cache_line_1[i] = frontiers[i];
-        }
-        dmb();
+    for i in 0..CACHE_LINE_SIZE as usize {
+        cache_line_1[i] = frontiers[i];
     }
+    dmb();
 
     let num_batch_lines = num_data / CACHE_LINE_SIZE;
     for k in 0..num_batch_lines {
@@ -235,12 +235,102 @@ fn fpga_communication(
     }
 
     // Read summary
-    for j in 0..num_iter_progress {
+    for i in 0..CACHE_LINE_SIZE as usize {
+        output_arr[i + num_data as usize ] = cache_line_2[i];
+    }
+    dmb();
+    let epoch_end = Instant::now();
+    let total_nanos = (epoch_end - start).as_nanos();
+    println!("FPGA-latency: {total_nanos}");
+
+    output_arr
+}
+
+/// Communicates to FPGA via cache lines using [`2fast2forward`](https://gitlab.inf.ethz.ch/PROJECT-Enzian/fpga-sources/enzian-applications/2fast2forward)
+#[cfg(feature = "16op")]
+fn fpga_communication(
+    hc: *const HardwareCommon,
+    frontiers: &[u64],
+    data: &[u64],
+    num_data: i64,
+    num_operators: i64
+) -> Vec<u64> {
+
+    let mut offset_1 = 0;
+    let mut offset_2 = 0;
+
+    get_offset(&mut offset_1, &mut offset_2);
+    println!("Offset 1 = {}, offset 2 = {}", offset_1, offset_2);
+    
+    let mut frontier_length = ((num_operators / CACHE_LINE_SIZE) + CACHE_LINE_SIZE) as usize;
+    println!("Frontier length = {}", frontier_length);
+    let mut progress_length = (((num_operators * 4) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE) as usize;
+    println!("Progress length = {}", progress_length);
+    let max_length_in = num_data as usize + frontier_length;
+    let max_length_out = num_data as usize + progress_length;
+    println!("Max length in = {}", max_length_in);
+    println!("Max length out = {}", max_length_out);
+    let num_iter_frontier = num_operators / 8;
+    let num_iter_progress = num_operators / 4;
+
+    let mut output_arr= vec![0; max_length_out];
+
+    // Get pointer to memory
+    // here should be the global variable that determines whch cache line is first and which is second every cycle
+    let area = unsafe { (*hc).area } as *mut u64;
+    let cache_line_1 = unsafe { std::slice::from_raw_parts_mut(area.offset(offset_1.try_into().unwrap()), CACHE_LINE_SIZE as usize) };
+    let cache_line_2 = unsafe {
+        std::slice::from_raw_parts_mut(
+            area.offset(offset_2.try_into().unwrap()),
+            CACHE_LINE_SIZE as usize,
+        )
+    };
+
+    let start = Instant::now();
+    // Write frontiers to first cache line
+
+    for i in 0..CACHE_LINE_SIZE as usize {
+        cache_line_1[i] = frontiers[i];
+    }
+    dmb();
+
+
+    let num_batch_lines = num_data / CACHE_LINE_SIZE;
+    for k in 0..num_batch_lines {
+        // Write data to second cache line
         for i in 0..CACHE_LINE_SIZE as usize {
-            output_arr[i + num_data as usize ] = cache_line_2[i];
+            cache_line_2[i] = data[i + (CACHE_LINE_SIZE * k) as usize];
+        }
+        dmb();
+
+        // Read data out
+        for i in 0..CACHE_LINE_SIZE as usize {
+            output_arr[i + (CACHE_LINE_SIZE * k) as usize] = cache_line_1[i];
         }
         dmb();
     }
+
+    // Read summary
+    for i in 0..CACHE_LINE_SIZE as usize {
+        output_arr[i + num_data as usize ] = cache_line_2[i];
+    }
+    dmb();
+
+    for i in 0..CACHE_LINE_SIZE as usize {
+        output_arr[i + num_data as usize ] = cache_line_1[i];
+    }
+    dmb();
+
+    for i in 0..CACHE_LINE_SIZE as usize {
+        output_arr[i + num_data as usize ] = cache_line_2[i];
+    }
+    dmb();
+
+    for i in 0..CACHE_LINE_SIZE as usize {
+        output_arr[i + num_data as usize ] = cache_line_1[i];
+    }
+    dmb();
+
     let epoch_end = Instant::now();
     let total_nanos = (epoch_end - start).as_nanos();
     println!("FPGA-latency: {total_nanos}");
