@@ -20,6 +20,8 @@ bincode= ["timely_communication/bincode"]
 no-fpga = []
 xdma = []
 eci = []
+16op = []
+1op = []
 
 [dependencies]
 serde = "1.0"

@@ -149,26 +149,26 @@ fn dmb() {
     core::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
 }
 
-#[cfg(graph = "16op")]
-fn get_offset(offset_1: &mut i64, offset_1: &mut i64) {
+#[cfg(feature = "16op")]
+fn get_offset(offset_1: &mut i64, offset_2: &mut i64) {
     unsafe {
         println!("Original value: {}", GLOBAL_COUNTER);
         if (GLOBAL_COUNTER % 2 == 0) {
-            offset_1 = 0;
-            offset_2 = CACHE_LINE_SIZE;
+            *offset_1 = 0;
+            *offset_2 = CACHE_LINE_SIZE;
         } else {
-            offset_1 = CACHE_LINE_SIZE;
-            offset_2 = 0;
+            *offset_1 = CACHE_LINE_SIZE;
+            *offset_2 = 0;
         }
         GLOBAL_COUNTER = GLOBAL_COUNTER + 1;
         println!("Modified value: {}", GLOBAL_COUNTER);
     }
 }
 
-#[cfg(graph = "1op")]
-fn get_offset(offset_1: &mut i64, offset_1: &mut i64) {
-    offset_1 = 0;
-    offset_2 = CACHE_LINE_SIZE;
+#[cfg(feature = "1op")]
+fn get_offset(offset_1: &mut i64, offset_2: &mut i64) {
+    *offset_1 = 0;
+    *offset_2 = CACHE_LINE_SIZE;
 }
 /// Communicates to FPGA via cache lines using [`2fast2forward`](https://gitlab.inf.ethz.ch/PROJECT-Enzian/fpga-sources/enzian-applications/2fast2forward)
 fn fpga_communication(
@@ -182,6 +182,8 @@ fn fpga_communication(
     let mut offset_1 = 0;
     let mut offset_2 = 0;
 
+    get_offset(&mut offset_1, &mut offset_2);
+    println!("Offset 1 = {}, offset 2 = {}", offset_1, offset_2);
     
     let mut frontier_length = (num_operators / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
     let mut progress_length = ((num_operators * 4) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
