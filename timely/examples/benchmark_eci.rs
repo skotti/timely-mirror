@@ -54,10 +54,10 @@ fn main() {
         // println!("epoch time (sec): {}", epoch_latency);
         // println!("total time (nanos): {}", total_nanos);
         // println!("epoch throughput (epochs/sec): {}", epoch_throughput);
-        // println!("epoch latencies (nanos):");
-        // for elem in epoch_latencies {
-        //     println!("{elem}");
-        // }
+        println!("epoch latencies (nanos):");
+        for elem in epoch_latencies {
+            println!("{elem}");
+        }
     })
     .unwrap();
 }

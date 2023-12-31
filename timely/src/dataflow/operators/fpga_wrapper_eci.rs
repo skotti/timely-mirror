@@ -185,10 +185,16 @@ fn fpga_communication(
     get_offset(&mut offset_1, &mut offset_2);
     println!("Offset 1 = {}, offset 2 = {}", offset_1, offset_2);
     
-    let mut frontier_length = (num_operators / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
-    let mut progress_length = ((num_operators * 4) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
-    let max_length_in = num_data as usize + frontier_length as usize;
-    let max_length_out = num_data as usize + progress_length as usize;
+    let mut frontier_length = ((num_operators / CACHE_LINE_SIZE) + CACHE_LINE_SIZE) as usize;
+    println!("Frontier length = {}", frontier_length);
+    let mut progress_length = (((num_operators * 4) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE) as usize;
+    println!("Progress length = {}", progress_length);
+    let max_length_in = num_data as usize + frontier_length;
+    let max_length_out = num_data as usize + progress_length;
+    println!("Max length in = {}", max_length_in);
+    println!("Max length out = {}", max_length_out);
+    let num_iter_frontier = num_operators / 8;
+    let num_iter_progress = num_operators / 4;
 
     let mut output_arr= vec![0; max_length_out];
 
@@ -205,10 +211,13 @@ fn fpga_communication(
 
     let start = Instant::now();
     // Write frontiers to first cache line
-    for i in 0..CACHE_LINE_SIZE as usize {
-        cache_line_1[i] = frontiers[i];
+
+    for j in 0..num_iter_frontier {
+        for i in 0..CACHE_LINE_SIZE as usize {
+            cache_line_1[i] = frontiers[i];
+        }
+        dmb();
     }
-    dmb();
 
     let num_batch_lines = num_data / CACHE_LINE_SIZE;
     for k in 0..num_batch_lines {
@@ -226,10 +235,12 @@ fn fpga_communication(
     }
 
     // Read summary
-    for i in 0..CACHE_LINE_SIZE as usize {
-        output_arr[i + num_data as usize ] = cache_line_2[i];
+    for j in 0..num_iter_progress {
+        for i in 0..CACHE_LINE_SIZE as usize {
+            output_arr[i + num_data as usize ] = cache_line_2[i];
+        }
+        dmb();
     }
-    dmb();
     let epoch_end = Instant::now();
     let total_nanos = (epoch_end - start).as_nanos();
     println!("FPGA-latency: {total_nanos}");

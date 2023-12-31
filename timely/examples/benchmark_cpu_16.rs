@@ -2,7 +2,7 @@ extern crate hdrhist;
 extern crate timely;
 
 use std::time::Instant;
-use timely::dataflow::operators::{FpgaWrapperECI, Input, Probe};
+use timely::dataflow::operators::{Input, Probe, Filter};
 use timely::dataflow::{InputHandle, ProbeHandle};
 
 fn main() {
@@ -20,7 +20,22 @@ fn main() {
         worker.dataflow(|scope| {
             scope
                 .input_from(&mut input)
-                .fpga_wrapper_eci(num_data, num_operators, hc)
+                .filter(|x| *x > 0)
+                .filter(|x| *x > 0)
+                .filter(|x| *x > 0)
+                .filter(|x| *x > 0)
+                .filter(|x| *x > 0)
+                .filter(|x| *x > 0)
+                .filter(|x| *x > 0)
+                .filter(|x| *x > 0)
+                .filter(|x| *x > 0)
+                .filter(|x| *x > 0)
+                .filter(|x| *x > 0)
+                .filter(|x| *x > 0)
+                .filter(|x| *x > 0)
+                .filter(|x| *x > 0)
+                .filter(|x| *x > 0)
+                .filter(|x| *x > 0)
                 .probe_with(&mut probe);
         });
 
@@ -54,10 +69,10 @@ fn main() {
         // println!("epoch time (sec): {}", epoch_latency);
         // println!("total time (nanos): {}", total_nanos);
         // println!("epoch throughput (epochs/sec): {}", epoch_throughput);
-        // println!("epoch latencies (nanos):");
-        // for elem in epoch_latencies {
-        //     println!("{elem}");
-        // }
+        println!("epoch latencies (nanos):");
+        for elem in epoch_latencies {
+            println!("{elem}");
+        }
     })
     .unwrap();
 }
