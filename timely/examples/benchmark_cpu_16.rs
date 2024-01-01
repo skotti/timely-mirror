@@ -36,6 +36,10 @@ fn main() {
                 .filter(|x| *x > 0)
                 .filter(|x| *x > 0)
                 .filter(|x| *x > 0)
+                .filter(|x| *x > 0)
+                .filter(|x| *x > 0)
+                .filter(|x| *x > 0)
+                .filter(|x| *x > 0)
                 .probe_with(&mut probe);
         });
 

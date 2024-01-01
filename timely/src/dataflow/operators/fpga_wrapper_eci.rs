@@ -744,7 +744,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
                 output_wrapper.session(time).give_vec(&mut vector2);
 
                 let mut k = 0;
-                let mut i = 0;
+                let mut i = 0 as usize;
                 let mut j = 0;
                 let mut cb = ChangeBatch::new_from(0, 0);
                 let mut cb1 = ChangeBatch::new_from(0, 0);
