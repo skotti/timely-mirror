@@ -152,7 +152,7 @@ fn dmb() {
 #[cfg(feature = "16op")]
 fn get_offset(offset_1: &mut i64, offset_2: &mut i64) {
     unsafe {
-        println!("Original value: {}", GLOBAL_COUNTER);
+        //println!("Original value: {}", GLOBAL_COUNTER);
         if (GLOBAL_COUNTER % 2 == 0) {
             *offset_1 = 0;
             *offset_2 = CACHE_LINE_SIZE;
@@ -161,7 +161,7 @@ fn get_offset(offset_1: &mut i64, offset_2: &mut i64) {
             *offset_2 = 0;
         }
         GLOBAL_COUNTER = GLOBAL_COUNTER + 1;
-        println!("Modified value: {}", GLOBAL_COUNTER);
+        //println!("Modified value: {}", GLOBAL_COUNTER);
     }
 }
 
@@ -260,18 +260,19 @@ fn fpga_communication(
     let mut offset_2 = 0;
 
     get_offset(&mut offset_1, &mut offset_2);
-    println!("Offset 1 = {}, offset 2 = {}", offset_1, offset_2);
+    //println!("Offset 1 = {}, offset 2 = {}", offset_1, offset_2);
+    //println!("Num operators = {}, division = {}", num_operators, ((num_operators * 4 - 1) / CACHE_LINE_SIZE));
     
-    let mut frontier_length = ((num_operators / CACHE_LINE_SIZE) + CACHE_LINE_SIZE) as usize;
-    println!("Frontier length = {}", frontier_length);
-    let mut progress_length = (((num_operators * 4) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE) as usize;
-    println!("Progress length = {}", progress_length);
+    //let mut frontier_length = (((num_operators - 1) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE) as usize;
+    let mut frontier_length = 16;
+    //println!("Frontier length = {}", frontier_length);
+    //let mut progress_length = (((num_operators * 4 - 1) / CACHE_LINE_SIZE)* CACHE_LINE_SIZE + CACHE_LINE_SIZE) as usize;
+    let mut progress_length = 64;
+    //println!("Progress length = {}", progress_length);
     let max_length_in = num_data as usize + frontier_length;
     let max_length_out = num_data as usize + progress_length;
-    println!("Max length in = {}", max_length_in);
-    println!("Max length out = {}", max_length_out);
-    let num_iter_frontier = num_operators / 8;
-    let num_iter_progress = num_operators / 4;
+    //println!("Max length in = {}", max_length_in);
+    //println!("Max length out = {}", max_length_out);
 
     let mut output_arr= vec![0; max_length_out];
 
@@ -286,8 +287,13 @@ fn fpga_communication(
         )
     };
 
-    let start = Instant::now();
+    //let start = Instant::now();
     // Write frontiers to first cache line
+    //
+    /*for i in 0..CACHE_LINE_SIZE as usize{
+        println!("{}", frontiers[i]);
+    }
+    println!();*/
 
     for i in 0..CACHE_LINE_SIZE as usize {
         cache_line_1[i] = frontiers[i];
@@ -301,13 +307,19 @@ fn fpga_communication(
         for i in 0..CACHE_LINE_SIZE as usize {
             cache_line_2[i] = data[i + (CACHE_LINE_SIZE * k) as usize];
         }
+        //let epoch_start = Instant::now();
         dmb();
 
+        //let epoch_start = Instant::now();
         // Read data out
         for i in 0..CACHE_LINE_SIZE as usize {
             output_arr[i + (CACHE_LINE_SIZE * k) as usize] = cache_line_1[i];
         }
         dmb();
+        //let epoch_end = Instant::now();
+        //let total_nanos = (epoch_end - start).as_nanos();
+        //println!("processing latency: {total_nanos}");
+
     }
 
     // Read summary
@@ -317,23 +329,28 @@ fn fpga_communication(
     dmb();
 
     for i in 0..CACHE_LINE_SIZE as usize {
-        output_arr[i + num_data as usize ] = cache_line_1[i];
+        output_arr[i + CACHE_LINE_SIZE as usize + num_data as usize ] = cache_line_1[i];
     }
     dmb();
 
     for i in 0..CACHE_LINE_SIZE as usize {
-        output_arr[i + num_data as usize ] = cache_line_2[i];
+        output_arr[i + 2 * CACHE_LINE_SIZE as usize + num_data as usize ] = cache_line_2[i];
     }
     dmb();
 
     for i in 0..CACHE_LINE_SIZE as usize {
-        output_arr[i + num_data as usize ] = cache_line_1[i];
+        output_arr[i + 3 * CACHE_LINE_SIZE as usize + num_data as usize ] = cache_line_1[i];
     }
     dmb();
 
-    let epoch_end = Instant::now();
-    let total_nanos = (epoch_end - start).as_nanos();
-    println!("FPGA-latency: {total_nanos}");
+    /*for i in 0..5 * CACHE_LINE_SIZE as usize {
+        println!("{}", output_arr[i]);
+    }
+    println!();*/
+
+    //let epoch_end = Instant::now();
+    //let total_nanos = (epoch_end - start).as_nanos();
+    //println!("FPGA-latency: {total_nanos}");
 
     output_arr
 }
@@ -634,6 +651,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
         let mut internals = HashMap::with_capacity(32);
 
         let raw_logic = move |progress: &mut SharedProgress<S::Timestamp>| {
+
+            let epoch_start = Instant::now();
+
             let mut borrow = frontier.borrow_mut();
 
             for (i, j) in ghost_indexes.iter() {
@@ -668,6 +688,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
                 let mut input_memory = vec![0; max_length_in];
                 // dbg!(*time);
 
+
+                //let epoch_start = Instant::now();
+
                 for i in 0..borrow.len() {
                     let frontier = borrow[i].frontier();
                     if frontier.len() == 0 {
@@ -700,7 +723,13 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
                     input_memory[i] = 0;
                 }
 
+                //let epoch_end = Instant::now();
+                //let total_nanos = (epoch_end - epoch_start).as_nanos();
+                //println!("copy latency: {total_nanos}");
+
                 let memory_out = run(hc, num_data, num_operators, &mut input_memory);
+
+                //let start = Instant::now();
 
                 let data_length = num_data;
                 for i in 0..data_length as usize{
@@ -710,6 +739,8 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
                         vector2.push(shifted_val);
                     }
                 }
+
+
 
                 for (i, j) in ghost_indexes.iter() {
                     let consumed_value = memory_out[progress_start_index + 4 * i] as i64;
@@ -721,6 +752,10 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
                     internals.insert(*j, (internals_time, internals_value));
                     produced.insert(*j, produced_value);
                 }
+
+                //let epoch_end = Instant::now();
+                //let total_nanos = (epoch_end - start).as_nanos();
+                //println!("copy latency: {total_nanos}");
 
                 output_wrapper.session(time).give_vec(&mut vector2);
 
@@ -736,6 +771,10 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
                     cb2.drain_into(&mut progress.wrapper_internals.get_mut(j).unwrap()[0]);
                 }
             }
+
+            let epoch_end = Instant::now();
+            let total_nanos = (epoch_end - epoch_start).as_nanos();
+            println!("wrapper latency: {total_nanos}");
 
             if !has_data {
                 let mut current_length = 0;
@@ -800,12 +839,20 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
                 }
             }
 
+            //let epoch_end = Instant::now();
+           // let total_nanos = (epoch_end - epoch_start).as_nanos();
+           // println!("wrapper latency latency: {total_nanos}");
+
             vector.clear();
             vector2.clear();
             produced.clear();
             consumed.clear();
             internals.clear();
             output_wrapper.cease();
+
+            //let epoch_end = Instant::now();
+            //let total_nanos = (epoch_end - epoch_start).as_nanos();
+            //println!("wrapper latency latency: {total_nanos}");
 
             false
         };
