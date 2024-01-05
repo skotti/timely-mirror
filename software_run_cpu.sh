@@ -17,8 +17,8 @@ shared_dir=/scratch/aruzhans/timely-dataflow-on-hardware/xdma_shim/
 driver_dir=/scratch/aruzhans/timely-dataflow-on-hardware/eci_driver/
 
 cd "$timely_dir"
-cargo build --features $1 --release --example benchmark_cpu_16
-cp $timely_dir/target/release/examples/benchmark_cpu_16 "$run_dir"
+cargo build --features $1 --release --example benchmark_cpu_"$4"
+cp $timely_dir/target/release/examples/benchmark_cpu_"$4" "$run_dir"
 
 cd "$shared_dir"
 make
