@@ -248,8 +248,10 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
         current_index += 1;*/
 
         // CREATE FILTER GHOST OPERATOR 1
+        println!("NUM_OPERATORS = {}", num_operators);
         let mut vec_builder_filter = vec![];
         for i in 0..num_operators {
+            println!("create op");
             // CREATE FILTER GHOST OPERATOR 1
             let mut builder_filter =
                 OperatorBuilder::new(format!("Filter{}", i + 1).to_owned(), self.scope()); // scope comes from stream
@@ -278,6 +280,8 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
 
             vec_builder_filter.push(builder_filter);
         }
+
+        println!("Ghost indexes = {}", ghost_indexes.len());
 
 	/*
         // CREATE FILTER GHOST OPERATOR 2
@@ -553,12 +557,12 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
         let frontier = Rc::new(RefCell::new(vec![MutableAntichain::new(); ghost_indexes.len()]));
         let mut started = false;
 
-        let mut vector = Vec::with_capacity(8192);
-        let mut vector2 = Vec::with_capacity(8192);
+        let mut vector = Vec::with_capacity(16000);
+        let mut vector2 = Vec::with_capacity(16000);
 
-        let mut produced = HashMap::with_capacity(32);
-        let mut consumed = HashMap::with_capacity(32);
-        let mut internals = HashMap::with_capacity(32);
+        let mut produced = HashMap::with_capacity(60);
+        let mut consumed = HashMap::with_capacity(60);
+        let mut internals = HashMap::with_capacity(60);
 
 
         let raw_logic =
@@ -608,9 +612,11 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
                     let mut current_length: i64 = 0;
                     let mut max_length_out: i64 = param * 8 + frontier_param * 8;
                     let mut max_length_in: i64 = param * 8 + progress_param * 8;
+                    println!("Numbers out: {}, numbers in: {}", max_length_in, max_length_out);
                     let mut data_length: i64 = param * 8;
                     let mut data_start_index = 0;
                     let mut progress_start_index: usize = (param_output * 8) as usize;
+                    println!("Calculated data length = {}", data_length);
 
                     unsafe {
 
@@ -636,6 +642,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
                             current_length += 1;
                         }
 
+                        println!("DATA length actual = {}", vector.len());
 			            if vector.len() == 0 {
                             *memory.offset(current_length as isize) = 0 as u64;
                             current_length += 1;
@@ -786,6 +793,11 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
                     let mut data_start_index = 0;
                     let mut progress_start_index: usize = (param_output * 8) as usize;
 
+                    println!("Numbers out: {}, numbers in: {}", max_length_ou, max_length_in);
+
+                    println!("Calculated data length = {}", data_length);
+
+
                     unsafe {
 
                         let memory = (*hc).hMem as *mut u64;
@@ -816,6 +828,8 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
 			            //	print!(" {}", elem);
 			            //}
 			            //println!();
+                        //
+                        println!("Amount of data (.so) out: {}, in: {}", max_length_out * 8, max_length_in * 8);
 
 			            my_run(hc, max_length_in * 8, max_length_out * 8);
 
@@ -827,15 +841,23 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
 
                         let memory_out = (*hc).oMem as *mut u64;
 
+                        println!("Push data");
                         for i in 0 .. data_length {
                             let val = *memory_out.offset(i as isize) as u64;
                             let shifted_val = val >> 1;
                             if val != 0 {
                                 vector2.push(shifted_val);
                             }
+                            print!("{} ", i);
                         }
+                        println!();
                         //vector2.push(1);
+                        println!("Push updates");
+                        println!("{}", progress_start_index);
+                        println!("length = {}", ghost_indexes.len());
+
                         for (i, j) in ghost_indexes.iter() {
+                            println!("{} {}", i, j);
                             let consumed_index = (progress_start_index + 4*i) as isize;
                             let produced_index = (progress_start_index + 4*i + 1) as isize;
                             let internals_index_1 = (progress_start_index + 4*i + 2) as isize;
@@ -846,10 +868,10 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
                             let internals_time = *memory_out.offset(internals_index_1)  >> 1 as u64;
                             let internals_value = *memory_out.offset(internals_index_2) as i64;
 
-                            /*println!("consumed = {}", consumed_value);
+                            println!("consumed = {}", consumed_value);
                             println!("produced = {}", produced_value);
                             println!("internal time = {}", internals_time);
-                            println!("internal update {}", internals_value);*/
+                            println!("internal update {}", internals_value);
 
 
                             consumed.insert(*j, consumed_value);
@@ -858,9 +880,13 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
 
 
                         }
+                        println!("END3");
+
                     }
+
+                    println!("END2");
 		            let id_wrap = ghost_indexes[ghost_indexes.len() - 1].1;
-		            //println!("********id wrap********** = {}", id_wrap);
+		            println!("********id wrap********** = {}", id_wrap);
 
 		            if vector2.len() > 0 {
 		                output_wrapper.session(&(internals.get(&id_wrap).unwrap().0 as u64)).give_vec(&mut vector2);
@@ -870,6 +896,8 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
                         cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&id_wrap).unwrap()[0]);
                         cb2.drain_into(&mut progress.wrapper_internals.get_mut(&id_wrap).unwrap()[0]);
 		            }
+                    println!("END1");
+
   	 	        }
 
                 //let start7 = Instant::now();
@@ -882,6 +910,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
                 /*let end7 = Instant::now();
                 let delta7 = (end7 - start7).as_nanos();
                 println!("Delta1 = {}", delta7);*/
+                println!("END");
 
                 false
             };
@@ -925,26 +954,38 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
         ghost_operators.push(builder_aggregate.index());
 	*/
 
+        let shared_progress = Rc::new(RefCell::new(SharedProgress::new_ghosts(
+            builder_wrapper.shape().inputs(),
+            builder_wrapper.shape().outputs(),
+            ghost_operators.clone(),
+        )));
+
         builder_wrapper.set_notify(false);
         let operator = FpgaOperator {
             shape: builder_wrapper.shape().clone(),
             address: builder_wrapper.address().clone(),
             activations: self.scope().activations().clone(),
             logic: raw_logic,
-            shared_progress: Rc::new(RefCell::new(SharedProgress::new_ghosts(builder_wrapper.shape().inputs(), builder_wrapper.shape().outputs(), ghost_operators.clone()))),
+            shared_progress: Rc::clone(&shared_progress),
             summary: builder_wrapper.summary().to_vec(),
-            ghost_indexes: ghost_indexes2
+            ghost_indexes: ghost_indexes2,
         };
 
-        self.scope().add_operator_with_indices(Box::new(operator), builder_wrapper.index(), builder_wrapper.global());
-
-
+        // add fpga operator to scope
+        self.scope().add_operator_with_indices(
+            Box::new(operator),
+            builder_wrapper.index(),
+            builder_wrapper.global(),
+        );
 
         // we also need to create a map from ghost to wrapper
-
-        self.scope().add_fpga_operator(builder_wrapper.index(), ghost_operators, ghost_edges);
-
+        self.scope().add_fpga_operator(
+            builder_wrapper.index(),
+            ghost_operators.clone(),
+            ghost_edges.clone(),
+        );
 
         return stream_wrapper;
+
     }
 }

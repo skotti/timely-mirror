@@ -28,7 +28,7 @@ pub struct Message<T, D> {
 impl<T, D> Message<T, D> {
     /// Default buffer size.
     pub fn default_length() -> usize {
-        8192
+        16000
     }
 
     /// Creates a new message instance from arguments.

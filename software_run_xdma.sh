@@ -13,23 +13,24 @@ run_dir=/home/enzian/
 timely_dir=/scratch/aruzhans/timely-on-fpga-different-systems-eci-testing/timely-on-fpga-different-systems/
 # (!) Specify the path to shared library
 shared_dir=/scratch/aruzhans/timely-dataflow-on-hardware/xdma_shim/
+# (!) Specify the path to the driver
+driver_dir=/home/enzian/linux-kernel/xdma/
 
-first_arg="$1"
+#cd "$driver_dir"
+#make clean
+#make
+#sudo insmod xdma.ko
 
-first_word=$(echo "$first_arg" | cut -d',' -f1)
-
-echo $first_word
-
-benchmark_name=benchmark_$first_word
+benchmark_name=benchmark_xdma
 
 cd "$timely_dir"
-cargo build --features $1 --release --example "$benchmark_name"
-cp $timely_dir/target/release/examples/benchmark_xdma "$run_dir"
+cargo build --features $1 --example "$benchmark_name"
+cp $timely_dir/target/debug/examples/benchmark_xdma "$run_dir"
 
-cd "$shared_dir"
-make
-cp $shared_dir/libxdma_shim.so "$run_dir"
-cp $shared_dir/libxdma_shim.so "$timely_dir"/timely/
+#cd "$shared_dir"
+#make
+#cp $shared_dir/libxdma_shim.so "$run_dir"
+#cp $shared_dir/libxdma_shim.so "$timely_dir"/timely/
 
 cd "$run_dir"
 
