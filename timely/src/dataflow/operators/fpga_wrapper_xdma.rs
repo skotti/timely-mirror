@@ -248,27 +248,36 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
         current_index += 1;*/
 
         // CREATE FILTER GHOST OPERATOR 1
-        let mut builder_filter1 = OperatorBuilder::new("Filter1".to_owned(), self.scope()); // scope comes from stream
-        builder_filter1.set_notify(false);
-        builder_filter1.set_shape(1, 1);
+        let mut vec_builder_filter = vec![];
+        for i in 0..num_operators {
+            // CREATE FILTER GHOST OPERATOR 1
+            let mut builder_filter =
+                OperatorBuilder::new(format!("Filter{}", i + 1).to_owned(), self.scope()); // scope comes from stream
+            builder_filter.set_notify(false);
+            builder_filter.set_shape(1, 1);
 
-        let operator_logic_filter1 =
-         move |progress: &mut SharedProgress<S::Timestamp>| { false};
+            let operator_logic_filter = move |_progress: &mut SharedProgress<S::Timestamp>| false;
 
-        let operator_filter1 = FakeOperator {
-            shape: builder_filter1.shape().clone(),
-            address: builder_filter1.address().clone(),
-            activations: self.scope().activations().clone(),
-            logic: operator_logic_filter1,
-            shared_progress: Rc::new(RefCell::new(SharedProgress::new(1, 1))),
-            summary: builder_filter1.summary().to_vec(),
-        };
+            let operator_filter1 = FakeOperator {
+                shape: builder_filter.shape().clone(),
+                address: builder_filter.address().clone(),
+                activations: self.scope().activations().clone(),
+                logic: operator_logic_filter,
+                shared_progress: Rc::new(RefCell::new(SharedProgress::new(1, 1))),
+                summary: builder_filter.summary().to_vec(),
+            };
 
+            self.scope().add_operator_with_indices_no_path(
+                Box::new(operator_filter1),
+                builder_filter.index(),
+                builder_filter.global(),
+            );
+            ghost_indexes.push((current_index, builder_filter.index()));
+            ghost_indexes2.push((current_index, builder_filter.index()));
+            current_index += 1;
 
-        self.scope().add_operator_with_indices_no_path(Box::new(operator_filter1), builder_filter1.index(), builder_filter1.global());
-        ghost_indexes.push((current_index, builder_filter1.index()));
-        ghost_indexes2.push((current_index, builder_filter1.index()));
-        current_index += 1;
+            vec_builder_filter.push(builder_filter);
+        }
 
 	/*
         // CREATE FILTER GHOST OPERATOR 2
@@ -577,7 +586,8 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
 
                 let param: i64 = num_data / 8; // number of 8 number chuncks
                 let param_output: i64 = num_data / 8;
-                let frontier_param = 1;
+                let frontier_param = 3;
+                let progress_param = 10;
                 let mut has_data = false;
 
                 println!("Amount of data (fpga_wrapper) {}", num_data);
@@ -596,7 +606,8 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
 
                     let mut frontier_length: i64 =  frontier_param * 8;//2 + ghost_indexes.len() + 4 * ghost_indexes.len();
                     let mut current_length: i64 = 0;
-                    let mut max_length: i64 = param * 8 + frontier_param * 8;
+                    let mut max_length_out: i64 = param * 8 + frontier_param * 8;
+                    let mut max_length_in: i64 = param * 8 + progress_param * 8;
                     let mut data_length: i64 = param * 8;
                     let mut data_start_index = 0;
                     let mut progress_start_index: usize = (param_output * 8) as usize;
@@ -635,12 +646,12 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
                             }
 			            }
 
-                        for i in current_length .. max_length {
+                        for i in current_length .. max_length_out {
                             *memory.offset(i as isize) = 0;
                         }
                         
                         println!("INPUT DATA FROM TIMELY");
-                        for i in 0..max_length {
+                        for i in 0..max_length_out {
                             print!("{} ", *memory.offset(i as isize));
                         }
                         println!();
@@ -667,9 +678,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
 
                         //let start3 = Instant::now();
                         //
-                        println!("Amount of data (.so) {}", max_length * 8);
+                        println!("Amount of data (.so) out: {}, in: {}", max_length_out * 8, max_length_in * 8);
 
-                        my_run(hc, max_length * 8, max_length * 8);// changes should be reflected in hc
+                        my_run(hc, max_length_in * 8, max_length_out * 8);// changes should be reflected in hc
                         
                         /*let end3 = Instant::now();
                         let delta3 = (end3 - start3).as_nanos();
@@ -685,7 +696,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
                         let memory_out = (*hc).oMem as *mut u64;
 
                         println!("OUTPUT DATA FROM TIMELY");
-                        for i in 0..max_length {
+                        for i in 0..max_length_in {
                             print!("{} ", *memory_out.offset(i as isize));
                         }
                         println!();
@@ -767,10 +778,11 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
                 if !has_data {
 		            //println!("no data");
 
-                    let mut frontier_length = frontier_param * 8;//2 + ghost_indexes.len() + 4 * ghost_indexes.len();
-                    let mut current_length = 0;
-                    let mut max_length = param * 8 + frontier_param * 8;
-                    let mut data_length = param * 8;
+                    let mut frontier_length: i64 =  frontier_param * 8;//2 + ghost_indexes.len() + 4 * ghost_indexes.len();
+                    let mut current_length: i64 = 0;
+                    let mut max_length_out: i64 = param * 8 + frontier_param * 8;
+                    let mut max_length_in: i64 = param * 8 + progress_param * 8;
+                    let mut data_length: i64 = param * 8;
                     let mut data_start_index = 0;
                     let mut progress_start_index: usize = (param_output * 8) as usize;
 
@@ -795,7 +807,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
 
 
 
-                        for i in current_length .. max_length {
+                        for i in current_length .. max_length_out {
                             *memory.offset(i as isize) = 0;
                         }
 
@@ -805,7 +817,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
 			            //}
 			            //println!();
 
-			            my_run(hc, max_length * 8, max_length * 8);
+			            my_run(hc, max_length_in * 8, max_length_out * 8);
 
 			            /*println!("PRINT OUTPUT VECTOR FROM FPGA");
                         for (i, elem) in output.iter().enumerate() {
@@ -885,7 +897,10 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
             }
             prev_ghost = ghost.1;
         }
-        ghost_operators.push(builder_filter1.index());
+
+        for builder_filter in vec_builder_filter {
+            ghost_operators.push(builder_filter.index());
+        }
 	/*
         ghost_operators.push(builder_filter2.index());
         ghost_operators.push(builder_filter3.index());
