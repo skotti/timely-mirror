@@ -151,18 +151,8 @@ fn dmb() {
 
 #[cfg(feature = "16op")]
 fn get_offset(offset_1: &mut i64, offset_2: &mut i64) {
-    unsafe {
-        //println!("Original value: {}", GLOBAL_COUNTER);
-        if (GLOBAL_COUNTER % 2 == 0) {
-            *offset_1 = 0;
-            *offset_2 = CACHE_LINE_SIZE;
-        } else {
-            *offset_1 = CACHE_LINE_SIZE;
-            *offset_2 = 0;
-        }
-        GLOBAL_COUNTER = GLOBAL_COUNTER + 1;
-        //println!("Modified value: {}", GLOBAL_COUNTER);
-    }
+    *offset_1 = 0;
+    *offset_2 = CACHE_LINE_SIZE;
 }
 
 #[cfg(feature = "1op")]
@@ -256,6 +246,8 @@ fn fpga_communication(
     num_operators: i64
 ) -> Vec<u64> {
 
+    //println!("HERE!");
+
     let mut offset_1 = 0;
     let mut offset_2 = 0;
 
@@ -267,7 +259,7 @@ fn fpga_communication(
     let mut frontier_length = 16;
     //println!("Frontier length = {}", frontier_length);
     //let mut progress_length = (((num_operators * 4 - 1) / CACHE_LINE_SIZE)* CACHE_LINE_SIZE + CACHE_LINE_SIZE) as usize;
-    let mut progress_length = 64;
+    let mut progress_length = 16;
     //println!("Progress length = {}", progress_length);
     let max_length_in = num_data as usize + frontier_length;
     let max_length_out = num_data as usize + progress_length;
@@ -328,21 +320,6 @@ fn fpga_communication(
     }
     dmb();
 
-    for i in 0..CACHE_LINE_SIZE as usize {
-        output_arr[i + CACHE_LINE_SIZE as usize + num_data as usize ] = cache_line_1[i];
-    }
-    dmb();
-
-    for i in 0..CACHE_LINE_SIZE as usize {
-        output_arr[i + 2 * CACHE_LINE_SIZE as usize + num_data as usize ] = cache_line_2[i];
-    }
-    dmb();
-
-    for i in 0..CACHE_LINE_SIZE as usize {
-        output_arr[i + 3 * CACHE_LINE_SIZE as usize + num_data as usize ] = cache_line_1[i];
-    }
-    dmb();
-
     /*for i in 0..5 * CACHE_LINE_SIZE as usize {
         println!("{}", output_arr[i]);
     }
@@ -359,8 +336,8 @@ fn fpga_communication(
 fn run(hc: *const HardwareCommon, num_data: i64, num_operators: i64, h_mem_arr: &mut Vec<u64>) -> Vec<u64> {
     // Only run when `no-fpga` feature is used
 
-    let mut frontier_length = (num_operators / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
-    let mut progress_length = ((num_operators * 4) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+    let mut frontier_length = 16;//(num_operators / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+    let mut progress_length = 16;//((num_operators * 4) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
 
     #[cfg(feature = "no-fpga")]
     let output_arr = generate_fpga_output(h_mem_arr, num_data, num_operators);
@@ -560,12 +537,13 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
         // TODO: should get rid of ghost indexes
         let mut current_index = 0;
 
-        let mut frontier_length = (num_operators / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
-        let mut progress_length = ((num_operators * 4) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+        let mut frontier_length = 16;//(num_operators / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+        let mut progress_length = 16;//((num_operators * 4) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
 
         let max_length_in = num_data as usize + frontier_length as usize;
         let max_length_out = num_data as usize + progress_length as usize;
         let progress_start_index = num_data as usize;
+
 
         let mut vec_builder_filter = vec![];
         for i in 0..num_operators {
@@ -620,7 +598,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
         let mut consumed = HashMap::with_capacity(32);
         let mut internals = HashMap::with_capacity(32);
 
-        let mut offset_1 = 0;
+        /*let mut offset_1 = 0;
         let mut offset_2 = 0;
 
         get_offset(&mut offset_1, &mut offset_2);
@@ -633,7 +611,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
                 area.offset(offset_2.try_into().unwrap()),
                 CACHE_LINE_SIZE as usize,
             )
-        };
+        };*/
 
 
         let raw_logic = move |progress: &mut SharedProgress<S::Timestamp>| {
@@ -660,9 +638,26 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
 
             let mut has_data = false;
 
-            let epoch_start = Instant::now();
+            //let epoch_start = Instant::now();
 
             while let Some(message) = input_wrapper.next() {
+
+                let mut offset_1 = 0;
+                let mut offset_2 = 0;
+
+                get_offset(&mut offset_1, &mut offset_2);
+                //println!("offset1 = {}, offset2 = {}", offset_1, offset_2);
+
+
+                let area = unsafe { (*hc).area } as *mut u64;
+                let cache_line_1 = unsafe { std::slice::from_raw_parts_mut(area.offset(offset_1.try_into().unwrap()), CACHE_LINE_SIZE as usize) };
+                let cache_line_2 = unsafe {
+                std::slice::from_raw_parts_mut(
+                    area.offset(offset_2.try_into().unwrap()),
+                    CACHE_LINE_SIZE as usize,
+                )
+                };
+
                 has_data = true;
                 let (time, data) = match message.as_ref_or_mut() {
                     RefOrMut::Ref(reference) => (&reference.time, RefOrMut::Ref(&reference.data)),
@@ -674,10 +669,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
 
                 let mut current_length = 0;
 
-                
-
                 // 16
-                for i in 0..borrow.len() {
+                //println!("HERE 2!");
+                /*for i in 0..borrow.len() {
                     let frontier = borrow[i].frontier();
                     if frontier.len() == 0 {
                         cache_line_1[current_length] = 0;
@@ -688,17 +682,47 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
                             current_length += 1;
                         }
                     }
+                }*/
+
+                for i in 0..4 {
+                    let frontier = borrow[i].frontier();
+                    if frontier.len() == 0 {
+                        cache_line_1[current_length] = 0;
+                    } else {
+                        //for val in frontier.iter() {
+                            cache_line_1[i] = (frontier[0] << 1) | 1u64;
+                        //}
+                    }
                 }
 
-                for _i in current_length..frontier_length as usize {
+
+                /*let frontier = borrow[0].frontier();
+
+                if frontier.len() == 0 {
+                    for i in 0..16 {
+                        cache_line_1[i] = 0;
+                    }
+                } else {
+                    for i in 0..16 {
+                        cache_line_1[i] = (frontier[i] << 1) | 1u64;
+                        //current_length += 1;
+                    }
+                }*/
+
+                /*for _i in current_length..frontier_length as usize {
                     cache_line_1[current_length] = 0;
                     current_length += 1;
-                }
+                }*/
 
                 dmb();
 
+                //println!("DONE 1");
+
                 // 16
-                if vector.len() == 0 {
+                current_length = 0;
+                let data_length = num_data;
+
+                /*if vector.len() == 0 {
                     cache_line_2[current_length] = 0;
                     current_length += 1;
                 } else {
@@ -706,17 +730,39 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
                         cache_line_2[current_length] = ((*val << 1) | 1u64) as u64;
                         current_length += 1;
                     }
+                }*/
+
+                if vector.len() == 0 {
+                    for i in 0..16 {
+                        cache_line_2[i] = 0;
+                    }
+                } else {
+                    for i in 0..16 {
+                        cache_line_2[i] = (vector[i] << 1) | 1u64;
+                        //current_length += 1;
+                    }
                 }
 
-                for i in current_length..max_length_in {
+
+
+                /*for i in current_length..data_length as usize {
                     cache_line_2[i] = 0;
-                }
+                }*/
                 dmb();
+
+                //println!("DONE 2");
 
                 //let memory_out = run(hc, num_data, num_operators, &mut input_memory);
 
-                let data_length = num_data;
-                for i in 0..data_length as usize{
+                /*for i in 0..data_length as usize{
+                    let val = cache_line_1[i] as u64;
+                    let shifted_val = val >> 1;
+                    if val != 0 {
+                        vector2.push(shifted_val);
+                    }
+                }*/
+
+                for i in 0..16 as usize{
                     let val = cache_line_1[i] as u64;
                     let shifted_val = val >> 1;
                     if val != 0 {
@@ -724,6 +770,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
                     }
                 }
 
+                dmb();
+
+                //println!("DONE 3");
 
 
                 /*for (i, j) in ghost_indexes.iter() {
@@ -750,230 +799,67 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
                 let mut cb1 = ChangeBatch::new_from(0, 0);
                 let mut cb2 = ChangeBatch::new_from(0, 0);
 
+                let time_1 = time.clone();
+
                 //------------------------------------------------------------- first 4 operators
-                cb = ChangeBatch::new_from(time.clone(), cache_line_2[i] as i64 );
-                cb1 = ChangeBatch::new_from(time.clone(), cache_line_2[i+1] as i64 );
+                cb = ChangeBatch::new_from(time_1, cache_line_2[i] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, cache_line_2[i+1] as i64 );
                 cb2 = ChangeBatch::new_from(
                     cache_line_2[i+2] as u64,
                     cache_line_2[i+3] as i64,
                 );
-                j = ghost_indexes[k].1 as usize;
+                j = ghost_indexes[0].1 as usize;
                 cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
                 cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
                 cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-                k = k + 1;
                 i = i + 4;
                 
-                cb = ChangeBatch::new_from(time.clone(), cache_line_2[i] as i64 );
-                cb1 = ChangeBatch::new_from(time.clone(), cache_line_2[i+1] as i64 );
+                cb = ChangeBatch::new_from(time_1, cache_line_2[i] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, cache_line_2[i+1] as i64 );
                 cb2 = ChangeBatch::new_from(
                     cache_line_2[i+2] as u64,
                     cache_line_2[i+3] as i64,
                 );
-                i = i + 4;
-                j = ghost_indexes[k].1 as usize;
+                j = ghost_indexes[1].1 as usize;
                 cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
                 cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
                 cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = i + 4;
 
 
-                cb = ChangeBatch::new_from(time.clone(), cache_line_2[i] as i64 );
-                cb1 = ChangeBatch::new_from(time.clone(), cache_line_2[i+1] as i64 );
+                cb = ChangeBatch::new_from(time_1, cache_line_2[i] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, cache_line_2[i+1] as i64 );
                 cb2 = ChangeBatch::new_from(
                     cache_line_2[i+2] as u64,
                     cache_line_2[i+3] as i64,
                 );
-                i = i + 4;
 
-                j = ghost_indexes[k].1 as usize;
+                j = ghost_indexes[2].1 as usize;
                 cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
                 cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
                 cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = i + 4;
 
-                cb = ChangeBatch::new_from(time.clone(), cache_line_2[i] as i64 );
-                cb1 = ChangeBatch::new_from(time.clone(), cache_line_2[i+1] as i64 );
+
+                cb = ChangeBatch::new_from(time_1, cache_line_2[i] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, cache_line_2[i+1] as i64 );
                 cb2 = ChangeBatch::new_from(
                     cache_line_2[i+2] as u64,
                     cache_line_2[i+3] as i64,
                 );
-                j = ghost_indexes[k].1 as usize;
+                j = ghost_indexes[3].1 as usize;
                 cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
                 cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
                 cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-                i = i + 4;
-                k = k + 4;
+                i = 0;
                 dmb();
+                //println!("DONE 4");
 
-                //-------------------------------------------------------------------- next 4 operators
-
-                cb = ChangeBatch::new_from(time.clone(), cache_line_1[i] as i64 );
-                cb1 = ChangeBatch::new_from(time.clone(), cache_line_1[i+1] as i64 );
-                cb2 = ChangeBatch::new_from(
-                    cache_line_1[i+2] as u64,
-                    cache_line_1[i+3] as i64,
-                );
-                j = ghost_indexes[k].1 as usize;
-                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
-                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
-                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-                k = k + 1;
-                i = i + 4;
-                
-                cb = ChangeBatch::new_from(time.clone(), cache_line_1[i] as i64 );
-                cb1 = ChangeBatch::new_from(time.clone(), cache_line_1[i+1] as i64 );
-                cb2 = ChangeBatch::new_from(
-                    cache_line_1[i+2] as u64,
-                    cache_line_1[i+3] as i64,
-                );
-                i = i + 4;
-                j = ghost_indexes[k].1 as usize;
-                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
-                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
-                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-
-
-                cb = ChangeBatch::new_from(time.clone(), cache_line_1[i] as i64 );
-                cb1 = ChangeBatch::new_from(time.clone(), cache_line_1[i+1] as i64 );
-                cb2 = ChangeBatch::new_from(
-                    cache_line_1[i+2] as u64,
-                    cache_line_1[i+3] as i64,
-                );
-                i = i + 4;
-
-                j = ghost_indexes[k].1 as usize;
-                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
-                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
-                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-
-                cb = ChangeBatch::new_from(time.clone(), cache_line_1[i] as i64 );
-                cb1 = ChangeBatch::new_from(time.clone(), cache_line_1[i+1] as i64 );
-                cb2 = ChangeBatch::new_from(
-                    cache_line_1[i+2] as u64,
-                    cache_line_1[i+3] as i64,
-                );
-                j = ghost_indexes[k].1 as usize;
-                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
-                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
-                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-                i = i + 4;
-                k = k + 4;
-                dmb();
-
-                //-------------------------------------------------------------------------- next 4 operators
-
-                cb = ChangeBatch::new_from(time.clone(), cache_line_2[i] as i64 );
-                cb1 = ChangeBatch::new_from(time.clone(), cache_line_2[i+1] as i64 );
-                cb2 = ChangeBatch::new_from(
-                    cache_line_2[i+2] as u64,
-                    cache_line_2[i+3] as i64,
-                );
-                j = ghost_indexes[k].1 as usize;
-                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
-                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
-                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-                k = k + 1;
-                i = i + 4;
-                
-                cb = ChangeBatch::new_from(time.clone(), cache_line_2[i] as i64 );
-                cb1 = ChangeBatch::new_from(time.clone(), cache_line_2[i+1] as i64 );
-                cb2 = ChangeBatch::new_from(
-                    cache_line_2[i+2] as u64,
-                    cache_line_2[i+3] as i64,
-                );
-                i = i + 4;
-                j = ghost_indexes[k].1 as usize;
-                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
-                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
-                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-
-
-                cb = ChangeBatch::new_from(time.clone(), cache_line_2[i] as i64 );
-                cb1 = ChangeBatch::new_from(time.clone(), cache_line_2[i+1] as i64 );
-                cb2 = ChangeBatch::new_from(
-                    cache_line_2[i+2] as u64,
-                    cache_line_2[i+3] as i64,
-                );
-                i = i + 4;
-
-                j = ghost_indexes[k].1 as usize;
-                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
-                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
-                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-
-                cb = ChangeBatch::new_from(time.clone(), cache_line_2[i] as i64 );
-                cb1 = ChangeBatch::new_from(time.clone(), cache_line_2[i+1] as i64 );
-                cb2 = ChangeBatch::new_from(
-                    cache_line_2[i+2] as u64,
-                    cache_line_2[i+3] as i64,
-                );
-                j = ghost_indexes[k].1 as usize;
-                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
-                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
-                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-                i = i + 4;
-                k = k + 4;
-                dmb();
-
-                //------------------------------------------------------------------------ next 4 operators
-
-                cb = ChangeBatch::new_from(time.clone(), cache_line_1[i] as i64 );
-                cb1 = ChangeBatch::new_from(time.clone(), cache_line_1[i+1] as i64 );
-                cb2 = ChangeBatch::new_from(
-                    cache_line_1[i+2] as u64,
-                    cache_line_1[i+3] as i64,
-                );
-                j = ghost_indexes[k].1 as usize;
-                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
-                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
-                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-                k = k + 1;
-                i = i + 4;
-                
-                cb = ChangeBatch::new_from(time.clone(), cache_line_1[i] as i64 );
-                cb1 = ChangeBatch::new_from(time.clone(), cache_line_1[i+1] as i64 );
-                cb2 = ChangeBatch::new_from(
-                    cache_line_1[i+2] as u64,
-                    cache_line_1[i+3] as i64,
-                );
-                i = i + 4;
-                j = ghost_indexes[k].1 as usize;
-                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
-                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
-                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-
-
-                cb = ChangeBatch::new_from(time.clone(), cache_line_1[i] as i64 );
-                cb1 = ChangeBatch::new_from(time.clone(), cache_line_1[i+1] as i64 );
-                cb2 = ChangeBatch::new_from(
-                    cache_line_1[i+2] as u64,
-                    cache_line_1[i+3] as i64,
-                );
-                i = i + 4;
-
-                j = ghost_indexes[k].1 as usize;
-                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
-                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
-                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-
-                cb = ChangeBatch::new_from(time.clone(), cache_line_1[i] as i64 );
-                cb1 = ChangeBatch::new_from(time.clone(), cache_line_1[i+1] as i64 );
-                cb2 = ChangeBatch::new_from(
-                    cache_line_1[i+2] as u64,
-                    cache_line_1[i+3] as i64,
-                );
-                j = ghost_indexes[k].1 as usize;
-                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
-                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
-                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-                i = i + 4;
-                k = k + 4;
-                dmb();
-                
             }
 
-            let epoch_end = Instant::now();
-            let total_nanos = (epoch_end - epoch_start).as_nanos();
-            println!("wrapper latency: {total_nanos}");
+            //let epoch_end = Instant::now();
+            //let total_nanos = (epoch_end - epoch_start).as_nanos();
+            //println!("wrapper latency: {total_nanos}");
 
             if !has_data {
                 let mut current_length = 0;

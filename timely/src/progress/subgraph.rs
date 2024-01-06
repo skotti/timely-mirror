@@ -416,7 +416,7 @@ where
         //
         // We should be able to schedule arbitrary subsets of children, as
         // long as we eventually schedule all children that need to do work.
-         let epoch_start = Instant::now();
+         //let epoch_start = Instant::now();
         let mut previous = 0;
         while let Some(Reverse(index)) = self.temp_active.pop() {
             // De-duplicate, and don't revisit.
@@ -426,9 +426,9 @@ where
                 previous = index;
             }
         }
-         let epoch_end = Instant::now();
-    let total_nanos = (epoch_end - epoch_start).as_nanos();
-    println!("processing latency: {total_nanos}");
+         //let epoch_end = Instant::now();
+    //let total_nanos = (epoch_end - epoch_start).as_nanos();
+    //println!("processing latency: {total_nanos}");
 
         // Transmit produced progress updates.
         self.send_progress();
@@ -459,13 +459,13 @@ where
 
         let child = &mut self.children[child_index];
 
-        let epoch_start = Instant::now();
+        //let epoch_start = Instant::now();
 
         let incomplete = child.schedule();
 
-        let epoch_end = Instant::now();
-        let total_nanos = (epoch_end - epoch_start).as_nanos();
-        println!("real processing latency: {total_nanos}");
+        //let epoch_end = Instant::now();
+        //let total_nanos = (epoch_end - epoch_start).as_nanos();
+        //println!("real processing latency: {total_nanos}");
 
         if incomplete != self.incomplete[child_index] {
             if incomplete { self.incomplete_count += 1; }
