@@ -151,8 +151,18 @@ fn dmb() {
 
 #[cfg(feature = "16op")]
 fn get_offset(offset_1: &mut i64, offset_2: &mut i64) {
-    *offset_1 = 0;
-    *offset_2 = CACHE_LINE_SIZE;
+    unsafe {
+        //println!("Original value: {}", GLOBAL_COUNTER);
+        if (GLOBAL_COUNTER % 2 == 0) {
+            *offset_1 = 0;
+            *offset_2 = CACHE_LINE_SIZE;
+        } else {
+            *offset_1 = CACHE_LINE_SIZE;
+            *offset_2 = 0;
+        }
+        GLOBAL_COUNTER = GLOBAL_COUNTER + 1;
+        //println!("Modified value: {}", GLOBAL_COUNTER);
+    }
 }
 
 #[cfg(feature = "1op")]
@@ -259,7 +269,7 @@ fn fpga_communication(
     let mut frontier_length = 16;
     //println!("Frontier length = {}", frontier_length);
     //let mut progress_length = (((num_operators * 4 - 1) / CACHE_LINE_SIZE)* CACHE_LINE_SIZE + CACHE_LINE_SIZE) as usize;
-    let mut progress_length = 16;
+    let mut progress_length = 64;
     //println!("Progress length = {}", progress_length);
     let max_length_in = num_data as usize + frontier_length;
     let max_length_out = num_data as usize + progress_length;
@@ -320,6 +330,21 @@ fn fpga_communication(
     }
     dmb();
 
+    for i in 0..CACHE_LINE_SIZE as usize {
+        output_arr[i + CACHE_LINE_SIZE as usize + num_data as usize ] = cache_line_1[i];
+    }
+    dmb();
+
+    for i in 0..CACHE_LINE_SIZE as usize {
+        output_arr[i + 2 * CACHE_LINE_SIZE as usize + num_data as usize ] = cache_line_2[i];
+    }
+    dmb();
+
+    for i in 0..CACHE_LINE_SIZE as usize {
+        output_arr[i + 3 * CACHE_LINE_SIZE as usize + num_data as usize ] = cache_line_1[i];
+    }
+    dmb();
+
     /*for i in 0..5 * CACHE_LINE_SIZE as usize {
         println!("{}", output_arr[i]);
     }
@@ -337,7 +362,7 @@ fn run(hc: *const HardwareCommon, num_data: i64, num_operators: i64, h_mem_arr: 
     // Only run when `no-fpga` feature is used
 
     let mut frontier_length = 16;//(num_operators / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
-    let mut progress_length = 16;//((num_operators * 4) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+    let mut progress_length = 64;//((num_operators * 4) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
 
     #[cfg(feature = "no-fpga")]
     let output_arr = generate_fpga_output(h_mem_arr, num_data, num_operators);
@@ -538,7 +563,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
         let mut current_index = 0;
 
         let mut frontier_length = 16;//(num_operators / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
-        let mut progress_length = 16;//((num_operators * 4) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+        let mut progress_length = 64;//((num_operators * 4) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
 
         let max_length_in = num_data as usize + frontier_length as usize;
         let max_length_out = num_data as usize + progress_length as usize;
@@ -546,6 +571,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
 
 
         let mut vec_builder_filter = vec![];
+        println!("num operators = {}", num_operators);
         for i in 0..num_operators {
             // CREATE FILTER GHOST OPERATOR 1
             let mut builder_filter =
@@ -684,7 +710,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
                     }
                 }*/
 
-                for i in 0..4 {
+                for i in 0..16 {
                     let frontier = borrow[i].frontier();
                     if frontier.len() == 0 {
                         cache_line_1[current_length] = 0;
@@ -855,6 +881,170 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
                 dmb();
                 //println!("DONE 4");
 
+                //-------------------------------------------------------------------- next 4 operators
+
+                cb = ChangeBatch::new_from(time_1, cache_line_1[i] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, cache_line_1[i+1] as i64 );
+                cb2 = ChangeBatch::new_from(
+                    cache_line_1[i+2] as u64,
+                    cache_line_1[i+3] as i64,
+                );
+                j = ghost_indexes[4].1 as usize;
+                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
+                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = i + 4;
+                
+                cb = ChangeBatch::new_from(time_1, cache_line_1[i] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, cache_line_1[i+1] as i64 );
+                cb2 = ChangeBatch::new_from(
+                    cache_line_1[i+2] as u64,
+                    cache_line_1[i+3] as i64,
+                );
+                j = ghost_indexes[5].1 as usize;
+                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
+                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = i + 4;
+
+
+                cb = ChangeBatch::new_from(time_1, cache_line_1[i] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, cache_line_1[i+1] as i64 );
+                cb2 = ChangeBatch::new_from(
+                    cache_line_1[i+2] as u64,
+                    cache_line_1[i+3] as i64,
+                );
+
+                j = ghost_indexes[6].1 as usize;
+                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
+                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = i + 4;
+
+
+                cb = ChangeBatch::new_from(time_1, cache_line_1[i] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, cache_line_1[i+1] as i64 );
+                cb2 = ChangeBatch::new_from(
+                    cache_line_1[i+2] as u64,
+                    cache_line_1[i+3] as i64,
+                );
+                j = ghost_indexes[7].1 as usize;
+                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
+                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = 0;
+                dmb();
+                //println!("DONE 5");
+
+                //-------------------------------------------------------------------------- next 4 operators
+
+                cb = ChangeBatch::new_from(time_1, cache_line_2[i] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, cache_line_2[i+1] as i64 );
+                cb2 = ChangeBatch::new_from(
+                    cache_line_2[i+2] as u64,
+                    cache_line_2[i+3] as i64,
+                );
+                j = ghost_indexes[8].1 as usize;
+                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
+                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = i + 4;
+                
+                cb = ChangeBatch::new_from(time_1, cache_line_2[i] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, cache_line_2[i+1] as i64 );
+                cb2 = ChangeBatch::new_from(
+                    cache_line_2[i+2] as u64,
+                    cache_line_2[i+3] as i64,
+                );
+                j = ghost_indexes[9].1 as usize;
+                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
+                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = i + 4;
+
+
+                cb = ChangeBatch::new_from(time_1, cache_line_2[i] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, cache_line_2[i+1] as i64 );
+                cb2 = ChangeBatch::new_from(
+                    cache_line_2[i+2] as u64,
+                    cache_line_2[i+3] as i64,
+                );
+
+                j = ghost_indexes[10].1 as usize;
+                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
+                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = i + 4;
+
+
+                cb = ChangeBatch::new_from(time_1, cache_line_2[i] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, cache_line_2[i+1] as i64 );
+                cb2 = ChangeBatch::new_from(
+                    cache_line_2[i+2] as u64,
+                    cache_line_2[i+3] as i64,
+                );
+                j = ghost_indexes[11].1 as usize;
+                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
+                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = 0;
+                dmb();
+                //println!("DONE 6");
+
+                //------------------------------------------------------------------------ next 4 operators
+
+                cb = ChangeBatch::new_from(time_1, cache_line_1[i] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, cache_line_1[i+1] as i64 );
+                cb2 = ChangeBatch::new_from(
+                    cache_line_1[i+2] as u64,
+                    cache_line_1[i+3] as i64,
+                );
+                j = ghost_indexes[12].1 as usize;
+                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
+                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = i + 4;
+                
+                cb = ChangeBatch::new_from(time_1, cache_line_1[i] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, cache_line_1[i+1] as i64 );
+                cb2 = ChangeBatch::new_from(
+                    cache_line_1[i+2] as u64,
+                    cache_line_1[i+3] as i64,
+                );
+                j = ghost_indexes[13].1 as usize;
+                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
+                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = i + 4;
+
+
+                cb = ChangeBatch::new_from(time_1, cache_line_1[i] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, cache_line_1[i+1] as i64 );
+                cb2 = ChangeBatch::new_from(
+                    cache_line_1[i+2] as u64,
+                    cache_line_1[i+3] as i64,
+                );
+                j = ghost_indexes[14].1 as usize;
+                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
+                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = i + 4;
+
+
+                cb = ChangeBatch::new_from(time_1, cache_line_1[i] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, cache_line_1[i+1] as i64 );
+                cb2 = ChangeBatch::new_from(
+                    cache_line_1[i+2] as u64,
+                    cache_line_1[i+3] as i64,
+                );
+                j = ghost_indexes[15].1 as usize;
+                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
+                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = 0;
+                dmb();
+                //println!("DONE 7");
+                
             }
 
             //let epoch_end = Instant::now();

@@ -296,9 +296,13 @@ where
 
     initialize_from(allocators, other, params, move |allocator| {
 
+        let input_size = params.data * 8 + ((params.operators as f32) * 4.0 / 8.0).ceil() as i64  * 64;
+        let output_size = params.data * 8 + ((params.operators as f32) / 8.0).ceil() as i64 * 64;
+
+        println!("Output from params = {}, input from params = {}", output_size, input_size);
         let hwcommon;
         unsafe {
-            hwcommon = initialize(params.data * 8 + 64, params.data * 8 + 64);
+            hwcommon = initialize(input_size, output_size);
         }
 
         println!("Param 1 = {} (initialize from)", params.rounds);
