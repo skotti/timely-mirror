@@ -54,6 +54,7 @@ pub mod capture;
 pub mod branch;
 pub mod fpga_wrapper_eci;
 pub mod fpga_wrapper_xdma;
+pub mod fpga_wrapper_pci;
 pub mod ok_err;
 
 pub mod aggregation;

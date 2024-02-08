@@ -19,6 +19,10 @@ use std::ffi::c_void;
 use crate::dataflow::operators::fpga_wrapper_xdma::HardwareCommon;
 #[cfg(feature = "eci")]
 use crate::dataflow::operators::fpga_wrapper_eci::HardwareCommon;
+#[cfg(feature = "pci")]
+use crate::dataflow::operators::fpga_wrapper_eci::HardwareCommon;
+
+
 
 
 #[link(name = "xdma_shim")]
@@ -33,6 +37,14 @@ extern "C" {
     fn open(pathname: *const libc::c_char, flags: c_int) -> c_int;
     fn get_nprocs() -> i32;
 }
+
+
+#[cfg(feature = "pci")]
+extern "C" {
+    fn open(pathname: *const libc::c_char, flags: c_int) -> c_int;
+    fn get_nprocs() -> i32;
+}
+
 static SIZE: usize = 0x1000;
 
 /// Gets a file descriptor to the FPGA memory section
@@ -114,6 +126,85 @@ fn closeHardware(hc: *const HardwareCommon) {
     // We simply leak the malloc'd memory as it gets free'd on exit anyway.
 }
 
+/// Gets a file descriptor to the FPGA memory section
+#[cfg(feature = "pci")]
+fn get_fpga_mem() -> i32 {
+    let path = std::ffi::CString::new("/sys/bus/pci/devices/0004:90:00.0/resource0").unwrap();
+
+    // Calling libc function here as I couldn't get Rust native to work
+    let fd = unsafe { open(path.as_ptr(), libc::O_RDWR | libc::O_SYNC) };
+    fd
+}
+
+/// Takes a file descriptor to mmap into
+#[cfg(feature = "pci")]
+fn mmap_wrapper(fd: c_int, no_cpus: c_int) -> Result<*mut c_void, std::io::Error> {
+    let base: *mut libc::c_void = 0xf0000000;
+    let area = unsafe {
+        libc::mmap(
+            0xf0000000 as *mut c_void,
+            65536,
+            PROT_READ | PROT_WRITE,
+            MAP_SHARED,
+            fd,
+            0,
+        )
+    };
+
+    if area == MAP_FAILED {
+        Err(std::io::Error::last_os_error())
+    }
+    else {
+        Ok(area as *mut c_void)
+    }
+}
+
+/// Runs munmap over the given pointer
+#[cfg(feature = "pci")]
+fn munmap_wrapper(area: *mut c_void, no_cpus: libc::size_t) {
+    unsafe { libc::munmap(area, 65536) };
+}
+
+/// Allocate resources needed for computation
+#[cfg(feature = "pci")]
+fn initialize(input_size: i64, output_size: i64) -> *const HardwareCommon {
+    let area;
+    #[cfg(feature = "no-fpga")]
+    {
+        let red = "\x1b[31m";
+        let reset = "\x1b[0m";
+        println!("{red}====== Warning: No FPGA! ======{reset}");
+        area = std::ptr::null_mut();
+    }
+
+    #[cfg(not(feature = "no-fpga"))]
+    {
+        println!("HERE");
+        let nprocs = unsafe { get_nprocs() };
+        let fd = get_fpga_mem();
+        area = mmap_wrapper(fd, nprocs).unwrap();
+    }
+
+    let hc: HardwareCommon = HardwareCommon {
+        area,
+    };
+
+    // This is some magic to get the proper type
+    let boxed_hc = Box::into_raw(Box::new(hc)) as *const HardwareCommon;
+    boxed_hc
+}
+
+/// Free allocated resources again
+#[cfg(feature = "pci")]
+fn closeHardware(hc: *const HardwareCommon) {
+    // Unmap mmap'd memory area
+    let nprocs = unsafe { get_nprocs() };
+    let area = unsafe { (*hc).area };
+    munmap_wrapper(area, nprocs.try_into().unwrap());
+
+    // As for the malloc'd memory:
+    // We simply leak the malloc'd memory as it gets free'd on exit anyway.
+}
 
 /// Executes a single-threaded timely dataflow computation.
 ///
