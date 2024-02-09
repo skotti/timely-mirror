@@ -40,17 +40,6 @@ const PROGRESS_START_INDEX: usize = DATA_LENGTH;
 const PROGRESS_OUTPUT: usize = CACHE_LINE_SIZE;
 const MAX_LENGTH_OUT: usize = BATCH_SIZE + CACHE_LINE_SIZE;*/
 
-#[derive(Debug)]
-#[repr(C)]
-/// Data structure to store FPGA related data
-pub struct HardwareCommon {
-    /// the mmapped cache lines
-    pub area: *mut c_void,
-}
-
-unsafe impl Send for HardwareCommon {}
-unsafe impl Sync for HardwareCommon {}
-
 //input_arr: [u64; MAX_LENGTH_IN]
 //output_arr: [u64; MAX_LENGTH_OUT]
 
@@ -70,40 +59,45 @@ fn dmb() {
     core::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
 }
 
-/// Communicates to FPGA via cache lines using [`2fast2forward`](https://gitlab.inf.ethz.ch/PROJECT-Enzian/fpga-sources/enzian-applications/2fast2forward)
-fn fpga_communication(
-    hc: *const HardwareCommon,
-    frontiers: &[u64],
-    data: &[u64],
-    num_data: i64,
-    num_operators: i64
-) -> Vec<u64> {
-
-
-
-    output_arr
+#[repr(C)]
+pub struct HardwareCommon {
+    fd: i32,
+    val1_i: u64,
+    val2_i: u64,
+    val1_o: u64,
+    val2_o: u64,
+    mem: * mut c_void
 }
 
 
-/// Sends data to FPGA and receives response
-fn run(hc: *const HardwareCommon, num_data: i64, num_operators: i64, h_mem_arr: &mut Vec<u64>) -> Vec<u64> {
-    // Only run when `no-fpga` feature is used
+unsafe impl Send for HardwareCommon{}
+unsafe impl Sync for HardwareCommon{}
 
+#[link(name = "pci_shim")]
+extern "C" {
+    fn run(hc: * const HardwareCommon, input_size: i64, output_size: i64);
+}
 
-    output_arr
+unsafe fn my_run(hc: * const HardwareCommon, input_size: i64, output_size: i64) {
+    //use std::time::Instant;
+    //let start = Instant::now();
+    run(hc, input_size, output_size);
+    //let epoch_end = Instant::now();
+    //let total_nanos = (epoch_end - start).as_nanos();
+    // println!("FPGA-latency: {total_nanos}");
 }
 
 
 /// Wrapper to run on FPGA
-pub trait FpgaWrapperECI<S: Scope> {
+pub trait FpgaWrapperPCI<S: Scope> {
     /// Wrapper function
-    fn fpga_wrapper_eci(&self, num_data: i64, num_operators: i64, hc: *const HardwareCommon) -> Stream<S, u64>;
+    fn fpga_wrapper_pci(&self, num_data: i64, num_operators: i64, hc: *const HardwareCommon) -> Stream<S, u64>;
 }
 
 // return value should be the value of the last operator
 
-impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
-    fn fpga_wrapper_eci(&self, num_data: i64, num_operators: i64, hc: *const HardwareCommon) -> Stream<S, u64> {
+impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
+    fn fpga_wrapper_pci(&self, num_data: i64, num_operators: i64, hc: *const HardwareCommon) -> Stream<S, u64> {
         // this should correspond to the way the data will be read on the fpga
         let mut ghost_indexes = Vec::new();
         let mut ghost_indexes2 = Vec::new();
