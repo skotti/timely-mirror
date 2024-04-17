@@ -268,7 +268,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                         current_length += 2;
                     } else {
                         for val in (0..frontier.len()).step_by(2) {
-                            let x =  u64x2::from_array([(frontier[val] << 1) | 1i64, (frontier[val] << 1) | 1i64]);
+                            let x =  u64x2::from_array([(frontier[val] << 1) | ui64, (frontier[val] << 1) | ui64]);
                             v0.push(x);
                             current_length += 2;
                         }
@@ -748,7 +748,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                         current_length += 2;
                     } else {
                         for val in (0..frontier.len()).step_by(2) {
-                            let x =  u64x2::from_array([(frontier[val] << 1) | 1i64, (frontier[val] << 1) | 1i64]);
+                            let x =  u64x2::from_array([(frontier[val] << 1) | ui64, (frontier[val] << 1) | ui64]);
                             v0.push(x);
                             current_length += 2;
                         }
