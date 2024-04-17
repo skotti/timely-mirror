@@ -214,6 +214,8 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 
             let epoch_start = Instant::now();
 
+            let mut data_length: i64 = 16;
+
             let mut borrow = frontier.borrow_mut();
 
             for (i, j) in ghost_indexes.iter() {
@@ -783,6 +785,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 unsafe{*(area.offset(36 as isize) as *mut u64x2) = v1[18]};
                 unsafe{*(area.offset(38 as isize) as *mut u64x2) = v1[19]};
                 dmb();
+
+                let mut pc: i64x2 = i64x2::from_array([0 , 0]);
+                let mut it: i64x2 = i64x2::from_array([0 , 0]);
 
                 for i in 0..data_length as usize {
                     unsafe{pc = *(area.offset(i as isize) as *mut i64x2);}
