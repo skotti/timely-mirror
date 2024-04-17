@@ -268,7 +268,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                         current_length += 2;
                     } else {
                         for val in (0..frontier.len()).step_by(2) {
-                            let x =  u64x2::from_array([(frontier[val] << 1) | u64, (frontier[val] << 1) | u64]);
+                            let x =  u64x2::from_array([(frontier[val] << 1) | 1u64, (frontier[val] << 1) | 1u64]);
                             v0.push(x);
                             current_length += 2;
                         }
@@ -749,7 +749,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                         current_length += 2;
                     } else {
                         for val in (0..frontier.len()).step_by(2) {
-                            let x =  u64x2::from_array([(frontier[val] << 1) | u64, (frontier[val] << 1) | u64]);
+                            let x =  u64x2::from_array([(frontier[val] << 1) | 1u64, (frontier[val] << 1) | 1u64]);
                             v0.push(x);
                             current_length += 2;
                         }
@@ -811,9 +811,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 let id_wrap = ghost_indexes[ghost_indexes.len() - 1].1;
 
                 if vector2.len() > 0 {
-                    output_wrapper
-                        .session(&(internals.get(&id_wrap).unwrap().0 as u64))
-                        .give_vec(&mut vector2);
+                    /*output_wrapper
+                        .session(0 /*&(internals.get(&id_wrap).unwrap().0*/ as u64)
+                        .give_vec(&mut vector2);*/
 
                     let mut k = 0;
                     let mut i = 0 as usize;
