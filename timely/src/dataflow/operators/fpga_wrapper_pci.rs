@@ -65,7 +65,9 @@ fn dmb() {
 }
 
 #[repr(C)]
+/// Data structure to store FPGA related data
 pub struct HardwareCommon {
+    /// TADA
     pub area: * mut c_void
 }
 
