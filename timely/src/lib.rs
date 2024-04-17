@@ -1,3 +1,4 @@
+#![feature(portable_simd)]
 //! Timely dataflow is a framework for managing and executing data-parallel dataflow computations.
 //!
 //! The code is organized in crates and modules that are meant to depend as little as possible on each other.

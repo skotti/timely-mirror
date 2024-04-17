@@ -24,6 +24,10 @@ use std::time::Instant;
 use std::collections::HashMap;
 use std::ffi::c_void;
 
+use std::simd::{i64x2, i64x4, u64x2, u64x4};
+//#[rustversion::nightly]
+use std::simd::Simd;
+
 // Various parameters
 const CACHE_LINE_SIZE: i64 = 16;
 const MAX_CAPACITY: usize = 8192;
@@ -62,10 +66,6 @@ fn dmb() {
 #[repr(C)]
 pub struct HardwareCommon {
     fd: i32,
-    val1_i: u64,
-    val2_i: u64,
-    val1_o: u64,
-    val2_o: u64,
     mem: * mut c_void
 }
 
@@ -78,13 +78,43 @@ extern "C" {
     fn run(hc: * const HardwareCommon, input_size: i64, output_size: i64);
 }
 
-unsafe fn my_run(hc: * const HardwareCommon, input_size: i64, output_size: i64) {
-    //use std::time::Instant;
-    //let start = Instant::now();
-    run(hc, input_size, output_size);
-    //let epoch_end = Instant::now();
-    //let total_nanos = (epoch_end - start).as_nanos();
-    // println!("FPGA-latency: {total_nanos}");
+unsafe fn my_run(hc: * const HardwareCommon/*, input_size: i64, output_size: i64*/) {
+
+    let area = unsafe { (*hc).area } as *mut u64;
+
+    let data_i = vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                      21, 21, 21, 21, 21, 21, 21, 21,
+                      25, 25, 25, 25, 25, 25, 25, 25];
+
+    let mut v1: Vec<i64x2> = Vec::new();
+
+    for i in (0..39).step_by(2) {
+        let x = i64x2::from_array([data_i[i], data_i[i+1]]);
+        v1.push(x);
+    }
+
+    unsafe{*(area.offset(0 as isize) as *mut i64x2) = v1[0]};
+    unsafe{*(area.offset(2 as isize) as *mut i64x2) = v1[1]};
+    unsafe{*(area.offset(4 as isize) as *mut i64x2) = v1[2]};
+    unsafe{*(area.offset(6 as isize) as *mut i64x2) = v1[3]};
+    unsafe{*(area.offset(8 as isize) as *mut i64x2) = v1[4]};
+    unsafe{*(area.offset(10 as isize) as *mut i64x2) = v1[5]};
+    unsafe{*(area.offset(12 as isize) as *mut i64x2) = v1[6]};
+    unsafe{*(area.offset(14 as isize) as *mut i64x2) = v1[7]};
+    unsafe{*(area.offset(16 as isize) as *mut i64x2) = v1[8]};
+    unsafe{*(area.offset(18 as isize) as *mut i64x2) = v1[9]};
+    unsafe{*(area.offset(20 as isize) as *mut i64x2) = v1[10]};
+    unsafe{*(area.offset(22 as isize) as *mut i64x2) = v1[11]};
+    unsafe{*(area.offset(24 as isize) as *mut i64x2) = v1[12]};
+    unsafe{*(area.offset(26 as isize) as *mut i64x2) = v1[13]};
+    unsafe{*(area.offset(28 as isize) as *mut i64x2) = v1[14]};
+    unsafe{*(area.offset(30 as isize) as *mut i64x2) = v1[15]};
+    unsafe{*(area.offset(32 as isize) as *mut i64x2) = v1[16]};
+    unsafe{*(area.offset(34 as isize) as *mut i64x2) = v1[17]};
+    unsafe{*(area.offset(36 as isize) as *mut i64x2) = v1[18]};
+    unsafe{*(area.offset(38 as isize) as *mut i64x2) = v1[19]};
+    dmb();
+
 }
 
 
@@ -220,74 +250,79 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 
                 let mut current_length = 0;
 
-                // 16
-                for i in 0..borrow.len() {
 
-                    let frontier = borrow[i].frontier();
+                let area = unsafe { (*hc).area } as *mut u64;
+
+                let mut v1: Vec<i64x2> = Vec::new();
+                let mut v0: Vec<u64x2> = Vec::new();
+
+                current_length += 1;
+
+                for i in 0 .. borrow.len() {
+                    let frontier = borrow[i].borrow().frontier();
                     if frontier.len() == 0 {
-                        // write zero to simd vector
+                        *memory.offset(current_length as isize) = 0;
                         current_length += 1;
                     } else {
-                        for val in frontier.iter() {
-                            cache_line_1[current_length] = (*val << 1) | 1u64;
-                            // write
-                            // how can I combine simd vector into slice??
-                            current_length += 1;
+                        for val in (0..frontier.len()).step_by(2) {
+                            let x =  u64x2::from_array([(frontier[val] << 1) | 1i64, (frontier[val] << 1) | 1i64]);
+                            v0.push(x);
+                            //current_length += 1;
                         }
                     }
                 }
 
-
-                dmb();
-
-                //println!("DONE 1");
-
-                // 16
-                current_length = 0;
-                let data_length = num_data;
-
-                if vector.len() == 0 {
-                    for i in 0..16 {
-                        cache_line_2[i] = 0;
-                    }
-                } else {
-                    for val in vector.iter() {
-                        cache_line_2[i] = (vector[i] << 1) | 1u64;
-                        //current_length +=
-                        //val
-                    }
+                for i in (current_length..max_length_in).step_by(2) {
+                    let x =  u64x2::from_array([0, 0]);
+                    v0.push(x);
                 }
 
-                dmb();
-
-
-                for i in 0..16 as usize{
-                    let val = cache_line_1[i] as u64;
-                    let shifted_val = val >> 1;
-                    if val != 0 {
-                        vector2.push(shifted_val);
-                    }
+                for i in (0..16).step_by(2) {
+                    let x = i64x2::from_array([data_i[i], data_i[i+1]]);
+                    v1.push(x);
                 }
 
+                unsafe{*(area.offset(0 as isize) as *mut u64x2) = v0[0]};
+                unsafe{*(area.offset(2 as isize) as *mut u64x2) = v0[1]};
+                unsafe{*(area.offset(4 as isize) as *mut u64x2) = v0[2]};
+                unsafe{*(area.offset(6 as isize) as *mut u64x2) = v0[3]};
+                unsafe{*(area.offset(8 as isize) as *mut u64x2) = v0[4]};
+                unsafe{*(area.offset(10 as isize) as *mut u64x2) = v0[5]};
+                unsafe{*(area.offset(12 as isize) as *mut u64x2) = v0[6]};
+                unsafe{*(area.offset(14 as isize) as *mut u64x2) = v0[7]};
+                unsafe{*(area.offset(16 as isize) as *mut u64x2) = v0[8]};
+                unsafe{*(area.offset(18 as isize) as *mut u64x2) = v0[9]};
+                unsafe{*(area.offset(20 as isize) as *mut u64x2) = v0[10]};
+                unsafe{*(area.offset(22 as isize) as *mut u64x2) = v0[11]};
+                unsafe{*(area.offset(24 as isize) as *mut i64x2) = v1[12]};
+                unsafe{*(area.offset(26 as isize) as *mut i64x2) = v1[13]};
+                unsafe{*(area.offset(28 as isize) as *mut i64x2) = v1[14]};
+                unsafe{*(area.offset(30 as isize) as *mut i64x2) = v1[15]};
+                unsafe{*(area.offset(32 as isize) as *mut i64x2) = v1[16]};
+                unsafe{*(area.offset(34 as isize) as *mut i64x2) = v1[17]};
+                unsafe{*(area.offset(36 as isize) as *mut i64x2) = v1[18]};
+                unsafe{*(area.offset(38 as isize) as *mut i64x2) = v1[19]};
                 dmb();
 
-                //println!("DONE 3");
 
+                let mut pc: i64x2 = i64x2::from_array([0 , 0]);
+                let mut it: i64x2 = i64x2::from_array([0 , 0]);
 
-                /*for (i, j) in ghost_indexes.iter() {
-                    let consumed_value = memory_out[progress_start_index + 4 * i] as i64;
-                    let produced_value = memory_out[progress_start_index + 4 * i + 1] as i64;
-                    let internals_time = (memory_out[progress_start_index + 4 * i + 2] >> 1) as u64;
-                    let internals_value = memory_out[progress_start_index + 4 * i + 3] as i64;
-
-                    consumed.insert(*j, consumed_value);
-                    internals.insert(*j, (internals_time, internals_value));
-                    produced.insert(*j, produced_value);
-                }*/
-
-                //let epoch_end = Instant::now();
-                //let total_nanos = (epoch_end - start).as_nanos();
-                //println!("copy latency: {total_nanos}");
+                for i in (0 .. data_length).step_by(2) {
+                    unsafe{pc = *(area.offset(i as isize) as *mut i64x2);}
+                    // all the writes can be done asynchronously
+                    // we are getting two numbers here
+                    // the offset for progress would be 18
+                    dmb();
+                    let shifted_val1 = pc[0] >> 1;
+                    let shifted_val2 = pc[1] >> 1;
+                    if val1 != 0 {
+                        vector2.push(shifted_val1);
+                    }
+                    if val2 != 0 {
+                        vector2.push(shifted_val2);
+                    }
+                }
 
                 output_wrapper.session(time).give_vec(&mut vector2);
 
@@ -297,15 +332,22 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 let mut cb = ChangeBatch::new_from(0, 0);
                 let mut cb1 = ChangeBatch::new_from(0, 0);
                 let mut cb2 = ChangeBatch::new_from(0, 0);
+                let mut counter_offset = 0;
 
                 let time_1 = time.clone();
 
+// ---------------------------------------------------------------------------------- get the data
+                unsafe{pc = *(area.offset(16 as isize) as *mut i64x2);}
+                dmb();
+                unsafe{it = *(area.offset(18 as isize) as *mut i64x2);}
+// ---------------------------------------------------------------------------------- got data
+                dmb();
                 //------------------------------------------------------------- first 4 operators
-                cb = ChangeBatch::new_from(time_1, cache_line_2[i] as i64 );
-                cb1 = ChangeBatch::new_from(time_1, cache_line_2[i+1] as i64 );
+                cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
                 cb2 = ChangeBatch::new_from(
-                    cache_line_2[i+2] as u64,
-                    cache_line_2[i+3] as i64,
+                    it[0] as u64,
+                    it[1] as i64,
                 );
                 j = ghost_indexes[0].1 as usize;
                 cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
@@ -313,11 +355,16 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
                 i = i + 4;
 
-                cb = ChangeBatch::new_from(time_1, cache_line_2[i] as i64 );
-                cb1 = ChangeBatch::new_from(time_1, cache_line_2[i+1] as i64 );
+// ---------------------------------------------------------------------------------- get the data
+                unsafe{pc = *(area.offset(20 as isize) as *mut i64x2);}
+                dmb();
+                unsafe{it = *(area.offset(22 as isize) as *mut i64x2);}
+// ---------------------------------------------------------------------------------- got data
+                cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
                 cb2 = ChangeBatch::new_from(
-                    cache_line_2[i+2] as u64,
-                    cache_line_2[i+3] as i64,
+                    it[0] as u64,
+                    it[1] as i64,
                 );
                 j = ghost_indexes[1].1 as usize;
                 cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
@@ -325,12 +372,16 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
                 i = i + 4;
 
-
-                cb = ChangeBatch::new_from(time_1, cache_line_2[i] as i64 );
-                cb1 = ChangeBatch::new_from(time_1, cache_line_2[i+1] as i64 );
+// ---------------------------------------------------------------------------------- get the data
+                unsafe{pc = *(area.offset(24 as isize) as *mut i64x2);}
+                dmb();
+                unsafe{it = *(area.offset(26 as isize) as *mut i64x2);}
+// ---------------------------------------------------------------------------------- got data
+                cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
                 cb2 = ChangeBatch::new_from(
-                    cache_line_2[i+2] as u64,
-                    cache_line_2[i+3] as i64,
+                    it[0] as u64,
+                    it[1] as i64,
                 );
 
                 j = ghost_indexes[2].1 as usize;
@@ -339,12 +390,16 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
                 i = i + 4;
 
-
-                cb = ChangeBatch::new_from(time_1, cache_line_2[i] as i64 );
-                cb1 = ChangeBatch::new_from(time_1, cache_line_2[i+1] as i64 );
+// ---------------------------------------------------------------------------------- get the data
+                unsafe{pc = *(area.offset(28 as isize) as *mut i64x2);}
+                dmb();
+                unsafe{it = *(area.offset(30 as isize) as *mut i64x2);}
+// ---------------------------------------------------------------------------------- got data
+                cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
                 cb2 = ChangeBatch::new_from(
-                    cache_line_2[i+2] as u64,
-                    cache_line_2[i+3] as i64,
+                    it[0] as u64,
+                    it[1] as i64,
                 );
                 j = ghost_indexes[3].1 as usize;
                 cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
@@ -353,6 +408,317 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 i = 0;
                 dmb();
                 //println!("DONE 4");
+
+// ---------------------------------------------------------------------------------- get the data
+                unsafe{pc = *(area.offset(32 as isize) as *mut i64x2);}
+                dmb();
+                unsafe{it = *(area.offset(34 as isize) as *mut i64x2);}
+// ---------------------------------------------------------------------------------- got data
+                cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
+                cb2 = ChangeBatch::new_from(
+                    it[0] as u64,
+                    it[1] as i64,
+                );
+                j = ghost_indexes[4].1 as usize;
+                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
+                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = i + 4;
+
+// ---------------------------------------------------------------------------------- get the data
+                unsafe{pc = *(area.offset(36 as isize) as *mut i64x2);}
+                dmb();
+                unsafe{it = *(area.offset(38 as isize) as *mut i64x2);}
+                dmb();
+// ---------------------------------------------------------------------------------- got data
+
+                cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
+                cb2 = ChangeBatch::new_from(
+                    it[0] as u64,
+                    it[1] as i64,
+                );
+                j = ghost_indexes[5].1 as usize;
+                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
+                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = i + 4;
+
+// ---------------------------------------------------------------------------------- get the data
+                unsafe{pc = *(area.offset(40 as isize) as *mut i64x2);}
+                dmb();
+                unsafe{it = *(area.offset(42 as isize) as *mut i64x2);}
+                dmb();
+// ---------------------------------------------------------------------------------- get the data
+
+                cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
+                cb2 = ChangeBatch::new_from(
+                    it[0] as u64,
+                    it[1] as i64,
+                );
+
+                j = ghost_indexes[6].1 as usize;
+                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
+                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = i + 4;
+
+
+// ---------------------------------------------------------------------------------- get the data
+                unsafe{pc = *(area.offset(44 as isize) as *mut i64x2);}
+                dmb();
+                unsafe{it = *(area.offset(46 as isize) as *mut i64x2);}
+                dmb();
+
+// ---------------------------------------------------------------------------------- get the data
+                cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
+                cb2 = ChangeBatch::new_from(
+                    it[0] as u64,
+                    it[1] as i64,
+                );
+                j = ghost_indexes[7].1 as usize;
+                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
+                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = 0;
+                dmb();
+                //println!("DONE 5");
+
+// ---------------------------------------------------------------------------------- get the data
+                unsafe{pc = *(area.offset(48 as isize) as *mut i64x2);}
+                dmb();
+                unsafe{it = *(area.offset(50 as isize) as *mut i64x2);}
+                dmb();
+// ---------------------------------------------------------------------------------- get the data
+
+                cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
+                cb2 = ChangeBatch::new_from(
+                    it[0] as u64,
+                    it[1] as i64,
+                );
+                j = ghost_indexes[8].1 as usize;
+                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
+                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = i + 4;
+
+// ---------------------------------------------------------------------------------- get the data
+                unsafe{pc = *(area.offset(52 as isize) as *mut i64x2);}
+                dmb();
+                unsafe{it = *(area.offset(54 as isize) as *mut i64x2);}
+                dmb();
+// ---------------------------------------------------------------------------------- get the data
+
+                cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
+                cb2 = ChangeBatch::new_from(
+                    it[0] as u64,
+                    it[1] as i64,
+                );
+                j = ghost_indexes[9].1 as usize;
+                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
+                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = i + 4;
+
+// ---------------------------------------------------------------------------------- get the data
+                unsafe{pc = *(area.offset(56 as isize) as *mut i64x2);}
+                dmb();
+                unsafe{it = *(area.offset(58 as isize) as *mut i64x2);}
+                dmb();
+// ---------------------------------------------------------------------------------- get the data
+                cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
+                cb2 = ChangeBatch::new_from(
+                    it[0] as u64,
+                    it[1] as i64,
+                );
+
+                j = ghost_indexes[10].1 as usize;
+                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
+                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = i + 4;
+
+// ---------------------------------------------------------------------------------- get the data
+                unsafe{pc = *(area.offset(60 as isize) as *mut i64x2);}
+                dmb();
+                unsafe{it = *(area.offset(62 as isize) as *mut i64x2);}
+                dmb();
+// ---------------------------------------------------------------------------------- get the data
+
+                cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
+                cb2 = ChangeBatch::new_from(
+                    it[0] as u64,
+                    it[1] as i64,
+                );
+                j = ghost_indexes[11].1 as usize;
+                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
+                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = 0;
+                dmb();
+                //println!("DONE 6");
+
+// ---------------------------------------------------------------------------------- get the data
+                unsafe{pc = *(area.offset(64 as isize) as *mut i64x2);}
+                dmb();
+                unsafe{it = *(area.offset(66 as isize) as *mut i64x2);}
+                dmb();
+// ---------------------------------------------------------------------------------- get the data
+                cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
+                cb2 = ChangeBatch::new_from(
+                    it[0] as u64,
+                    it[1] as i64,
+                );
+                j = ghost_indexes[12].1 as usize;
+                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
+                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = i + 4;
+
+// ---------------------------------------------------------------------------------- get the data
+                unsafe{pc = *(area.offset(68 as isize) as *mut i64x2);}
+                dmb();
+                unsafe{it = *(area.offset(70 as isize) as *mut i64x2);}
+                dmb();
+// ---------------------------------------------------------------------------------- get the data
+
+                cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
+                cb2 = ChangeBatch::new_from(
+                    it[0] as u64,
+                    it[1] as i64,
+                );
+                j = ghost_indexes[13].1 as usize;
+                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
+                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = i + 4;
+
+// ---------------------------------------------------------------------------------- get the data
+                unsafe{pc = *(area.offset(72 as isize) as *mut i64x2);}
+                dmb();
+                unsafe{it = *(area.offset(74 as isize) as *mut i64x2);}
+                dmb();
+// ---------------------------------------------------------------------------------- get the data
+
+                cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
+                cb2 = ChangeBatch::new_from(
+                    it[0] as u64,
+                    it[1] as i64,
+                );
+                j = ghost_indexes[14].1 as usize;
+                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
+                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = i + 4;
+
+// ---------------------------------------------------------------------------------- get the data
+                unsafe{pc = *(area.offset(76 as isize) as *mut i64x2);}
+                dmb();
+                unsafe{it = *(area.offset(78 as isize) as *mut i64x2);}
+                dmb();
+// ---------------------------------------------------------------------------------- get the data
+                cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
+                cb2 = ChangeBatch::new_from(
+                    it[0] as u64,
+                    it[1] as i64,
+                );
+                j = ghost_indexes[15].1 as usize;
+                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
+                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = 0;
+                dmb();
+
+// ---------------------------------------------------------------------------------- get the data
+                unsafe{pc = *(area.offset(80 as isize) as *mut i64x2);}
+                dmb();
+                unsafe{it = *(area.offset(82 as isize) as *mut i64x2);}
+                dmb();
+// ---------------------------------------------------------------------------------- get the data
+
+                cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
+                cb2 = ChangeBatch::new_from(
+                    it[0] as u64,
+                    it[1] as i64,
+                );
+                j = ghost_indexes[16].1 as usize;
+                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
+                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = 0;
+                dmb();
+
+// ---------------------------------------------------------------------------------- get the data
+                unsafe{pc = *(area.offset(84 as isize) as *mut i64x2);}
+                dmb();
+                unsafe{it = *(area.offset(86 as isize) as *mut i64x2);}
+                dmb();
+// ---------------------------------------------------------------------------------- get the data
+
+                cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
+                cb2 = ChangeBatch::new_from(
+                    it[0] as u64,
+                    it[1] as i64,
+                );
+                j = ghost_indexes[17].1 as usize;
+                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
+                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = 0;
+                dmb();
+
+// ---------------------------------------------------------------------------------- get the data
+                unsafe{pc = *(area.offset(88 as isize) as *mut i64x2);}
+                dmb();
+                unsafe{it = *(area.offset(90 as isize) as *mut i64x2);}
+                dmb();
+// ---------------------------------------------------------------------------------- get the data
+
+                cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
+                cb2 = ChangeBatch::new_from(
+                    it[0] as u64,
+                    it[1] as i64,
+                );
+                j = ghost_indexes[18].1 as usize;
+                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
+                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = 0;
+                dmb();
+
+// ---------------------------------------------------------------------------------- get the data
+                unsafe{pc = *(area.offset(92 as isize) as *mut i64x2);}
+                dmb();
+                unsafe{it = *(area.offset(94 as isize) as *mut i64x2);}
+                dmb();
+// ---------------------------------------------------------------------------------- get the data
+
+                cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
+                cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
+                cb2 = ChangeBatch::new_from(
+                    it[0] as u64,
+                    it[1] as i64,
+                );
+                j = ghost_indexes[19].1 as usize;
+                cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
+                cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                i = 0;
+                dmb();
 
             }
 
@@ -364,43 +730,67 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 let mut current_length = 0;
 
                 let data_length = num_data;
-                let mut input_memory = vec![0; max_length_in];
 
-                for i in 0..borrow.len() {
-                    let frontier = borrow[i].frontier();
+                for i in 0 .. borrow.len() {
+                    let frontier = borrow[i].borrow().frontier();
                     if frontier.len() == 0 {
-                        input_memory[current_length] = 0;
+                        *memory.offset(current_length as isize) = 0;
                         current_length += 1;
                     } else {
-                        for val in frontier.iter() {
-                            input_memory[current_length] = (*val << 1) | 1u64;
-                            current_length += 1;
+                        for val in (0..frontier.len()).step_by(2) {
+                            let x =  u64x2::from_array([(frontier[val] << 1) | 1i64, (frontier[val] << 1) | 1i64]);
+                            v0.push(x);
+                            //current_length += 1;
                         }
                     }
                 }
 
-                for i in current_length..max_length_in {
-                    input_memory[i] = 0;
+                for i in (current_length..max_length_in).step_by(2) {
+                    let x =  u64x2::from_array([0, 0]);
+                    v0.push(x);
                 }
-                let memory_out = run(hc, num_data, num_operators, &mut input_memory);
+
+                for i in (0..16).step_by(2) {
+                    let x = i64x2::from_array([data_i[i], data_i[i+1]]);
+                    v1.push(x);
+                }
+
+                unsafe{*(area.offset(0 as isize) as *mut u64x2) = v0[0]};
+                unsafe{*(area.offset(2 as isize) as *mut u64x2) = v0[1]};
+                unsafe{*(area.offset(4 as isize) as *mut u64x2) = v0[2]};
+                unsafe{*(area.offset(6 as isize) as *mut u64x2) = v0[3]};
+                unsafe{*(area.offset(8 as isize) as *mut u64x2) = v0[4]};
+                unsafe{*(area.offset(10 as isize) as *mut u64x2) = v0[5]};
+                unsafe{*(area.offset(12 as isize) as *mut u64x2) = v0[6]};
+                unsafe{*(area.offset(14 as isize) as *mut u64x2) = v0[7]};
+                unsafe{*(area.offset(16 as isize) as *mut u64x2) = v0[8]};
+                unsafe{*(area.offset(18 as isize) as *mut u64x2) = v0[9]};
+                unsafe{*(area.offset(20 as isize) as *mut u64x2) = v0[10]};
+                unsafe{*(area.offset(22 as isize) as *mut u64x2) = v0[11]};
+                unsafe{*(area.offset(24 as isize) as *mut i64x2) = v1[12]};
+                unsafe{*(area.offset(26 as isize) as *mut i64x2) = v1[13]};
+                unsafe{*(area.offset(28 as isize) as *mut i64x2) = v1[14]};
+                unsafe{*(area.offset(30 as isize) as *mut i64x2) = v1[15]};
+                unsafe{*(area.offset(32 as isize) as *mut i64x2) = v1[16]};
+                unsafe{*(area.offset(34 as isize) as *mut i64x2) = v1[17]};
+                unsafe{*(area.offset(36 as isize) as *mut i64x2) = v1[18]};
+                unsafe{*(area.offset(38 as isize) as *mut i64x2) = v1[19]};
+                dmb();
 
                 for i in 0..data_length as usize {
-                    let val = memory_out[i] as u64;
-                    let shifted_val = val >> 1;
-                    if val != 0 {
-                        vector2.push(shifted_val);
+                    unsafe{pc = *(area.offset(i as isize) as *mut i64x2);}
+                    // all the writes can be done asynchronously
+                    // we are getting two numbers here
+                    // the offset for progress would be 18
+                    dmb();
+                    let shifted_val1 = pc[0] >> 1;
+                    let shifted_val2 = pc[1] >> 1;
+                    if val1 != 0 {
+                        vector2.push(shifted_val1);
                     }
-                }
-
-                for (i, j) in ghost_indexes.iter() {
-                    let consumed_value = memory_out[progress_start_index + 4 * i] as i64;
-                    let produced_value = memory_out[progress_start_index + 4 * i + 1] as i64;
-                    let internals_time = (memory_out[progress_start_index + 4 * i + 2] >> 1) as u64;
-                    let internals_value = memory_out[progress_start_index + 4 * i + 3] as i64;
-
-                    consumed.insert(*j, consumed_value);
-                    internals.insert(*j, (internals_time, internals_value));
-                    produced.insert(*j, produced_value);
+                    if val2 != 0 {
+                        vector2.push(shifted_val2);
+                    }
                 }
 
                 let id_wrap = ghost_indexes[ghost_indexes.len() - 1].1;
@@ -421,6 +811,390 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&id_wrap).unwrap()[0]);
                     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&id_wrap).unwrap()[0]);
                 }
+
+                if vector2.len() > 0 {
+                    output_wrapper
+                        .session(&(internals.get(&id_wrap).unwrap().0 as u64))
+                        .give_vec(&mut vector2);
+
+                    let mut k = 0;
+                    let mut i = 0 as usize;
+                    let mut j = 0;
+                    let mut cb = ChangeBatch::new_from(0, 0);
+                    let mut cb1 = ChangeBatch::new_from(0, 0);
+                    let mut cb2 = ChangeBatch::new_from(0, 0);
+                    let mut counter_offset = 0;
+
+                    let time_1 = internals.get(&id_wrap).unwrap().0;
+
+                    let mut pc: i64x2 = i64x2::from_array([0, 0]);
+                    let mut it: i64x2 = i64x2::from_array([0, 0]);
+// ---------------------------------------------------------------------------------- get the data
+                    unsafe { pc = *(area.offset(16 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(18 as isize) as *mut i64x2); }
+// ---------------------------------------------------------------------------------- got data
+                    dmb();
+                    //------------------------------------------------------------- first 4 operators
+                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb2 = ChangeBatch::new_from(
+                        it[0] as u64,
+                        it[1] as i64,
+                    );
+                    j = ghost_indexes[0].1 as usize;
+                    cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                    cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                    i = i + 4;
+
+// ---------------------------------------------------------------------------------- get the data
+                    unsafe { pc = *(area.offset(20 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(22 as isize) as *mut i64x2); }
+// ---------------------------------------------------------------------------------- got data
+                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb2 = ChangeBatch::new_from(
+                        it[0] as u64,
+                        it[1] as i64,
+                    );
+                    j = ghost_indexes[1].1 as usize;
+                    cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                    cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                    i = i + 4;
+
+// ---------------------------------------------------------------------------------- get the data
+                    unsafe { pc = *(area.offset(24 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(26 as isize) as *mut i64x2); }
+// ---------------------------------------------------------------------------------- got data
+                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb2 = ChangeBatch::new_from(
+                        it[0] as u64,
+                        it[1] as i64,
+                    );
+
+                    j = ghost_indexes[2].1 as usize;
+                    cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                    cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                    i = i + 4;
+
+// ---------------------------------------------------------------------------------- get the data
+                    unsafe { pc = *(area.offset(28 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(30 as isize) as *mut i64x2); }
+// ---------------------------------------------------------------------------------- got data
+                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb2 = ChangeBatch::new_from(
+                        it[0] as u64,
+                        it[1] as i64,
+                    );
+                    j = ghost_indexes[3].1 as usize;
+                    cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                    cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                    i = 0;
+                    dmb();
+                    //println!("DONE 4");
+
+// ---------------------------------------------------------------------------------- get the data
+                    unsafe { pc = *(area.offset(32 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(34 as isize) as *mut i64x2); }
+// ---------------------------------------------------------------------------------- got data
+                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb2 = ChangeBatch::new_from(
+                        it[0] as u64,
+                        it[1] as i64,
+                    );
+                    j = ghost_indexes[4].1 as usize;
+                    cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                    cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                    i = i + 4;
+
+// ---------------------------------------------------------------------------------- get the data
+                    unsafe { pc = *(area.offset(36 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(38 as isize) as *mut i64x2); }
+                    dmb();
+// ---------------------------------------------------------------------------------- got data
+
+                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb2 = ChangeBatch::new_from(
+                        it[0] as u64,
+                        it[1] as i64,
+                    );
+                    j = ghost_indexes[5].1 as usize;
+                    cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                    cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                    i = i + 4;
+
+// ---------------------------------------------------------------------------------- get the data
+                    unsafe { pc = *(area.offset(40 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(42 as isize) as *mut i64x2); }
+                    dmb();
+// ---------------------------------------------------------------------------------- get the data
+
+                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb2 = ChangeBatch::new_from(
+                        it[0] as u64,
+                        it[1] as i64,
+                    );
+
+                    j = ghost_indexes[6].1 as usize;
+                    cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                    cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                    i = i + 4;
+
+
+// ---------------------------------------------------------------------------------- get the data
+                    unsafe { pc = *(area.offset(44 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(46 as isize) as *mut i64x2); }
+                    dmb();
+
+// ---------------------------------------------------------------------------------- get the data
+                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb2 = ChangeBatch::new_from(
+                        it[0] as u64,
+                        it[1] as i64,
+                    );
+                    j = ghost_indexes[7].1 as usize;
+                    cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                    cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                    i = 0;
+                    dmb();
+                    //println!("DONE 5");
+
+// ---------------------------------------------------------------------------------- get the data
+                    unsafe { pc = *(area.offset(48 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(50 as isize) as *mut i64x2); }
+                    dmb();
+// ---------------------------------------------------------------------------------- get the data
+
+                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb2 = ChangeBatch::new_from(
+                        it[0] as u64,
+                        it[1] as i64,
+                    );
+                    j = ghost_indexes[8].1 as usize;
+                    cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                    cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                    i = i + 4;
+
+// ---------------------------------------------------------------------------------- get the data
+                    unsafe { pc = *(area.offset(52 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(54 as isize) as *mut i64x2); }
+                    dmb();
+// ---------------------------------------------------------------------------------- get the data
+
+                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb2 = ChangeBatch::new_from(
+                        it[0] as u64,
+                        it[1] as i64,
+                    );
+                    j = ghost_indexes[9].1 as usize;
+                    cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                    cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                    i = i + 4;
+
+// ---------------------------------------------------------------------------------- get the data
+                    unsafe { pc = *(area.offset(56 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(58 as isize) as *mut i64x2); }
+                    dmb();
+// ---------------------------------------------------------------------------------- get the data
+                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb2 = ChangeBatch::new_from(
+                        it[0] as u64,
+                        it[1] as i64,
+                    );
+
+                    j = ghost_indexes[10].1 as usize;
+                    cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                    cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                    i = i + 4;
+
+// ---------------------------------------------------------------------------------- get the data
+                    unsafe { pc = *(area.offset(60 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(62 as isize) as *mut i64x2); }
+                    dmb();
+// ---------------------------------------------------------------------------------- get the data
+
+                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb2 = ChangeBatch::new_from(
+                        it[0] as u64,
+                        it[1] as i64,
+                    );
+                    j = ghost_indexes[11].1 as usize;
+                    cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                    cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                    i = 0;
+                    dmb();
+                    //println!("DONE 6");
+
+// ---------------------------------------------------------------------------------- get the data
+                    unsafe { pc = *(area.offset(64 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(66 as isize) as *mut i64x2); }
+                    dmb();
+// ---------------------------------------------------------------------------------- get the data
+                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb2 = ChangeBatch::new_from(
+                        it[0] as u64,
+                        it[1] as i64,
+                    );
+                    j = ghost_indexes[12].1 as usize;
+                    cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                    cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                    i = i + 4;
+
+// ---------------------------------------------------------------------------------- get the data
+                    unsafe { pc = *(area.offset(68 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(70 as isize) as *mut i64x2); }
+                    dmb();
+// ---------------------------------------------------------------------------------- get the data
+
+                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb2 = ChangeBatch::new_from(
+                        it[0] as u64,
+                        it[1] as i64,
+                    );
+                    j = ghost_indexes[13].1 as usize;
+                    cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                    cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                    i = i + 4;
+
+// ---------------------------------------------------------------------------------- get the data
+                    unsafe { pc = *(area.offset(72 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(74 as isize) as *mut i64x2); }
+                    dmb();
+// ---------------------------------------------------------------------------------- get the data
+
+                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb2 = ChangeBatch::new_from(
+                        it[0] as u64,
+                        it[1] as i64,
+                    );
+                    j = ghost_indexes[14].1 as usize;
+                    cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                    cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                    i = i + 4;
+
+// ---------------------------------------------------------------------------------- get the data
+                    unsafe { pc = *(area.offset(76 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(78 as isize) as *mut i64x2); }
+                    dmb();
+// ---------------------------------------------------------------------------------- get the data
+                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb2 = ChangeBatch::new_from(
+                        it[0] as u64,
+                        it[1] as i64,
+                    );
+                    j = ghost_indexes[15].1 as usize;
+                    cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                    cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                    i = 0;
+                    dmb();
+
+// ---------------------------------------------------------------------------------- get the data
+                    unsafe { pc = *(area.offset(80 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(82 as isize) as *mut i64x2); }
+                    dmb();
+// ---------------------------------------------------------------------------------- get the data
+
+                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb2 = ChangeBatch::new_from(
+                        it[0] as u64,
+                        it[1] as i64,
+                    );
+                    j = ghost_indexes[16].1 as usize;
+                    cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                    cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                    i = 0;
+                    dmb();
+
+// ---------------------------------------------------------------------------------- get the data
+                    unsafe { pc = *(area.offset(84 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(86 as isize) as *mut i64x2); }
+                    dmb();
+// ---------------------------------------------------------------------------------- get the data
+
+                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb2 = ChangeBatch::new_from(
+                        it[0] as u64,
+                        it[1] as i64,
+                    );
+                    j = ghost_indexes[17].1 as usize;
+                    cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                    cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                    i = 0;
+                    dmb();
+
+// ---------------------------------------------------------------------------------- get the data
+                    unsafe { pc = *(area.offset(88 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(90 as isize) as *mut i64x2); }
+                    dmb();
+// ---------------------------------------------------------------------------------- get the data
+
+                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb2 = ChangeBatch::new_from(
+                        it[0] as u64,
+                        it[1] as i64,
+                    );
+                    j = ghost_indexes[18].1 as usize;
+                    cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                    cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                    i = 0;
+                    dmb();
+
+// ---------------------------------------------------------------------------------- get the data
+                    unsafe { pc = *(area.offset(92 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(94 as isize) as *mut i64x2); }
+                    dmb();
+// ---------------------------------------------------------------------------------- get the data
+
+                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb2 = ChangeBatch::new_from(
+                        it[0] as u64,
+                        it[1] as i64,
+                    );
+                    j = ghost_indexes[19].1 as usize;
+                    cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+                    cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+                    i = 0;
+                    dmb();
+                }
+
+
             }
 
             //let epoch_end = Instant::now();
