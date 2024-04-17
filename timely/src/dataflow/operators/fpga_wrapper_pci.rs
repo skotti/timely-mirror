@@ -815,7 +815,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                         .session(0 /*&(internals.get(&id_wrap).unwrap().0*/ as u64)
                         .give_vec(&mut vector2);*/
 
-                    let mut k = 0;
+                    /*let mut k = 0;
                     let mut i = 0 as usize;
                     let mut j = 0;
                     let mut cb = ChangeBatch::new_from(0, 0);
@@ -1192,7 +1192,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                     dmb();
                 }
 
-
+            */
             }
 
             //let epoch_end = Instant::now();
