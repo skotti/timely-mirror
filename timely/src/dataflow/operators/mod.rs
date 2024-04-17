@@ -13,6 +13,7 @@ pub use self::enterleave::{Enter, EnterAt, Leave};
 pub use self::input::Input;
 pub use self::fpga_wrapper_xdma::FpgaWrapperXDMA;
 pub use self::fpga_wrapper_eci::FpgaWrapperECI;
+pub use self::fpga_wrapper_pci::FpgaWrapperPCI;
 pub use self::unordered_input::UnorderedInput;
 pub use self::feedback::{Feedback, LoopVariable, ConnectLoop};
 pub use self::concat::{Concat, Concatenate};
