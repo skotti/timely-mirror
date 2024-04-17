@@ -1189,10 +1189,10 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
                     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
                     i = 0;
-                    dmb();
+                    dmb();*/
                 }
 
-            */
+
             }
 
             //let epoch_end = Instant::now();
