@@ -191,9 +191,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
         let mut vector = Vec::with_capacity(MAX_CAPACITY);
         let mut vector2 = Vec::with_capacity(MAX_CAPACITY);
 
-        let mut produced = HashMap::with_capacity(32);
+        /*let mut produced = HashMap::with_capacity(32);
         let mut consumed = HashMap::with_capacity(32);
-        let mut internals = HashMap::with_capacity(32);
+        let mut internals = HashMap::with_capacity(32);*/
 
         /*let mut offset_1 = 0;
         let mut offset_2 = 0;
@@ -1201,9 +1201,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 
             vector.clear();
             vector2.clear();
-            produced.clear();
+            /*produced.clear();
             consumed.clear();
-            internals.clear();
+            internals.clear();(/
             output_wrapper.cease();
 
             //let epoch_end = Instant::now();
