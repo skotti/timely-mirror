@@ -65,20 +65,19 @@ fn dmb() {
 
 #[repr(C)]
 pub struct HardwareCommon {
-    fd: i32,
-    mem: * mut c_void
+    area: * mut c_void
 }
 
 
 unsafe impl Send for HardwareCommon{}
 unsafe impl Sync for HardwareCommon{}
 
-#[link(name = "pci_shim")]
+/*#[link(name = "pci_shim")]
 extern "C" {
     fn run(hc: * const HardwareCommon, input_size: i64, output_size: i64);
-}
+}*/
 
-unsafe fn my_run(hc: * const HardwareCommon/*, input_size: i64, output_size: i64*/) {
+/*unsafe fn my_run(hc: * const HardwareCommon/*, input_size: i64, output_size: i64*/) {
 
     let area = unsafe { (*hc).area } as *mut u64;
 
@@ -115,7 +114,7 @@ unsafe fn my_run(hc: * const HardwareCommon/*, input_size: i64, output_size: i64
     unsafe{*(area.offset(38 as isize) as *mut i64x2) = v1[19]};
     dmb();
 
-}
+}*/
 
 
 /// Wrapper to run on FPGA
@@ -727,6 +726,12 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
             //println!("wrapper latency: {total_nanos}");
 
             if !has_data {
+
+                let area = unsafe { (*hc).area } as *mut u64;
+
+                let mut v1: Vec<i64x2> = Vec::new();
+                let mut v0: Vec<u64x2> = Vec::new();
+
                 let mut current_length = 0;
 
                 let data_length = num_data;
