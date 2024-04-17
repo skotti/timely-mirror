@@ -139,7 +139,6 @@ fn get_fpga_mem() -> i32 {
 /// Takes a file descriptor to mmap into
 #[cfg(feature = "pci")]
 fn mmap_wrapper(fd: c_int, no_cpus: c_int) -> Result<*mut c_void, std::io::Error> {
-    let base: *mut libc::c_void = 0xf0000000;
     let area = unsafe {
         libc::mmap(
             0xf0000000 as *mut c_void,

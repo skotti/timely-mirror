@@ -65,7 +65,7 @@ fn dmb() {
 
 #[repr(C)]
 pub struct HardwareCommon {
-    area: * mut c_void
+    pub area: * mut c_void
 }
 
 
