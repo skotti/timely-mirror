@@ -214,7 +214,8 @@ fn fpga_communication(
     hc: *const HardwareCommon,
     cache_line_1: &mut[u64],
     cache_line_2: &mut[u64],
-    time: &u64
+    time: &u64,
+    ghost_indexes: &Vec<(usize, usize)>
 )
 {
 
@@ -1430,7 +1431,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
 
 
 
-                fpga_communication(progress, hc ,cache_line_1, cache_line_2, time);
+                fpga_communication(progress, hc ,cache_line_1, cache_line_2, time, &ghost_indexes);
                 //println!("DONE 7");
 
             }
@@ -1439,7 +1440,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
             //let total_nanos = (epoch_end - epoch_start).as_nanos();
             //println!("wrapper latency: {total_nanos}");
 
-            if !has_data {
+            /*if !has_data {
                 let mut current_length = 0;
 
                 let data_length = num_data;
@@ -1500,7 +1501,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
                     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&id_wrap).unwrap()[0]);
                     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&id_wrap).unwrap()[0]);
                 }
-            }
+            }*/
 
             //let epoch_end = Instant::now();
             // let total_nanos = (epoch_end - epoch_start).as_nanos();

@@ -20,7 +20,7 @@ use crate::dataflow::operators::fpga_wrapper_xdma::HardwareCommon;
 #[cfg(feature = "eci")]
 use crate::dataflow::operators::fpga_wrapper_eci::HardwareCommon;
 #[cfg(feature = "pci")]
-use crate::dataflow::operators::fpga_wrapper_eci::HardwareCommon;
+use crate::dataflow::operators::fpga_wrapper_pci::HardwareCommon;
 
 
 
