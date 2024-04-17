@@ -20,6 +20,7 @@ use std::cell::RefCell;
 use std::convert::TryInto;
 use std::rc::Rc;
 use std::time::Instant;
+use std::borrow::Borrow;
 
 use std::collections::HashMap;
 use std::ffi::c_void;
