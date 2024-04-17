@@ -1203,7 +1203,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
             vector2.clear();
             /*produced.clear();
             consumed.clear();
-            internals.clear();(/
+            internals.clear();*/
             output_wrapper.cease();
 
             //let epoch_end = Instant::now();
