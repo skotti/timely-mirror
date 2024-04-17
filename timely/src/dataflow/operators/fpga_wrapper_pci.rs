@@ -268,7 +268,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                         current_length += 2;
                     } else {
                         for val in (0..frontier.len()).step_by(2) {
-                            let x =  u64x2::from_array([(frontier[val] << 1) | ui64, (frontier[val] << 1) | ui64]);
+                            let x =  u64x2::from_array([(frontier[val] << 1) | u64, (frontier[val] << 1) | u64]);
                             v0.push(x);
                             current_length += 2;
                         }
@@ -310,19 +310,20 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 
                 let mut pc: i64x2 = i64x2::from_array([0 , 0]);
                 let mut it: i64x2 = i64x2::from_array([0 , 0]);
+                let mut data: u64x2 = u64x2::from_array([0 , 0]);
 
                 for i in (0 .. data_length).step_by(2) {
-                    unsafe{pc = *(area.offset(i as isize) as *mut i64x2);}
+                    unsafe{data = *(area.offset(i as isize) as *mut u64x2);}
                     // all the writes can be done asynchronously
                     // we are getting two numbers here
                     // the offset for progress would be 18
                     dmb();
-                    let shifted_val1 = pc[0] >> 1;
-                    let shifted_val2 = pc[1] >> 1;
-                    if pc[0] != 0 {
+                    let shifted_val1 = data[0] >> 1;
+                    let shifted_val2 = data[1] >> 1;
+                    if data[0] != 0 {
                         vector2.push(shifted_val1);
                     }
-                    if pc[1] != 0 {
+                    if data[1] != 0 {
                         vector2.push(shifted_val2);
                     }
                 }
@@ -748,7 +749,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                         current_length += 2;
                     } else {
                         for val in (0..frontier.len()).step_by(2) {
-                            let x =  u64x2::from_array([(frontier[val] << 1) | ui64, (frontier[val] << 1) | ui64]);
+                            let x =  u64x2::from_array([(frontier[val] << 1) | u64, (frontier[val] << 1) | u64]);
                             v0.push(x);
                             current_length += 2;
                         }
@@ -789,41 +790,25 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 
                 let mut pc: i64x2 = i64x2::from_array([0 , 0]);
                 let mut it: i64x2 = i64x2::from_array([0 , 0]);
+                let mut data: u64x2 = u64x2::from_array([0 , 0]);
 
                 for i in 0..data_length as usize {
-                    unsafe{pc = *(area.offset(i as isize) as *mut i64x2);}
+                    unsafe{data = *(area.offset(i as isize) as *mut u64x2);}
                     // all the writes can be done asynchronously
                     // we are getting two numbers here
                     // the offset for progress would be 18
                     dmb();
-                    let shifted_val1 = pc[0] >> 1;
-                    let shifted_val2 = pc[1] >> 1;
-                    if pc[0] != 0 {
+                    let shifted_val1 = data[0] >> 1;
+                    let shifted_val2 = data[1] >> 1;
+                    if data[0] != 0 {
                         vector2.push(shifted_val1);
                     }
-                    if pc[1] != 0 {
+                    if data[1] != 0 {
                         vector2.push(shifted_val2);
                     }
                 }
 
                 let id_wrap = ghost_indexes[ghost_indexes.len() - 1].1;
-
-                if vector2.len() > 0 {
-                    output_wrapper
-                        .session(&(internals.get(&id_wrap).unwrap().0 as u64))
-                        .give_vec(&mut vector2);
-
-                    let mut cb1 = ChangeBatch::new_from(
-                        internals.get(&id_wrap).unwrap().0 as u64,
-                        *produced.get(&id_wrap).unwrap(),
-                    );
-                    let mut cb2 = ChangeBatch::new_from(
-                        internals.get(&id_wrap).unwrap().0 as u64,
-                        internals.get(&id_wrap).unwrap().1 as i64,
-                    );
-                    cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&id_wrap).unwrap()[0]);
-                    cb2.drain_into(&mut progress.wrapper_internals.get_mut(&id_wrap).unwrap()[0]);
-                }
 
                 if vector2.len() > 0 {
                     output_wrapper
