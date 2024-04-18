@@ -289,13 +289,13 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 //--------------------------------------------------------------------------------------------- print the output data
                 println!("OUTPUT DATA FROM TIMELY");
                 println!("Length of frontier vector {}", v0.len());
-                for val in v0 {
+                for val in &v0 {
                     println!("{} {}", val[0], val[1]);
                 }
                 println!();
 
                 println!("Length of data vector {}", v1.len());
-                for val in v1 {
+                for val in &v1 {
                     println!("{} {}", val[0], val[1]);
                 }
                 println!();
@@ -936,13 +936,13 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 //--------------------------------------------------------------------------------------------- print the output data
                 println!("OUTPUT DATA FROM TIMELY");
                 println!("Length of frontier vector {}", v0.len());
-                for val in v0 {
+                for val in &v0 {
                     println!("{} {}", val[0], val[1]);
                 }
                 println!();
 
                 println!("Length of data vector {}", v1.len());
-                for val in v1 {
+                for val in &v1 {
                     println!("{} {}", val[0], val[1]);
                 }
                 println!();
