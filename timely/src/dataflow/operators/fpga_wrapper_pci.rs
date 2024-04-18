@@ -286,50 +286,71 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                     let x = u64x2::from_array([vector[i], vector[i+1]]);
                     v1.push(x);
                 }
+//--------------------------------------------------------------------------------------------- print the output data
+                println!("OUTPUT DATA FROM TIMELY");
+                println!("Length of frontier vector {}", v0.len());
+                for val in v0 {
+                    println!("{} {}", val[0], val[1]);
+                }
+                println!();
 
-                unsafe{*(area.offset(0 as isize) as *mut u64x2) = v0[0]};
-                unsafe{*(area.offset(2 as isize) as *mut u64x2) = v0[1]};
-                unsafe{*(area.offset(4 as isize) as *mut u64x2) = v0[2]};
-                unsafe{*(area.offset(6 as isize) as *mut u64x2) = v0[3]};
-                unsafe{*(area.offset(8 as isize) as *mut u64x2) = v0[4]};
-                unsafe{*(area.offset(10 as isize) as *mut u64x2) = v0[5]};
-                unsafe{*(area.offset(12 as isize) as *mut u64x2) = v0[6]};
-                unsafe{*(area.offset(14 as isize) as *mut u64x2) = v0[7]};
-                unsafe{*(area.offset(16 as isize) as *mut u64x2) = v0[8]};
-                unsafe{*(area.offset(18 as isize) as *mut u64x2) = v0[9]};
-                unsafe{*(area.offset(20 as isize) as *mut u64x2) = v0[10]};
-                unsafe{*(area.offset(22 as isize) as *mut u64x2) = v0[11]};
-                unsafe{*(area.offset(24 as isize) as *mut u64x2) = v1[12]};
-                unsafe{*(area.offset(26 as isize) as *mut u64x2) = v1[13]};
-                unsafe{*(area.offset(28 as isize) as *mut u64x2) = v1[14]};
-                unsafe{*(area.offset(30 as isize) as *mut u64x2) = v1[15]};
-                unsafe{*(area.offset(32 as isize) as *mut u64x2) = v1[16]};
-                unsafe{*(area.offset(34 as isize) as *mut u64x2) = v1[17]};
-                unsafe{*(area.offset(36 as isize) as *mut u64x2) = v1[18]};
-                unsafe{*(area.offset(38 as isize) as *mut u64x2) = v1[19]};
-                dmb();
+                println!("Length of data vector {}", v1.len());
+                for val in v1 {
+                    println!("{} {}", val[0], val[1]);
+                }
+                println!();
+//--------------------------------------------------------------------------------------------- print the output data
 
-
+                #[cfg(not(feature = "no-fpga"))] {
+                    unsafe { *(area.offset(0 as isize) as *mut u64x2) = v0[0] };
+                    unsafe { *(area.offset(2 as isize) as *mut u64x2) = v0[1] };
+                    unsafe { *(area.offset(4 as isize) as *mut u64x2) = v0[2] };
+                    unsafe { *(area.offset(6 as isize) as *mut u64x2) = v0[3] };
+                    unsafe { *(area.offset(8 as isize) as *mut u64x2) = v0[4] };
+                    unsafe { *(area.offset(10 as isize) as *mut u64x2) = v0[5] };
+                    unsafe { *(area.offset(12 as isize) as *mut u64x2) = v0[6] };
+                    unsafe { *(area.offset(14 as isize) as *mut u64x2) = v0[7] };
+                    unsafe { *(area.offset(16 as isize) as *mut u64x2) = v0[8] };
+                    unsafe { *(area.offset(18 as isize) as *mut u64x2) = v0[9] };
+                    unsafe { *(area.offset(20 as isize) as *mut u64x2) = v0[10] };
+                    unsafe { *(area.offset(22 as isize) as *mut u64x2) = v0[11] };
+                    unsafe { *(area.offset(24 as isize) as *mut u64x2) = v1[12] };
+                    unsafe { *(area.offset(26 as isize) as *mut u64x2) = v1[13] };
+                    unsafe { *(area.offset(28 as isize) as *mut u64x2) = v1[14] };
+                    unsafe { *(area.offset(30 as isize) as *mut u64x2) = v1[15] };
+                    unsafe { *(area.offset(32 as isize) as *mut u64x2) = v1[16] };
+                    unsafe { *(area.offset(34 as isize) as *mut u64x2) = v1[17] };
+                    unsafe { *(area.offset(36 as isize) as *mut u64x2) = v1[18] };
+                    unsafe { *(area.offset(38 as isize) as *mut u64x2) = v1[19] };
+                    dmb();
+                }
                 let mut pc: i64x2 = i64x2::from_array([0 , 0]);
                 let mut it: i64x2 = i64x2::from_array([0 , 0]);
                 let mut data: u64x2 = u64x2::from_array([0 , 0]);
 
-                for i in (0 .. data_length).step_by(2) {
-                    unsafe{data = *(area.offset(i as isize) as *mut u64x2);}
-                    // all the writes can be done asynchronously
-                    // we are getting two numbers here
-                    // the offset for progress would be 18
-                    dmb();
-                    let shifted_val1 = data[0] >> 1;
-                    let shifted_val2 = data[1] >> 1;
-                    if data[0] != 0 {
-                        vector2.push(shifted_val1);
-                    }
-                    if data[1] != 0 {
-                        vector2.push(shifted_val2);
+                #[cfg(not(feature = "no-fpga"))] {
+                    for i in (0..data_length).step_by(2) {
+                        unsafe { data = *(area.offset(i as isize) as *mut u64x2); }
+                        // all the writes can be done asynchronously
+                        // we are getting two numbers here
+                        // the offset for progress would be 18
+                        dmb();
+                        let shifted_val1 = data[0] >> 1;
+                        let shifted_val2 = data[1] >> 1;
+                        if data[0] != 0 {
+                            vector2.push(shifted_val1);
+                        }
+                        if data[1] != 0 {
+                            vector2.push(shifted_val2);
+                        }
                     }
                 }
 
+                #[cfg(feature = "no-fpga")] {
+                    for i in 0..16 {
+                        vector2.push(0);
+                    }
+                }
                 output_wrapper.session(time).give_vec(&mut vector2);
 
                 let mut k = 0;
@@ -343,11 +364,19 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 let time_1 = time.clone();
 
 // ---------------------------------------------------------------------------------- get the data
-                unsafe{pc = *(area.offset(16 as isize) as *mut i64x2);}
-                dmb();
-                unsafe{it = *(area.offset(18 as isize) as *mut i64x2);}
+                #[cfg(not(feature = "no-fpga"))] {
+                    unsafe { pc = *(area.offset(16 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(18 as isize) as *mut i64x2); }
+                    dmb();
+                }
 // ---------------------------------------------------------------------------------- got data
-                dmb();
+                #[cfg(feature = "no-fpga")] {
+                    pc = i64x2::from_array([16, 16]);
+                    it = i64x2::from_array([0, 0]);
+                }
+// ----------------------------------------------------------------------------------- for the debug mode
+
                 //------------------------------------------------------------- first 4 operators
                 cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
                 cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
@@ -362,10 +391,17 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 i = i + 4;
 
 // ---------------------------------------------------------------------------------- get the data
-                unsafe{pc = *(area.offset(20 as isize) as *mut i64x2);}
-                dmb();
-                unsafe{it = *(area.offset(22 as isize) as *mut i64x2);}
+                #[cfg(not(feature = "no-fpga"))] {
+                    unsafe { pc = *(area.offset(20 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(22 as isize) as *mut i64x2); }
+                }
 // ---------------------------------------------------------------------------------- got data
+                #[cfg(feature = "no-fpga")] {
+                    pc = i64x2::from_array([16, 16]);
+                    it = i64x2::from_array([0, 0]);
+                }
+// ----------------------------------------------------------------------------------- for the debug mode
                 cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
                 cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
                 cb2 = ChangeBatch::new_from(
@@ -379,10 +415,18 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 i = i + 4;
 
 // ---------------------------------------------------------------------------------- get the data
-                unsafe{pc = *(area.offset(24 as isize) as *mut i64x2);}
-                dmb();
-                unsafe{it = *(area.offset(26 as isize) as *mut i64x2);}
+                #[cfg(not(feature = "no-fpga"))] {
+                    unsafe { pc = *(area.offset(24 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(26 as isize) as *mut i64x2); }
+                }
 // ---------------------------------------------------------------------------------- got data
+
+                #[cfg(feature = "no-fpga")] {
+                    pc = i64x2::from_array([16, 16]);
+                    it = i64x2::from_array([0, 0]);
+                }
+// ----------------------------------------------------------------------------------- for the debug mode
                 cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
                 cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
                 cb2 = ChangeBatch::new_from(
@@ -397,10 +441,17 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 i = i + 4;
 
 // ---------------------------------------------------------------------------------- get the data
-                unsafe{pc = *(area.offset(28 as isize) as *mut i64x2);}
-                dmb();
-                unsafe{it = *(area.offset(30 as isize) as *mut i64x2);}
+                #[cfg(not(feature = "no-fpga"))] {
+                    unsafe { pc = *(area.offset(28 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(30 as isize) as *mut i64x2); }
+                }
 // ---------------------------------------------------------------------------------- got data
+                #[cfg(feature = "no-fpga")] {
+                    pc = i64x2::from_array([16, 16]);
+                    it = i64x2::from_array([0, 0]);
+                }
+// ----------------------------------------------------------------------------------- for the debug mode
                 cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
                 cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
                 cb2 = ChangeBatch::new_from(
@@ -416,10 +467,17 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 //println!("DONE 4");
 
 // ---------------------------------------------------------------------------------- get the data
-                unsafe{pc = *(area.offset(32 as isize) as *mut i64x2);}
-                dmb();
-                unsafe{it = *(area.offset(34 as isize) as *mut i64x2);}
+                #[cfg(not(feature = "no-fpga"))] {
+                    unsafe{pc = *(area.offset(32 as isize) as *mut i64x2);}
+                    dmb();
+                    unsafe{it = *(area.offset(34 as isize) as *mut i64x2);}
+                }
 // ---------------------------------------------------------------------------------- got data
+                #[cfg(feature = "no-fpga")] {
+                    pc = i64x2::from_array([16, 16]);
+                    it = i64x2::from_array([0, 0]);
+                }
+// ----------------------------------------------------------------------------------- for the debug mode
                 cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
                 cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
                 cb2 = ChangeBatch::new_from(
@@ -433,11 +491,18 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 i = i + 4;
 
 // ---------------------------------------------------------------------------------- get the data
-                unsafe{pc = *(area.offset(36 as isize) as *mut i64x2);}
-                dmb();
-                unsafe{it = *(area.offset(38 as isize) as *mut i64x2);}
-                dmb();
+                #[cfg(not(feature = "no-fpga"))] {
+                    unsafe { pc = *(area.offset(36 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(38 as isize) as *mut i64x2); }
+                    dmb();
+                }
 // ---------------------------------------------------------------------------------- got data
+                #[cfg(feature = "no-fpga")] {
+                    pc = i64x2::from_array([16, 16]);
+                    it = i64x2::from_array([0, 0]);
+                }
+// ----------------------------------------------------------------------------------- for the debug mode
 
                 cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
                 cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
@@ -452,11 +517,18 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 i = i + 4;
 
 // ---------------------------------------------------------------------------------- get the data
-                unsafe{pc = *(area.offset(40 as isize) as *mut i64x2);}
-                dmb();
-                unsafe{it = *(area.offset(42 as isize) as *mut i64x2);}
-                dmb();
+                #[cfg(not(feature = "no-fpga"))] {
+                    unsafe { pc = *(area.offset(40 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(42 as isize) as *mut i64x2); }
+                    dmb();
+                }
 // ---------------------------------------------------------------------------------- get the data
+                #[cfg(feature = "no-fpga")] {
+                    pc = i64x2::from_array([16, 16]);
+                    it = i64x2::from_array([0, 0]);
+                }
+// ----------------------------------------------------------------------------------- for the debug mode
 
                 cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
                 cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
@@ -473,12 +545,19 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 
 
 // ---------------------------------------------------------------------------------- get the data
-                unsafe{pc = *(area.offset(44 as isize) as *mut i64x2);}
-                dmb();
-                unsafe{it = *(area.offset(46 as isize) as *mut i64x2);}
-                dmb();
+                #[cfg(not(feature = "no-fpga"))] {
+                    unsafe { pc = *(area.offset(44 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(46 as isize) as *mut i64x2); }
+                    dmb();
+                }
 
 // ---------------------------------------------------------------------------------- get the data
+                #[cfg(feature = "no-fpga")] {
+                    pc = i64x2::from_array([16, 16]);
+                    it = i64x2::from_array([0, 0]);
+                }
+// ----------------------------------------------------------------------------------- for the debug mode
                 cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
                 cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
                 cb2 = ChangeBatch::new_from(
@@ -494,11 +573,18 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 //println!("DONE 5");
 
 // ---------------------------------------------------------------------------------- get the data
-                unsafe{pc = *(area.offset(48 as isize) as *mut i64x2);}
-                dmb();
-                unsafe{it = *(area.offset(50 as isize) as *mut i64x2);}
-                dmb();
+                #[cfg(not(feature = "no-fpga"))] {
+                    unsafe { pc = *(area.offset(48 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(50 as isize) as *mut i64x2); }
+                    dmb();
+                }
 // ---------------------------------------------------------------------------------- get the data
+                #[cfg(feature = "no-fpga")] {
+                    pc = i64x2::from_array([16, 16]);
+                    it = i64x2::from_array([0, 0]);
+                }
+// ----------------------------------------------------------------------------------- for the debug mode
 
                 cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
                 cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
@@ -513,11 +599,18 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 i = i + 4;
 
 // ---------------------------------------------------------------------------------- get the data
-                unsafe{pc = *(area.offset(52 as isize) as *mut i64x2);}
-                dmb();
-                unsafe{it = *(area.offset(54 as isize) as *mut i64x2);}
-                dmb();
+                #[cfg(not(feature = "no-fpga"))] {
+                    unsafe { pc = *(area.offset(52 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(54 as isize) as *mut i64x2); }
+                    dmb();
+                }
 // ---------------------------------------------------------------------------------- get the data
+                #[cfg(feature = "no-fpga")] {
+                    pc = i64x2::from_array([16, 16]);
+                    it = i64x2::from_array([0, 0]);
+                }
+// ----------------------------------------------------------------------------------- for the debug mode
 
                 cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
                 cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
@@ -532,11 +625,18 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 i = i + 4;
 
 // ---------------------------------------------------------------------------------- get the data
-                unsafe{pc = *(area.offset(56 as isize) as *mut i64x2);}
-                dmb();
-                unsafe{it = *(area.offset(58 as isize) as *mut i64x2);}
-                dmb();
+                #[cfg(not(feature = "no-fpga"))] {
+                    unsafe { pc = *(area.offset(56 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(58 as isize) as *mut i64x2); }
+                    dmb();
+                }
 // ---------------------------------------------------------------------------------- get the data
+                #[cfg(feature = "no-fpga")] {
+                    pc = i64x2::from_array([16, 16]);
+                    it = i64x2::from_array([0, 0]);
+                }
+// ----------------------------------------------------------------------------------- for the debug mode
                 cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
                 cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
                 cb2 = ChangeBatch::new_from(
@@ -551,11 +651,18 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 i = i + 4;
 
 // ---------------------------------------------------------------------------------- get the data
-                unsafe{pc = *(area.offset(60 as isize) as *mut i64x2);}
-                dmb();
-                unsafe{it = *(area.offset(62 as isize) as *mut i64x2);}
-                dmb();
+                #[cfg(not(feature = "no-fpga"))] {
+                    unsafe { pc = *(area.offset(60 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(62 as isize) as *mut i64x2); }
+                    dmb();
+                }
 // ---------------------------------------------------------------------------------- get the data
+                #[cfg(feature = "no-fpga")] {
+                    pc = i64x2::from_array([16, 16]);
+                    it = i64x2::from_array([0, 0]);
+                }
+// ----------------------------------------------------------------------------------- for the debug mode
 
                 cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
                 cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
@@ -572,11 +679,19 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 //println!("DONE 6");
 
 // ---------------------------------------------------------------------------------- get the data
-                unsafe{pc = *(area.offset(64 as isize) as *mut i64x2);}
-                dmb();
-                unsafe{it = *(area.offset(66 as isize) as *mut i64x2);}
-                dmb();
+                #[cfg(not(feature = "no-fpga"))] {
+                    unsafe { pc = *(area.offset(64 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(66 as isize) as *mut i64x2); }
+                    dmb();
+                }
 // ---------------------------------------------------------------------------------- get the data
+
+                #[cfg(feature = "no-fpga")] {
+                    pc = i64x2::from_array([16, 16]);
+                    it = i64x2::from_array([0, 0]);
+                }
+// ----------------------------------------------------------------------------------- for the debug mode
                 cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
                 cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
                 cb2 = ChangeBatch::new_from(
@@ -590,11 +705,18 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 i = i + 4;
 
 // ---------------------------------------------------------------------------------- get the data
-                unsafe{pc = *(area.offset(68 as isize) as *mut i64x2);}
-                dmb();
-                unsafe{it = *(area.offset(70 as isize) as *mut i64x2);}
-                dmb();
+                #[cfg(not(feature = "no-fpga"))] {
+                    unsafe { pc = *(area.offset(68 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(70 as isize) as *mut i64x2); }
+                    dmb();
+                }
 // ---------------------------------------------------------------------------------- get the data
+                #[cfg(feature = "no-fpga")] {
+                    pc = i64x2::from_array([16, 16]);
+                    it = i64x2::from_array([0, 0]);
+                }
+// ----------------------------------------------------------------------------------- for the debug mode
 
                 cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
                 cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
@@ -609,11 +731,18 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 i = i + 4;
 
 // ---------------------------------------------------------------------------------- get the data
-                unsafe{pc = *(area.offset(72 as isize) as *mut i64x2);}
-                dmb();
-                unsafe{it = *(area.offset(74 as isize) as *mut i64x2);}
-                dmb();
+                #[cfg(not(feature = "no-fpga"))] {
+                    unsafe { pc = *(area.offset(72 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(74 as isize) as *mut i64x2); }
+                    dmb();
+                }
 // ---------------------------------------------------------------------------------- get the data
+                #[cfg(feature = "no-fpga")] {
+                    pc = i64x2::from_array([16, 16]);
+                    it = i64x2::from_array([0, 0]);
+                }
+// ----------------------------------------------------------------------------------- for the debug mode
 
                 cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
                 cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
@@ -628,11 +757,18 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 i = i + 4;
 
 // ---------------------------------------------------------------------------------- get the data
-                unsafe{pc = *(area.offset(76 as isize) as *mut i64x2);}
-                dmb();
-                unsafe{it = *(area.offset(78 as isize) as *mut i64x2);}
-                dmb();
+                #[cfg(not(feature = "no-fpga"))] {
+                    unsafe { pc = *(area.offset(76 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(78 as isize) as *mut i64x2); }
+                    dmb();
+                }
 // ---------------------------------------------------------------------------------- get the data
+                #[cfg(feature = "no-fpga")] {
+                    pc = i64x2::from_array([16, 16]);
+                    it = i64x2::from_array([0, 0]);
+                }
+// ----------------------------------------------------------------------------------- for the debug mode
                 cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
                 cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
                 cb2 = ChangeBatch::new_from(
@@ -646,12 +782,19 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 i = 0;
                 dmb();
 
+// ---------------------------------------------------------------------------------- get the
+                #[cfg(not(feature = "no-fpga"))] {
+                    unsafe { pc = *(area.offset(80 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(82 as isize) as *mut i64x2); }
+                    dmb();
+                }
 // ---------------------------------------------------------------------------------- get the data
-                unsafe{pc = *(area.offset(80 as isize) as *mut i64x2);}
-                dmb();
-                unsafe{it = *(area.offset(82 as isize) as *mut i64x2);}
-                dmb();
-// ---------------------------------------------------------------------------------- get the data
+                #[cfg(feature = "no-fpga")] {
+                    pc = i64x2::from_array([16, 16]);
+                    it = i64x2::from_array([0, 0]);
+                }
+// ----------------------------------------------------------------------------------- for the debug mode
 
                 cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
                 cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
@@ -667,11 +810,18 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 dmb();
 
 // ---------------------------------------------------------------------------------- get the data
-                unsafe{pc = *(area.offset(84 as isize) as *mut i64x2);}
-                dmb();
-                unsafe{it = *(area.offset(86 as isize) as *mut i64x2);}
-                dmb();
+                #[cfg(not(feature = "no-fpga"))] {
+                    unsafe { pc = *(area.offset(84 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(86 as isize) as *mut i64x2); }
+                    dmb();
+                }
 // ---------------------------------------------------------------------------------- get the data
+                #[cfg(feature = "no-fpga")] {
+                    pc = i64x2::from_array([16, 16]);
+                    it = i64x2::from_array([0, 0]);
+                }
+// ----------------------------------------------------------------------------------- for the debug mode
 
                 cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
                 cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
@@ -687,11 +837,18 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 dmb();
 
 // ---------------------------------------------------------------------------------- get the data
-                unsafe{pc = *(area.offset(88 as isize) as *mut i64x2);}
-                dmb();
-                unsafe{it = *(area.offset(90 as isize) as *mut i64x2);}
-                dmb();
+                #[cfg(not(feature = "no-fpga"))] {
+                    unsafe { pc = *(area.offset(88 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(90 as isize) as *mut i64x2); }
+                    dmb();
+                }
 // ---------------------------------------------------------------------------------- get the data
+                #[cfg(feature = "no-fpga")] {
+                    pc = i64x2::from_array([16, 16]);
+                    it = i64x2::from_array([0, 0]);
+                }
+// ----------------------------------------------------------------------------------- for the debug mode
 
                 cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
                 cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
@@ -706,12 +863,20 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 i = 0;
                 dmb();
 
+
 // ---------------------------------------------------------------------------------- get the data
-                unsafe{pc = *(area.offset(92 as isize) as *mut i64x2);}
-                dmb();
-                unsafe{it = *(area.offset(94 as isize) as *mut i64x2);}
-                dmb();
+                #[cfg(not(feature = "no-fpga"))] {
+                    unsafe { pc = *(area.offset(92 as isize) as *mut i64x2); }
+                    dmb();
+                    unsafe { it = *(area.offset(94 as isize) as *mut i64x2); }
+                    dmb();
+                }
 // ---------------------------------------------------------------------------------- get the data
+                #[cfg(feature = "no-fpga")] {
+                    pc = i64x2::from_array([16, 16]);
+                    it = i64x2::from_array([0, 0])
+                }
+// ----------------------------------------------------------------------------------- for the debug mode
 
                 cb = ChangeBatch::new_from(time_1, pc[0] as i64 );
                 cb1 = ChangeBatch::new_from(time_1, pc[1] as i64 );
@@ -768,45 +933,65 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                     v1.push(x);
                 }
 
-                unsafe{*(area.offset(0 as isize) as *mut u64x2) = v0[0]};
-                unsafe{*(area.offset(2 as isize) as *mut u64x2) = v0[1]};
-                unsafe{*(area.offset(4 as isize) as *mut u64x2) = v0[2]};
-                unsafe{*(area.offset(6 as isize) as *mut u64x2) = v0[3]};
-                unsafe{*(area.offset(8 as isize) as *mut u64x2) = v0[4]};
-                unsafe{*(area.offset(10 as isize) as *mut u64x2) = v0[5]};
-                unsafe{*(area.offset(12 as isize) as *mut u64x2) = v0[6]};
-                unsafe{*(area.offset(14 as isize) as *mut u64x2) = v0[7]};
-                unsafe{*(area.offset(16 as isize) as *mut u64x2) = v0[8]};
-                unsafe{*(area.offset(18 as isize) as *mut u64x2) = v0[9]};
-                unsafe{*(area.offset(20 as isize) as *mut u64x2) = v0[10]};
-                unsafe{*(area.offset(22 as isize) as *mut u64x2) = v0[11]};
-                unsafe{*(area.offset(24 as isize) as *mut u64x2) = v1[12]};
-                unsafe{*(area.offset(26 as isize) as *mut u64x2) = v1[13]};
-                unsafe{*(area.offset(28 as isize) as *mut u64x2) = v1[14]};
-                unsafe{*(area.offset(30 as isize) as *mut u64x2) = v1[15]};
-                unsafe{*(area.offset(32 as isize) as *mut u64x2) = v1[16]};
-                unsafe{*(area.offset(34 as isize) as *mut u64x2) = v1[17]};
-                unsafe{*(area.offset(36 as isize) as *mut u64x2) = v1[18]};
-                unsafe{*(area.offset(38 as isize) as *mut u64x2) = v1[19]};
-                dmb();
+//--------------------------------------------------------------------------------------------- print the output data
+                println!("OUTPUT DATA FROM TIMELY");
+                println!("Length of frontier vector {}", v0.len());
+                for val in v0 {
+                    println!("{} {}", val[0], val[1]);
+                }
+                println!();
+
+                println!("Length of data vector {}", v1.len());
+                for val in v1 {
+                    println!("{} {}", val[0], val[1]);
+                }
+                println!();
+//--------------------------------------------------------------------------------------------- print the output data
+
+                #[cfg(not(feature = "no-fpga"))] {
+                    unsafe { *(area.offset(0 as isize) as *mut u64x2) = v0[0] };
+                    unsafe { *(area.offset(2 as isize) as *mut u64x2) = v0[1] };
+                    unsafe { *(area.offset(4 as isize) as *mut u64x2) = v0[2] };
+                    unsafe { *(area.offset(6 as isize) as *mut u64x2) = v0[3] };
+                    unsafe { *(area.offset(8 as isize) as *mut u64x2) = v0[4] };
+                    unsafe { *(area.offset(10 as isize) as *mut u64x2) = v0[5] };
+                    unsafe { *(area.offset(12 as isize) as *mut u64x2) = v0[6] };
+                    unsafe { *(area.offset(14 as isize) as *mut u64x2) = v0[7] };
+                    unsafe { *(area.offset(16 as isize) as *mut u64x2) = v0[8] };
+                    unsafe { *(area.offset(18 as isize) as *mut u64x2) = v0[9] };
+                    unsafe { *(area.offset(20 as isize) as *mut u64x2) = v0[10] };
+                    unsafe { *(area.offset(22 as isize) as *mut u64x2) = v0[11] };
+                    unsafe { *(area.offset(24 as isize) as *mut u64x2) = v1[12] };
+                    unsafe { *(area.offset(26 as isize) as *mut u64x2) = v1[13] };
+                    unsafe { *(area.offset(28 as isize) as *mut u64x2) = v1[14] };
+                    unsafe { *(area.offset(30 as isize) as *mut u64x2) = v1[15] };
+                    unsafe { *(area.offset(32 as isize) as *mut u64x2) = v1[16] };
+                    unsafe { *(area.offset(34 as isize) as *mut u64x2) = v1[17] };
+                    unsafe { *(area.offset(36 as isize) as *mut u64x2) = v1[18] };
+                    unsafe { *(area.offset(38 as isize) as *mut u64x2) = v1[19] };
+                    dmb();
+                }
+
 
                 let mut pc: i64x2 = i64x2::from_array([0 , 0]);
                 let mut it: i64x2 = i64x2::from_array([0 , 0]);
                 let mut data: u64x2 = u64x2::from_array([0 , 0]);
 
-                for i in 0..data_length as usize {
-                    unsafe{data = *(area.offset(i as isize) as *mut u64x2);}
-                    // all the writes can be done asynchronously
-                    // we are getting two numbers here
-                    // the offset for progress would be 18
-                    dmb();
-                    let shifted_val1 = data[0] >> 1;
-                    let shifted_val2 = data[1] >> 1;
-                    if data[0] != 0 {
-                        vector2.push(shifted_val1);
-                    }
-                    if data[1] != 0 {
-                        vector2.push(shifted_val2);
+                #[cfg(not(feature = "no-fpga"))] {
+                    for i in 0..data_length as usize {
+                        unsafe { data = *(area.offset(i as isize) as *mut u64x2); }
+                        // all the writes can be done asynchronously
+                        // we are getting two numbers here
+                        // the offset for progress would be 18
+                        dmb();
+                        let shifted_val1 = data[0] >> 1;
+                        let shifted_val2 = data[1] >> 1;
+                        if data[0] != 0 {
+                            vector2.push(shifted_val1);
+                        }
+                        if data[1] != 0 {
+                            vector2.push(shifted_val2);
+                        }
                     }
                 }
 
