@@ -20,7 +20,7 @@ fn main() {
         worker.dataflow(|scope| {
             scope
                 .input_from(&mut input)
-                .fpga_wrapper_eci(num_data, num_operators, hc)
+                .fpga_wrapper_pci(num_data, num_operators, hc)
                 .probe_with(&mut probe);
         });
 
