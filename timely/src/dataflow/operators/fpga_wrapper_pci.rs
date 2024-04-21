@@ -841,7 +841,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 
                 let data_length = num_data;
 
-                for i in 0 .. borrow.len() {
+                for i in (0 .. borrow.len()).step_by(2) {
                     let frontier1 = borrow[i].borrow().frontier();
                     let frontier2 = borrow[i+1].borrow().frontier();
                     /*if frontier.len() == 0 {
@@ -929,7 +929,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 let mut data: u64x2 = u64x2::from_array([0 , 0]);
 
                 //#[cfg(not(feature = "no-fpga"))] {
-                    for i in (0..data_length).step_by(2) as usize {
+                    for i in (0..data_length).step_by(2) {
                         unsafe { data = *(area.offset(i as isize) as *mut u64x2); }
 
                         // all the writes can be done asynchronously
