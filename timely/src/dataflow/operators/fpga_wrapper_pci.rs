@@ -190,6 +190,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 data.swap(&mut vector);
 
                 let mut current_length = 0;
+                let area = unsafe { (*hc).area } as *mut u64;
                 let mut v1: Vec<u64x2> = Vec::new();
                 let mut v0: Vec<u64x2> = Vec::new();
 
