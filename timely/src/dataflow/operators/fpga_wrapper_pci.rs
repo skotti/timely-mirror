@@ -136,7 +136,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
         // TODO: should get rid of ghost indexes
         let mut current_index = 0;
 
-        let mut frontier_length = 16;//(num_operators / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+        let mut frontier_length = 24;//(num_operators / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
         let mut progress_length = 16;//((num_operators * 4) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
 
         let max_length_in = num_data as usize + frontier_length as usize;
@@ -260,7 +260,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 let mut v1: Vec<u64x2> = Vec::new();
                 let mut v0: Vec<u64x2> = Vec::new();
 
-                current_length += 1;
+/*                current_length += 1;
 
                 for i in 0 .. borrow.len() {
                     let frontier = borrow[i].borrow().frontier();
@@ -276,9 +276,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                         }
                     }
                 }
-
-                for i in (current_length..max_length_in).step_by(2) {
-                    let x =  u64x2::from_array([0, 0]);
+*/
+                for i in (0..frontier_length).step_by(2) {
+                    let x =  u64x2::from_array([23, 23]);
                     v0.push(x);
                 }
 
@@ -314,14 +314,14 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                     unsafe { *(area.offset(18 as isize) as *mut u64x2) = v0[9] };
                     unsafe { *(area.offset(20 as isize) as *mut u64x2) = v0[10] };
                     unsafe { *(area.offset(22 as isize) as *mut u64x2) = v0[11] };
-                    unsafe { *(area.offset(24 as isize) as *mut u64x2) = v1[12] };
-                    unsafe { *(area.offset(26 as isize) as *mut u64x2) = v1[13] };
-                    unsafe { *(area.offset(28 as isize) as *mut u64x2) = v1[14] };
-                    unsafe { *(area.offset(30 as isize) as *mut u64x2) = v1[15] };
-                    unsafe { *(area.offset(32 as isize) as *mut u64x2) = v1[16] };
-                    unsafe { *(area.offset(34 as isize) as *mut u64x2) = v1[17] };
-                    unsafe { *(area.offset(36 as isize) as *mut u64x2) = v1[18] };
-                    unsafe { *(area.offset(38 as isize) as *mut u64x2) = v1[19] };
+                    unsafe { *(area.offset(24 as isize) as *mut u64x2) = v1[0] };
+                    unsafe { *(area.offset(26 as isize) as *mut u64x2) = v1[1] };
+                    unsafe { *(area.offset(28 as isize) as *mut u64x2) = v1[2] };
+                    unsafe { *(area.offset(30 as isize) as *mut u64x2) = v1[3] };
+                    unsafe { *(area.offset(32 as isize) as *mut u64x2) = v1[4] };
+                    unsafe { *(area.offset(34 as isize) as *mut u64x2) = v1[5] };
+                    unsafe { *(area.offset(36 as isize) as *mut u64x2) = v1[6] };
+                    unsafe { *(area.offset(38 as isize) as *mut u64x2) = v1[7] };
                     dmb();
                 }
                 let mut pc: i64x2 = i64x2::from_array([0 , 0]);
@@ -908,28 +908,35 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 
                 let data_length = num_data;
 
-                for i in 0 .. borrow.len() {
+  /*              for i in 0 .. borrow.len() {
                     let frontier = borrow[i].borrow().frontier();
                     if frontier.len() == 0 {
                         let x =  u64x2::from_array([0, 0]);
                         v0.push(x);
                         current_length += 2;
+                    } else if frontier.len() == 1 {
+                        let x =  u64x2::from_array([(frontier[0] << 1) | 1u64, 0]);
+                        v0.push(x);
+                        current_length += 2;
+
                     } else {
                         for val in (0..frontier.len()).step_by(2) {
-                            let x =  u64x2::from_array([(frontier[val] << 1) | 1u64, (frontier[val] << 1) | 1u64]);
+                            let x =  u64x2::from_array([(frontier[val] << 1) | 1u64, (frontier[val+1] << 1) | 1u64]);
                             v0.push(x);
                             current_length += 2;
                         }
                     }
                 }
-
-                for i in (current_length..max_length_in).step_by(2) {
-                    let x =  u64x2::from_array([0, 0]);
+*/
+                println!("Current length = {}", current_length);
+                for i in (0..frontier_length*2).step_by(2) {
+                    let x =  u64x2::from_array([23, 23]);
                     v0.push(x);
+                    println!("added");
                 }
 
                 for i in (0..16).step_by(2) {
-                    let x = u64x2::from_array([vector[i], vector[i+1]]);
+                    let x = u64x2::from_array([0, 0]);
                     v1.push(x);
                 }
 
@@ -961,14 +968,14 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                     unsafe { *(area.offset(18 as isize) as *mut u64x2) = v0[9] };
                     unsafe { *(area.offset(20 as isize) as *mut u64x2) = v0[10] };
                     unsafe { *(area.offset(22 as isize) as *mut u64x2) = v0[11] };
-                    unsafe { *(area.offset(24 as isize) as *mut u64x2) = v1[12] };
-                    unsafe { *(area.offset(26 as isize) as *mut u64x2) = v1[13] };
-                    unsafe { *(area.offset(28 as isize) as *mut u64x2) = v1[14] };
-                    unsafe { *(area.offset(30 as isize) as *mut u64x2) = v1[15] };
-                    unsafe { *(area.offset(32 as isize) as *mut u64x2) = v1[16] };
-                    unsafe { *(area.offset(34 as isize) as *mut u64x2) = v1[17] };
-                    unsafe { *(area.offset(36 as isize) as *mut u64x2) = v1[18] };
-                    unsafe { *(area.offset(38 as isize) as *mut u64x2) = v1[19] };
+                    unsafe { *(area.offset(24 as isize) as *mut u64x2) = v1[0] };
+                    unsafe { *(area.offset(26 as isize) as *mut u64x2) = v1[1] };
+                    unsafe { *(area.offset(28 as isize) as *mut u64x2) = v1[2] };
+                    unsafe { *(area.offset(30 as isize) as *mut u64x2) = v1[3] };
+                    unsafe { *(area.offset(32 as isize) as *mut u64x2) = v1[4] };
+                    unsafe { *(area.offset(34 as isize) as *mut u64x2) = v1[5] };
+                    unsafe { *(area.offset(36 as isize) as *mut u64x2) = v1[6] };
+                    unsafe { *(area.offset(38 as isize) as *mut u64x2) = v1[7] };
                     dmb();
                 }
 
@@ -977,7 +984,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 let mut it: i64x2 = i64x2::from_array([0 , 0]);
                 let mut data: u64x2 = u64x2::from_array([0 , 0]);
 
-                #[cfg(not(feature = "no-fpga"))] {
+                /*#[cfg(not(feature = "no-fpga"))] {
                     for i in 0..data_length as usize {
                         unsafe { data = *(area.offset(i as isize) as *mut u64x2); }
                         // all the writes can be done asynchronously
@@ -993,7 +1000,18 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                             vector2.push(shifted_val2);
                         }
                     }
-                }
+                }*/
+
+                //#[cfg(not(feature = "no-fpga"))] {
+                    let mut result: i64x2 = i64x2::from_array([0 , 0]);
+                    for i in (0..95).step_by(2) {
+                        unsafe{result = *(area.offset(i as isize) as *mut i64x2);}
+                        println!("{} {} \n", result[0], result[1]);
+                        dmb();
+                    }
+
+                    dmb();
+                //}
 
                 let id_wrap = ghost_indexes[ghost_indexes.len() - 1].1;
 
