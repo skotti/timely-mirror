@@ -931,9 +931,11 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 }
 
 
-                let mut pc: i64x2 = i64x2::from_array([0 , 0]);
-                let mut it: i64x2 = i64x2::from_array([0 , 0]);
+                let mut pc = Vec::with_capacity(50);//i64x2::from_array([0 , 0]);
+                //let mut it = Vec::with_capacity(50);//i64x2::from_array([0 , 0]);
                 let mut data: u64x2 = u64x2::from_array([0 , 0]);
+
+
 
 
                 //#[cfg(not(feature = "no-fpga"))] {
@@ -957,21 +959,47 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 
                 let id_wrap = ghost_indexes[ghost_indexes.len() - 1].1;
 
+                let mut cc = 0;
                 for i in (16..95).step_by(2) {
-                    unsafe { pc = *(area.offset(i as isize) as *mut i64x2); }
-                    println!("{} {} \n", pc[0], pc[1]);
+                    unsafe { pc[cc] = *(area.offset(i as isize) as *mut i64x2); }
+                    println!("{} {} \n", pc[cc][0], pc[cc][1]);
                     dmb();
-                    
+                    cc += 1;
                 }
 
 
                 // we are even not reading updates if vector is equal to 0
-                if vector2.len() > 0 {
-                    /*output_wrapper
-                        .session(0 /*&(internals.get(&id_wrap).unwrap().0*/ as u64)
-                        .give_vec(&mut vector2);*/
+                // Alright: that is not necessarily true, what needs to be done I think is that there can
+                // be also some output for example from some window that got filtered out by the filter afterwards
+                // we still need all the updates, not only if the end result
+                // but for now we can leavelike this
+                // if there is something we want to release to the world this would be the last result
+                // but for the intermediate results we just need to get internals
+                // I should set for now some placeholder for time and potentially replace it with something meaningful
+                // in initial verison I was providing data only for the id wrap
+                // which I assume was the wrapping around the window
+                // so not for all of the operators but
+                // so basically in theory I should read only that part
+                // in theory this was not really discussed yet but in general I just need to fetch
+                // only needed data
+                // or fetch everything
+                // in any case I need to fetch everything and pick a random time
+                // as this case will never be true for now as I don't simply have a use case for that
 
-                    /*let mut k = 0;
+                // how it should be done:
+                // 1) mark all the nodes that can produce output
+                // 2) read them // if there is nothing do not insert anything
+                // 3) oh, really: check against 0, if all 0, don't do anything otherwise insert
+                // 4) if output is zero then don't insert anything
+                // this approach is a bit unfortunate in terms of cache lines
+                // in any case I can test later if something changes if there are just zeros
+                // entering the algorithm
+
+
+
+                if vector2.len() > 0 {
+
+                    let mut k = 0;
                     let mut i = 0 as usize;
                     let mut j = 0;
                     let mut cb = ChangeBatch::new_from(0, 0);
@@ -979,183 +1007,170 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                     let mut cb2 = ChangeBatch::new_from(0, 0);
                     let mut counter_offset = 0;
 
-                    let time_1 = internals.get(&id_wrap).unwrap().0;
+                    let time_1 = pc[1][0] as u64;
 
-                    let mut pc: i64x2 = i64x2::from_array([0, 0]);
-                    let mut it: i64x2 = i64x2::from_array([0, 0]);
 // ---------------------------------------------------------------------------------- get the data
-                    unsafe { pc = *(area.offset(16 as isize) as *mut i64x2); }
+/*                  unsafe { pc = *(area.offset(16 as isize) as *mut i64x2); }
                     dmb();
                     unsafe { it = *(area.offset(18 as isize) as *mut i64x2); }
+                    dmb();*/
+
 // ---------------------------------------------------------------------------------- got data
-                    dmb();
-                    //------------------------------------------------------------- first 4 operators
-                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
-                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb = ChangeBatch::new_from(time_1, pc[0][0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[0][1] as i64);
                     cb2 = ChangeBatch::new_from(
-                        it[0] as u64,
-                        it[1] as i64,
+                        pc[1][0] as u64,
+                        pc[1][1] as i64,
                     );
                     j = ghost_indexes[0].1 as usize;
                     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
                     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-                    i = i + 4;
 
 // ---------------------------------------------------------------------------------- get the data
-                    unsafe { pc = *(area.offset(20 as isize) as *mut i64x2); }
+                    /*unsafe { pc = *(area.offset(20 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(22 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(22 as isize) as *mut i64x2); }*/
 // ---------------------------------------------------------------------------------- got data
-                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
-                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb = ChangeBatch::new_from(time_1, pc[2][0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[2][1] as i64);
                     cb2 = ChangeBatch::new_from(
-                        it[0] as u64,
-                        it[1] as i64,
+                        pc[3][0] as u64,
+                        pc[3][1] as i64,
                     );
                     j = ghost_indexes[1].1 as usize;
                     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
                     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-                    i = i + 4;
 
 // ---------------------------------------------------------------------------------- get the data
-                    unsafe { pc = *(area.offset(24 as isize) as *mut i64x2); }
+                   /* unsafe { pc = *(area.offset(24 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(26 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(26 as isize) as *mut i64x2); }*/
 // ---------------------------------------------------------------------------------- got data
-                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
-                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb = ChangeBatch::new_from(time_1, pc[4][0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[4][1] as i64);
                     cb2 = ChangeBatch::new_from(
-                        it[0] as u64,
-                        it[1] as i64,
+                        pc[5][0] as u64,
+                        pc[5][1] as i64,
                     );
 
                     j = ghost_indexes[2].1 as usize;
                     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
                     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-                    i = i + 4;
 
 // ---------------------------------------------------------------------------------- get the data
-                    unsafe { pc = *(area.offset(28 as isize) as *mut i64x2); }
+                   /* unsafe { pc = *(area.offset(28 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(30 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(30 as isize) as *mut i64x2); }*/
 // ---------------------------------------------------------------------------------- got data
-                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
-                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb = ChangeBatch::new_from(time_1, pc[6][0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[6][1] as i64);
                     cb2 = ChangeBatch::new_from(
-                        it[0] as u64,
-                        it[1] as i64,
+                        pc[7][0] as u64,
+                        pc[7][1] as i64,
                     );
                     j = ghost_indexes[3].1 as usize;
                     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
                     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-                    i = 0;
-                    dmb();
                     //println!("DONE 4");
 
 // ---------------------------------------------------------------------------------- get the data
-                    unsafe { pc = *(area.offset(32 as isize) as *mut i64x2); }
+                    /*unsafe { pc = *(area.offset(32 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(34 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(34 as isize) as *mut i64x2); }*/
 // ---------------------------------------------------------------------------------- got data
-                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
-                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb = ChangeBatch::new_from(time_1, pc[8][0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[8][1] as i64);
                     cb2 = ChangeBatch::new_from(
-                        it[0] as u64,
-                        it[1] as i64,
+                        pc[9][0] as u64,
+                        pc[9][1] as i64,
                     );
                     j = ghost_indexes[4].1 as usize;
                     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
                     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-                    i = i + 4;
 
 // ---------------------------------------------------------------------------------- get the data
-                    unsafe { pc = *(area.offset(36 as isize) as *mut i64x2); }
+                  /*  unsafe { pc = *(area.offset(36 as isize) as *mut i64x2); }
                     dmb();
                     unsafe { it = *(area.offset(38 as isize) as *mut i64x2); }
-                    dmb();
+                    dmb();*/
 // ---------------------------------------------------------------------------------- got data
 
-                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
-                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb = ChangeBatch::new_from(time_1, pc[10][0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[10][1] as i64);
                     cb2 = ChangeBatch::new_from(
-                        it[0] as u64,
-                        it[1] as i64,
+                        pc[11][0] as u64,
+                        pc[11][1] as i64,
                     );
                     j = ghost_indexes[5].1 as usize;
                     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
                     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-                    i = i + 4;
 
 // ---------------------------------------------------------------------------------- get the data
-                    unsafe { pc = *(area.offset(40 as isize) as *mut i64x2); }
+                    /*unsafe { pc = *(area.offset(40 as isize) as *mut i64x2); }
                     dmb();
                     unsafe { it = *(area.offset(42 as isize) as *mut i64x2); }
-                    dmb();
+                    dmb();*/
 // ---------------------------------------------------------------------------------- get the data
 
-                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
-                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb = ChangeBatch::new_from(time_1, pc[12][0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[12][1] as i64);
                     cb2 = ChangeBatch::new_from(
-                        it[0] as u64,
-                        it[1] as i64,
+                        pc[13][0] as u64,
+                        pc[13][1] as i64,
                     );
 
                     j = ghost_indexes[6].1 as usize;
                     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
                     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-                    i = i + 4;
-
 
 // ---------------------------------------------------------------------------------- get the data
-                    unsafe { pc = *(area.offset(44 as isize) as *mut i64x2); }
+                    /*unsafe { pc = *(area.offset(44 as isize) as *mut i64x2); }
                     dmb();
                     unsafe { it = *(area.offset(46 as isize) as *mut i64x2); }
-                    dmb();
+                    dmb();*/
 
 // ---------------------------------------------------------------------------------- get the data
-                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
-                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb = ChangeBatch::new_from(time_1, pc[14][0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[14][1] as i64);
                     cb2 = ChangeBatch::new_from(
-                        it[0] as u64,
-                        it[1] as i64,
+                        pc[15][0] as u64,
+                        pc[15][1] as i64,
                     );
                     j = ghost_indexes[7].1 as usize;
                     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
                     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
                     i = 0;
-                    dmb();
                     //println!("DONE 5");
 
 // ---------------------------------------------------------------------------------- get the data
-                    unsafe { pc = *(area.offset(48 as isize) as *mut i64x2); }
+                   /* unsafe { pc = *(area.offset(48 as isize) as *mut i64x2); }
                     dmb();
                     unsafe { it = *(area.offset(50 as isize) as *mut i64x2); }
-                    dmb();
+                    dmb();*/
 // ---------------------------------------------------------------------------------- get the data
 
-                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
-                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb = ChangeBatch::new_from(time_1, pc[16][0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[16][1] as i64);
                     cb2 = ChangeBatch::new_from(
-                        it[0] as u64,
-                        it[1] as i64,
+                        pc[17][0] as u64,
+                        pc[17][1] as i64,
                     );
                     j = ghost_indexes[8].1 as usize;
                     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
                     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-                    i = i + 4;
 
 // ---------------------------------------------------------------------------------- get the data
-                    unsafe { pc = *(area.offset(52 as isize) as *mut i64x2); }
+                    /*unsafe { pc = *(area.offset(52 as isize) as *mut i64x2); }
                     dmb();
                     unsafe { it = *(area.offset(54 as isize) as *mut i64x2); }
-                    dmb();
+                    dmb();*/
 // ---------------------------------------------------------------------------------- get the data
 
-                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
-                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb = ChangeBatch::new_from(time_1, pc[18][0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[18][1] as i64);
                     cb2 = ChangeBatch::new_from(
-                        it[0] as u64,
-                        it[1] as i64,
+                        pc[19][0] as u64,
+                        pc[19][1] as i64,
                     );
                     j = ghost_indexes[9].1 as usize;
                     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
@@ -1163,189 +1178,179 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                     i = i + 4;
 
 // ---------------------------------------------------------------------------------- get the data
-                    unsafe { pc = *(area.offset(56 as isize) as *mut i64x2); }
+                   /* unsafe { pc = *(area.offset(56 as isize) as *mut i64x2); }
                     dmb();
                     unsafe { it = *(area.offset(58 as isize) as *mut i64x2); }
-                    dmb();
+                    dmb();*/
 // ---------------------------------------------------------------------------------- get the data
-                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
-                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb = ChangeBatch::new_from(time_1, pc[20][0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[20][1] as i64);
                     cb2 = ChangeBatch::new_from(
-                        it[0] as u64,
-                        it[1] as i64,
+                        pc[21][0] as u64,
+                        pc[21][1] as i64,
                     );
 
                     j = ghost_indexes[10].1 as usize;
                     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
                     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-                    i = i + 4;
 
 // ---------------------------------------------------------------------------------- get the data
-                    unsafe { pc = *(area.offset(60 as isize) as *mut i64x2); }
+                   /* unsafe { pc = *(area.offset(60 as isize) as *mut i64x2); }
                     dmb();
                     unsafe { it = *(area.offset(62 as isize) as *mut i64x2); }
-                    dmb();
+                    dmb();*/
 // ---------------------------------------------------------------------------------- get the data
 
-                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
-                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb = ChangeBatch::new_from(time_1, pc[22][0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[22][1] as i64);
                     cb2 = ChangeBatch::new_from(
-                        it[0] as u64,
-                        it[1] as i64,
+                        pc[23][0] as u64,
+                        pc[23][1] as i64,
                     );
                     j = ghost_indexes[11].1 as usize;
                     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
                     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-                    i = 0;
-                    dmb();
                     //println!("DONE 6");
 
 // ---------------------------------------------------------------------------------- get the data
-                    unsafe { pc = *(area.offset(64 as isize) as *mut i64x2); }
+                    /*unsafe { pc = *(area.offset(64 as isize) as *mut i64x2); }
                     dmb();
                     unsafe { it = *(area.offset(66 as isize) as *mut i64x2); }
-                    dmb();
+                    dmb();*/
 // ---------------------------------------------------------------------------------- get the data
-                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
-                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb = ChangeBatch::new_from(time_1, pc[24][0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[24][1] as i64);
                     cb2 = ChangeBatch::new_from(
-                        it[0] as u64,
-                        it[1] as i64,
+                        pc[25][0] as u64,
+                        pc[25][1] as i64,
                     );
                     j = ghost_indexes[12].1 as usize;
                     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
                     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-                    i = i + 4;
 
 // ---------------------------------------------------------------------------------- get the data
-                    unsafe { pc = *(area.offset(68 as isize) as *mut i64x2); }
+                   /* unsafe { pc = *(area.offset(68 as isize) as *mut i64x2); }
                     dmb();
                     unsafe { it = *(area.offset(70 as isize) as *mut i64x2); }
-                    dmb();
+                    dmb();*/
 // ---------------------------------------------------------------------------------- get the data
 
-                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
-                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb = ChangeBatch::new_from(time_1, pc[26][0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[26][1] as i64);
                     cb2 = ChangeBatch::new_from(
-                        it[0] as u64,
-                        it[1] as i64,
+                        pc[27][0] as u64,
+                        pc[27][1] as i64,
                     );
                     j = ghost_indexes[13].1 as usize;
                     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
                     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-                    i = i + 4;
 
 // ---------------------------------------------------------------------------------- get the data
-                    unsafe { pc = *(area.offset(72 as isize) as *mut i64x2); }
+                    /*unsafe { pc = *(area.offset(72 as isize) as *mut i64x2); }
                     dmb();
                     unsafe { it = *(area.offset(74 as isize) as *mut i64x2); }
-                    dmb();
+                    dmb();*/
 // ---------------------------------------------------------------------------------- get the data
 
-                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
-                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb = ChangeBatch::new_from(time_1, pc[28][0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[28][1] as i64);
                     cb2 = ChangeBatch::new_from(
-                        it[0] as u64,
-                        it[1] as i64,
+                        pc[29][0] as u64,
+                        pc[29][1] as i64,
                     );
                     j = ghost_indexes[14].1 as usize;
                     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
                     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-                    i = i + 4;
 
 // ---------------------------------------------------------------------------------- get the data
-                    unsafe { pc = *(area.offset(76 as isize) as *mut i64x2); }
+                    /*unsafe { pc = *(area.offset(76 as isize) as *mut i64x2); }
                     dmb();
                     unsafe { it = *(area.offset(78 as isize) as *mut i64x2); }
-                    dmb();
+                    dmb();*/
 // ---------------------------------------------------------------------------------- get the data
-                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
-                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb = ChangeBatch::new_from(time_1, pc[30][0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[30][1] as i64);
                     cb2 = ChangeBatch::new_from(
-                        it[0] as u64,
-                        it[1] as i64,
+                        pc[31][0] as u64,
+                        pc[31][1] as i64,
                     );
                     j = ghost_indexes[15].1 as usize;
                     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
                     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-                    i = 0;
-                    dmb();
 
 // ---------------------------------------------------------------------------------- get the data
-                    unsafe { pc = *(area.offset(80 as isize) as *mut i64x2); }
+                    /*unsafe { pc = *(area.offset(80 as isize) as *mut i64x2); }
                     dmb();
                     unsafe { it = *(area.offset(82 as isize) as *mut i64x2); }
-                    dmb();
+                    dmb();*/
 // ---------------------------------------------------------------------------------- get the data
 
-                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
-                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb = ChangeBatch::new_from(time_1, pc[32][0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[32][1] as i64);
                     cb2 = ChangeBatch::new_from(
-                        it[0] as u64,
-                        it[1] as i64,
+                        pc[33][0] as u64,
+                        pc[33][1] as i64,
                     );
                     j = ghost_indexes[16].1 as usize;
                     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
                     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-                    i = 0;
-                    dmb();
 
 // ---------------------------------------------------------------------------------- get the data
-                    unsafe { pc = *(area.offset(84 as isize) as *mut i64x2); }
+                    /*unsafe { pc = *(area.offset(84 as isize) as *mut i64x2); }
                     dmb();
                     unsafe { it = *(area.offset(86 as isize) as *mut i64x2); }
-                    dmb();
+                    dmb();*/
 // ---------------------------------------------------------------------------------- get the data
 
-                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
-                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb = ChangeBatch::new_from(time_1, pc[34][0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[34][1] as i64);
                     cb2 = ChangeBatch::new_from(
-                        it[0] as u64,
-                        it[1] as i64,
+                        pc[35][0] as u64,
+                        pc[35][1] as i64,
                     );
                     j = ghost_indexes[17].1 as usize;
                     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
                     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-                    i = 0;
-                    dmb();
 
 // ---------------------------------------------------------------------------------- get the data
-                    unsafe { pc = *(area.offset(88 as isize) as *mut i64x2); }
+                    /*unsafe { pc = *(area.offset(88 as isize) as *mut i64x2); }
                     dmb();
                     unsafe { it = *(area.offset(90 as isize) as *mut i64x2); }
-                    dmb();
+                    dmb();*/
 // ---------------------------------------------------------------------------------- get the data
 
-                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
-                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb = ChangeBatch::new_from(time_1, pc[36][0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[36][1] as i64);
                     cb2 = ChangeBatch::new_from(
-                        it[0] as u64,
-                        it[1] as i64,
+                        pc[37][0] as u64,
+                        pc[37][1] as i64,
                     );
                     j = ghost_indexes[18].1 as usize;
                     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
                     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-                    i = 0;
-                    dmb();
 
 // ---------------------------------------------------------------------------------- get the data
-                    unsafe { pc = *(area.offset(92 as isize) as *mut i64x2); }
+                    /*unsafe { pc = *(area.offset(92 as isize) as *mut i64x2); }
                     dmb();
                     unsafe { it = *(area.offset(94 as isize) as *mut i64x2); }
-                    dmb();
+                    dmb();*/
 // ---------------------------------------------------------------------------------- get the data
 
-                    cb = ChangeBatch::new_from(time_1, pc[0] as i64);
-                    cb1 = ChangeBatch::new_from(time_1, pc[1] as i64);
+                    cb = ChangeBatch::new_from(time_1, pc[38][0] as i64);
+                    cb1 = ChangeBatch::new_from(time_1, pc[38][1] as i64);
                     cb2 = ChangeBatch::new_from(
-                        it[0] as u64,
-                        it[1] as i64,
+                        pc[39][0] as u64,
+                        pc[39][1] as i64,
                     );
                     j = ghost_indexes[19].1 as usize;
                     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
                     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
                     i = 0;
-                    dmb();*/
+                    dmb();
+
+                    output_wrapper
+                        .session(&time_1)
+                        .give_vec(&mut vector2);
                 }
 
 
