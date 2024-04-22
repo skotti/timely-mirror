@@ -215,12 +215,19 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                     current_length += 2;
                 }
 
+                 for i in (current_length..frontier_length).step_by(2) {
+                    let x =  u64x2::from_array([0, 0]);
+                    v0.push(x);
+                    current_length += 2;
+                }
+
+
                 for i in (0..16).step_by(2) {
                     let x = u64x2::from_array([vector[i], vector[i+1]]);
                     v1.push(x);
                 }
 //--------------------------------------------------------------------------------------------- print the output data
-                println!("OUTPUT DATA FROM TIMELY");
+                /*println!("OUTPUT DATA FROM TIMELY");
                 println!("Length of frontier vector {}", v0.len());
                 for val in &v0 {
                     println!("{} {}", val[0], val[1]);
@@ -231,7 +238,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 for val in &v1 {
                     println!("{} {}", val[0], val[1]);
                 }
-                println!();
+                println!();*/
 //--------------------------------------------------------------------------------------------- print the output data
 
                 #[cfg(not(feature = "no-fpga"))] {
@@ -861,10 +868,15 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                         }
                     }*/
 
-                    let x =  u64x2::from_array([(frontier1[0] << 1) | 1u64, (frontier2[0] << 1) | 1u64]);
-                    v0.push(x);
-                    current_length += 2;
-
+                    if (frontier1.len() == 0 && frontier2.len() == 0) {
+                        let x =  u64x2::from_array([0, 0]);
+                        v0.push(x);
+                        current_length += 2;
+                    } else {
+                        let x =  u64x2::from_array([(frontier1[0] << 1) | 1u64, (frontier2[0] << 1) | 1u64]);
+                        v0.push(x);
+                        current_length += 2;
+                    }
                 }
 
                 for i in (current_length..frontier_length).step_by(2) {
@@ -872,12 +884,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                     v0.push(x);
                     current_length += 2;
                 }
-                println!("Current length = {}", current_length);
-                for i in (0..frontier_length*2).step_by(2) {
-                    let x =  u64x2::from_array([23, 23]);
-                    v0.push(x);
-                    println!("added");
-                }
+                //println!("Current length = {}", current_length);
 
                 for i in (0..16).step_by(2) {
                     let x = u64x2::from_array([0, 0]);
@@ -885,7 +892,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 }
 
 //--------------------------------------------------------------------------------------------- print the output data
-                println!("OUTPUT DATA FROM TIMELY");
+                /*println!("OUTPUT DATA FROM TIMELY");
                 println!("Length of frontier vector {}", v0.len());
                 for val in &v0 {
                     println!("{} {}", val[0], val[1]);
@@ -896,7 +903,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 for val in &v1 {
                     println!("{} {}", val[0], val[1]);
                 }
-                println!();
+                println!();*/
 //--------------------------------------------------------------------------------------------- print the output data
 
                 #[cfg(not(feature = "no-fpga"))] {
@@ -928,6 +935,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 let mut it: i64x2 = i64x2::from_array([0 , 0]);
                 let mut data: u64x2 = u64x2::from_array([0 , 0]);
 
+
                 //#[cfg(not(feature = "no-fpga"))] {
                     for i in (0..data_length).step_by(2) {
                         unsafe { data = *(area.offset(i as isize) as *mut u64x2); }
@@ -948,6 +956,14 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 //}
 
                 let id_wrap = ghost_indexes[ghost_indexes.len() - 1].1;
+
+                for i in (16..95).step_by(2) {
+                    unsafe { pc = *(area.offset(i as isize) as *mut i64x2); }
+                    println!("{} {} \n", pc[0], pc[1]);
+                    dmb();
+                    
+                }
+
 
                 // we are even not reading updates if vector is equal to 0
                 if vector2.len() > 0 {
