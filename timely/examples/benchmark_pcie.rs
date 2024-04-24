@@ -31,13 +31,15 @@ fn main() {
 
         let mut epoch_latencies = vec![0; num_rounds as usize];
         for round in 0..num_rounds {
+            println!("New round");
             for _j in 0..num_data {
-                input.send(round as u64 + 21); // max = 0
+                input.send(21 + round as u64 * 2); // max = 0
             }
             input.advance_to(round as u64 + 1);
             while probe.less_than(input.time()) {
                 worker.step();
             }
+            println!("End round");
             let epoch_end = Instant::now();
             let epoch_nanos = (epoch_end - epoch_start).as_nanos();
             epoch_start = epoch_end;
