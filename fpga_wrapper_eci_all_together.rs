@@ -207,9 +207,182 @@ fn get_offset(offset_1: &mut i64, offset_2: &mut i64) {
 
 
 
+
+#[cfg(feature = "1op")]
+fn write_data(
+    borrow: RefMut<Vec>,
+    data: Vec<i64>,
+    hc: *const HardwareCommon,
+    time: &u64
+) {
+    let mut offset_1 = 0;
+    let mut offset_2 = 0;
+
+    get_offset(&mut offset_1, &mut offset_2);
+    //println!("offset1 = {}, offset2 = {}", offset_1, offset_2);
+
+
+    let area = unsafe { (*hc).area } as *mut u64;
+    let cache_line_1 = unsafe { std::slice::from_raw_parts_mut(area.offset(offset_1.try_into().unwrap()), CACHE_LINE_SIZE as usize) };
+    let cache_line_2 = unsafe {
+        std::slice::from_raw_parts_mut(
+            area.offset(offset_2.try_into().unwrap()),
+            CACHE_LINE_SIZE as usize,
+        )
+    };
+
+
+    for i in 0..16 {
+        let frontier = borrow[i].frontier();
+        if frontier.len() == 0 {
+            cache_line_1[current_length] = 0;
+        } else {
+            //for val in frontier.iter() {
+            cache_line_1[i] = (frontier[0] << 1) | 1u64;
+            //}
+        }
+    }
+    dmb();
+
+    if vector.len() == 0 {
+        for i in 0..16 {
+            cache_line_2[i] = 0;
+        }
+    } else {
+        for i in 0..16 {
+            cache_line_2[i] = (vector[i] << 1) | 1u64;
+            //current_length += 1;
+        }
+    }
+    dmb();
+}
+
+#[cfg(feature = "1op")]
+fn read_data(
+    progress: &mut SharedProgress<S::Timestamp>,
+    hc: *const HardwareCommon,
+    cache_line_1: &mut[u64],
+    cache_line_2: &mut[u64],
+    time: &u64,
+    ghost_indexes: &Vec<(usize, usize)>
+) {
+
+    let mut offset_1 = 0;
+    let mut offset_2 = 0;
+
+    get_offset(&mut offset_1, &mut offset_2);
+    //println!("offset1 = {}, offset2 = {}", offset_1, offset_2);
+
+
+    let area = unsafe { (*hc).area } as *mut u64;
+    let cache_line_1 = unsafe { std::slice::from_raw_parts_mut(area.offset(offset_1.try_into().unwrap()), CACHE_LINE_SIZE as usize) };
+    let cache_line_2 = unsafe {
+        std::slice::from_raw_parts_mut(
+            area.offset(offset_2.try_into().unwrap()),
+            CACHE_LINE_SIZE as usize,
+        )
+    };
+
+    for i in 0..16 as usize{
+        let val = cache_line_1[i] as u64;
+        let shifted_val = val >> 1;
+        if val != 0 {
+            vector2.push(shifted_val);
+        }
+    }
+
+    dmb();
+
+    //------------------------------------------------------------- first 4 operators
+    cb = ChangeBatch::new_from(time_1, cache_line_2[i] as i64 );
+    cb1 = ChangeBatch::new_from(time_1, cache_line_2[i+1] as i64 );
+    cb2 = ChangeBatch::new_from(
+        cache_line_2[i+2] as u64,
+        cache_line_2[i+3] as i64,
+    );
+    j = ghost_indexes[0].1 as usize;
+    cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
+    cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
+    cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
+    i = i + 4;
+
+    dmb();
+}
+
+#[cfg(feature = "4op")]
+fn write_data(
+    borrow: RefMut<Vec>,
+    data: Vec<i64>,
+    hc: *const HardwareCommon,
+    time: &u64
+) {
+
+    // so far nothing
+}
+#[cfg(feature = "4op")]
+fn read_data(
+    progress: &mut SharedProgress<S::Timestamp>,
+    hc: *const HardwareCommon,
+    cache_line_1: &mut[u64],
+    cache_line_2: &mut[u64],
+    time: &u64,
+    ghost_indexes: &Vec<(usize, usize)>
+){
+
+    // so far nothing
+}
+
+#[cfg(feature = "20op")]
+fn write_data(
+    borrow: RefMut<Vec>,
+    data: Vec<i64>,
+    hc: *const HardwareCommon,
+    time: &u64
+) {
+
+    // so far nothing
+}
+#[cfg(feature = "20op")]
+fn read_data(
+    progress: &mut SharedProgress<S::Timestamp>,
+    hc: *const HardwareCommon,
+    cache_line_1: &mut[u64],
+    cache_line_2: &mut[u64],
+    time: &u64,
+    ghost_indexes: &Vec<(usize, usize)>
+) {
+
+    // so far nothing
+}
+
+#[cfg(feature = "32op")]
+fn write_data(
+    borrow: RefMut<Vec>,
+    data: Vec<i64>,
+    hc: *const HardwareCommon,
+    time: &u64
+) {
+    // so far nothing
+
+}
+#[cfg(feature = "32op")]
+fn read_data(
+    progress: &mut SharedProgress<S::Timestamp>,
+    hc: *const HardwareCommon,
+    cache_line_1: &mut[u64],
+    cache_line_2: &mut[u64],
+    time: &u64,
+    ghost_indexes: &Vec<(usize, usize)>
+) {
+
+    // so far nothing
+}
+/*
 //1 - 2 - 1 - 2 - (1...)
 #[cfg(feature = "32op")]
 fn fpga_communication(
+    frontiers:,
+    data:,
     progress: &mut SharedProgress<S::Timestamp>,
     hc: *const HardwareCommon,
     cache_line_1: &mut[u64],
@@ -674,7 +847,7 @@ fn fpga_communication(
     cache_line_2: &mut[u64],
     time: &u64
 )
-{
+ {
 
     let mut k = 0;
     let mut i = 0 as usize;
@@ -1231,7 +1404,7 @@ fn fpga_communication(
     dmb();
 }
 
-
+*/
 /// Wrapper to run on FPGA
 pub trait FpgaWrapperECI<S: Scope> {
     /// Wrapper function
@@ -1309,21 +1482,6 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
         let mut consumed = HashMap::with_capacity(32);
         let mut internals = HashMap::with_capacity(32);
 
-        /*let mut offset_1 = 0;
-        let mut offset_2 = 0;
-
-        get_offset(&mut offset_1, &mut offset_2);
-
-
-        let area = unsafe { (*hc).area } as *mut u64;
-        let cache_line_1 = unsafe { std::slice::from_raw_parts_mut(area.offset(offset_1.try_into().unwrap()), CACHE_LINE_SIZE as usize) };
-        let cache_line_2 = unsafe {
-            std::slice::from_raw_parts_mut(
-                area.offset(offset_2.try_into().unwrap()),
-                CACHE_LINE_SIZE as usize,
-            )
-        };*/
-
 
         let raw_logic = move |progress: &mut SharedProgress<S::Timestamp>| {
 
@@ -1353,22 +1511,6 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
 
             while let Some(message) = input_wrapper.next() {
 
-                let mut offset_1 = 0;
-                let mut offset_2 = 0;
-
-                get_offset(&mut offset_1, &mut offset_2);
-                //println!("offset1 = {}, offset2 = {}", offset_1, offset_2);
-
-
-                let area = unsafe { (*hc).area } as *mut u64;
-                let cache_line_1 = unsafe { std::slice::from_raw_parts_mut(area.offset(offset_1.try_into().unwrap()), CACHE_LINE_SIZE as usize) };
-                let cache_line_2 = unsafe {
-                    std::slice::from_raw_parts_mut(
-                        area.offset(offset_2.try_into().unwrap()),
-                        CACHE_LINE_SIZE as usize,
-                    )
-                };
-
                 has_data = true;
                 let (time, data) = match message.as_ref_or_mut() {
                     RefOrMut::Ref(reference) => (&reference.time, RefOrMut::Ref(&reference.data)),
@@ -1382,38 +1524,8 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
 
                 // 16
                 //println!("HERE 2!");
-                for i in 0..borrow.len() {
-                    let frontier = borrow[i].frontier();
-                    if frontier.len() == 0 {
-                        cache_line_1[current_length] = 0;
-                        current_length += 1;
-                    } else {
-                        for val in frontier.iter() {
-                            cache_line_1[current_length] = (*val << 1) | 1u64;
-                            current_length += 1;
-                        }
-                    }
-                }
 
-                dmb();
-
-                current_length = 0;
-                let data_length = num_data;
-
-                if vector.len() == 0 {
-                    cache_line_2[current_length] = 0;
-                    current_length += 1;
-                } else {
-                    for val in vector.iter() {
-                        cache_line_2[current_length] = ((*val << 1) | 1u64) as u64;
-                        current_length += 1;
-                    }
-                }
-
-                for i in current_length..data_length as usize {
-                    cache_line_2[i] = 0;
-                }
-                dmb();
+                write_data(borrow);
 
                 //println!("DONE 2");
 
