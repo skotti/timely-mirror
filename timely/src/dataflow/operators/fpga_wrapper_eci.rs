@@ -1769,6 +1769,115 @@ fn read_data(
 }
 
 
+
+/// Communicates to FPGA via cache lines using [`2fast2forward`](https://gitlab.inf.ethz.ch/PROJECT-Enzian/fpga-sources/enzian-applications/2fast2forward)
+#[cfg(feature = "16op")]
+fn fpga_communication(
+    hc: *const HardwareCommon,
+    frontiers: &[u64],
+    data: &[u64],
+    num_data: i64,
+    num_operators: i64,
+    cache_line_1: &mut[u64],
+    cache_line_2: &mut[u64]
+) -> Vec<u64>
+{
+
+    //let mut frontier_length = (((num_operators - 1) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE) as usize;
+    let mut frontier_length = 16;
+    //println!("Frontier length = {}", frontier_length);
+    //let mut progress_length = (((num_operators * 4 - 1) / CACHE_LINE_SIZE)* CACHE_LINE_SIZE + CACHE_LINE_SIZE) as usize;
+    let mut progress_length = 64;
+    //println!("Progress length = {}", progress_length);
+    let max_length_in = num_data as usize + frontier_length;
+    let max_length_out = num_data as usize + progress_length;
+    //println!("Max length in = {}", max_length_in);
+    //println!("Max length out = {}", max_length_out);
+
+    let mut output_arr= vec![0; max_length_out];
+
+    for i in 0..CACHE_LINE_SIZE as usize {
+        cache_line_1[i] = frontiers[i];
+    }
+    dmb();
+
+
+    let num_batch_lines = num_data / CACHE_LINE_SIZE;
+    for k in 0..num_batch_lines {
+        // Write data to second cache line
+        for i in 0..CACHE_LINE_SIZE as usize {
+            cache_line_2[i] = data[i + (CACHE_LINE_SIZE * k) as usize];
+        }
+        //let epoch_start = Instant::now();
+        dmb();
+
+        //let epoch_start = Instant::now();
+        // Read data out
+        for i in 0..CACHE_LINE_SIZE as usize {
+            output_arr[i + (CACHE_LINE_SIZE * k) as usize] = cache_line_1[i];
+        }
+        dmb();
+        //let epoch_end = Instant::now();
+        //let total_nanos = (epoch_end - start).as_nanos();
+        //println!("processing latency: {total_nanos}");
+
+    }
+
+    // Read summary
+    for i in 0..CACHE_LINE_SIZE as usize {
+        output_arr[i + num_data as usize ] = cache_line_2[i];
+    }
+    dmb();
+
+    for i in 0..CACHE_LINE_SIZE as usize {
+        output_arr[i + CACHE_LINE_SIZE as usize + num_data as usize ] = cache_line_1[i];
+    }
+    dmb();
+
+    for i in 0..CACHE_LINE_SIZE as usize {
+        output_arr[i + 2 * CACHE_LINE_SIZE as usize + num_data as usize ] = cache_line_2[i];
+    }
+    dmb();
+
+    for i in 0..CACHE_LINE_SIZE as usize {
+        output_arr[i + 3 * CACHE_LINE_SIZE as usize + num_data as usize ] = cache_line_1[i];
+    }
+    dmb();
+
+    output_arr
+}
+
+/// Sends data to FPGA and receives response
+fn run(
+    hc: *const HardwareCommon,
+    num_data: i64,
+    num_operators: i64,
+    h_mem_arr: &mut Vec<u64>,
+    cache_line_1: &mut[u64],
+    cache_line_2: &mut[u64]
+
+) -> Vec<u64>
+{
+    // Only run when `no-fpga` feature is used
+
+    let mut frontier_length = 16;//(num_operators / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+    let mut progress_length = 64;//((num_operators * 4) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+
+    #[cfg(feature = "no-fpga")]
+        let output_arr = generate_fpga_output(h_mem_arr, num_data, num_operators);
+
+    // Only run when using FPGA
+    #[cfg(not(feature = "no-fpga"))]
+        let output_arr = {
+        let frontiers: &[u64] = &h_mem_arr[0..frontier_length as usize];
+        let data: &[u64] = &h_mem_arr[frontier_length as usize..(frontier_length + num_data) as usize];
+        fpga_communication(hc, frontiers, data, num_data, num_operators, cache_line_1, cache_line_2)
+    };
+
+    output_arr
+}
+
+
 /// Wrapper to run on FPGA
 pub trait FpgaWrapperECI<S: Scope> {
     /// Wrapper function
@@ -1842,9 +1951,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
         let mut vector = Vec::with_capacity(MAX_CAPACITY);
         let mut vector2 = Vec::with_capacity(MAX_CAPACITY);
 
-        //let mut produced = HashMap::with_capacity(32);
-        //let mut consumed = HashMap::with_capacity(32);
-        //let mut internals = HashMap::with_capacity(32);
+        let mut produced = HashMap::with_capacity(32);
+        let mut consumed = HashMap::with_capacity(32);
+        let mut internals = HashMap::with_capacity(32);
 
 
         let raw_logic = move |progress: &mut SharedProgress<S::Timestamp>| {
@@ -1933,7 +2042,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
                 for i in current_length..max_length_in {
                     input_memory[i] = 0;
                 }
-                /*let memory_out = run(hc, num_data, num_operators, &mut input_memory);
+                let memory_out = run(hc, num_data, num_operators, &mut input_memory, cache_line_1, cache_line_2);
 
                 for i in 0..data_length as usize {
                     let val = memory_out[i] as u64;
@@ -1952,11 +2061,11 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
                     consumed.insert(*j, consumed_value);
                     internals.insert(*j, (internals_time, internals_value));
                     produced.insert(*j, produced_value);
-                }*/
+                }
 
                 let id_wrap = ghost_indexes[ghost_indexes.len() - 1].1;
 
-                /*if vector2.len() > 0 {
+                if vector2.len() > 0 {
                     output_wrapper
                         .session(&(internals.get(&id_wrap).unwrap().0 as u64))
                         .give_vec(&mut vector2);
@@ -1971,7 +2080,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
                     );
                     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&id_wrap).unwrap()[0]);
                     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&id_wrap).unwrap()[0]);
-                }*/
+                }
             }
 
             //let epoch_end = Instant::now();
@@ -1980,9 +2089,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
 
             vector.clear();
             vector2.clear();
-            //produced.clear();
-            //consumed.clear();
-            //internals.clear();
+            produced.clear();
+            consumed.clear();
+            internals.clear();
             output_wrapper.cease();
 
             //let epoch_end = Instant::now();
