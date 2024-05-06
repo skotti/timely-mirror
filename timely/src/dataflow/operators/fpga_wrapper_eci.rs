@@ -247,7 +247,9 @@ fn get_offset(offset_1: &mut i64, offset_2: &mut i64) {
 fn write_data(
     borrow: &RefMut<Vec<MutableAntichain<u64>>>,
     vector: &mut Vec<u64>,
-    hc: *const HardwareCommon
+    hc: *const HardwareCommon,
+    cache_line_1: & mut[u64],
+    cache_line_2: & mut[u64]
 )
 {
     let mut offset_1 = 0;
@@ -299,25 +301,11 @@ fn read_data(
     time: &u64,
     hc: *const HardwareCommon,
     ghost_indexes: &Vec<(usize, usize)>,
-    vector2: &mut Vec<u64>
+    vector2: &mut Vec<u64>,
+    cache_line_1: & mut[u64],
+    cache_line_2: & mut[u64]
 )
 {
-
-    let mut offset_1 = 0;
-    let mut offset_2 = 0;
-
-    get_offset(&mut offset_1, &mut offset_2);
-    //println!("offset1 = {}, offset2 = {}", offset_1, offset_2);
-
-
-    let area = unsafe { (*hc).area } as *mut u64;
-    let cache_line_1 = unsafe { std::slice::from_raw_parts_mut(area.offset(offset_1.try_into().unwrap()), CACHE_LINE_SIZE as usize) };
-    let cache_line_2 = unsafe {
-        std::slice::from_raw_parts_mut(
-            area.offset(offset_2.try_into().unwrap()),
-            CACHE_LINE_SIZE as usize,
-        )
-    };
 
     for i in 0..16 as usize{
         let val = cache_line_1[i] as u64;
@@ -358,25 +346,11 @@ fn read_data(
 fn write_data(
     borrow: &RefMut<Vec<MutableAntichain<u64>>>,
     vector: &mut Vec<u64>,
-    hc: *const HardwareCommon
+    hc: *const HardwareCommon,
+    cache_line_1: & mut[u64],
+    cache_line_2: & mut[u64]
 )
 {
-
-    let mut offset_1 = 0;
-    let mut offset_2 = 0;
-
-    get_offset(&mut offset_1, &mut offset_2);
-    //println!("offset1 = {}, offset2 = {}", offset_1, offset_2);
-
-
-    let area = unsafe { (*hc).area } as *mut u64;
-    let cache_line_1 = unsafe { std::slice::from_raw_parts_mut(area.offset(offset_1.try_into().unwrap()), CACHE_LINE_SIZE as usize) };
-    let cache_line_2 = unsafe {
-        std::slice::from_raw_parts_mut(
-            area.offset(offset_2.try_into().unwrap()),
-            CACHE_LINE_SIZE as usize,
-        )
-    };
 
     let mut current_length = 0;
 
@@ -417,24 +391,11 @@ fn read_data(
     time: &u64,
     hc: *const HardwareCommon,
     ghost_indexes: &Vec<(usize, usize)>,
-    vector2: &mut Vec<u64>
+    vector2: &mut Vec<u64>,
+    cache_line_1: & mut[u64],
+    cache_line_2: & mut[u64]
 )
 {
-    let mut offset_1 = 0;
-    let mut offset_2 = 0;
-
-    get_offset(&mut offset_1, &mut offset_2);
-    //println!("offset1 = {}, offset2 = {}", offset_1, offset_2);
-
-
-    let area = unsafe { (*hc).area } as *mut u64;
-    let cache_line_1 = unsafe { std::slice::from_raw_parts_mut(area.offset(offset_1.try_into().unwrap()), CACHE_LINE_SIZE as usize) };
-    let cache_line_2 = unsafe {
-        std::slice::from_raw_parts_mut(
-            area.offset(offset_2.try_into().unwrap()),
-            CACHE_LINE_SIZE as usize,
-        )
-    };
 
     for i in 0..16 as usize{
         let val = cache_line_1[i] as u64;
@@ -522,26 +483,11 @@ fn read_data(
 fn write_data(
     borrow: &RefMut<Vec<MutableAntichain<u64>>>,
     vector: &mut Vec<u64>,
-    hc: *const HardwareCommon
+    hc: *const HardwareCommon,
+    cache_line_1: & mut[u64],
+    cache_line_2: & mut[u64]
 )
 {
-
-    let mut offset_1 = 0;
-    let mut offset_2 = 0;
-
-    get_offset(&mut offset_1, &mut offset_2);
-    println!("offset1 = {}, offset2 = {}", offset_1, offset_2);
-
-
-    let area = unsafe { (*hc).area } as *mut u64;
-    let cache_line_1 = unsafe { std::slice::from_raw_parts_mut(area.offset(offset_1.try_into().unwrap()), CACHE_LINE_SIZE as usize) };
-    let cache_line_2 = unsafe {
-        std::slice::from_raw_parts_mut(
-            area.offset(offset_2.try_into().unwrap()),
-            CACHE_LINE_SIZE as usize,
-        )
-    };
-
     let mut current_length = 0;
 
     println!("DATA TO FPGA");
@@ -585,25 +531,11 @@ fn read_data(
     time: &u64,
     hc: *const HardwareCommon,
     ghost_indexes: &Vec<(usize, usize)>,
-    vector2: &mut Vec<u64>
+    vector2: &mut Vec<u64>,
+    cache_line_1: & mut[u64],
+    cache_line_2: & mut[u64]
 )
 {
-
-    let mut offset_1 = 0;
-    let mut offset_2 = 0;
-
-    get_offset(&mut offset_1, &mut offset_2);
-    //println!("offset1 = {}, offset2 = {}", offset_1, offset_2);
-
-
-    let area = unsafe { (*hc).area } as *mut u64;
-    let cache_line_1 = unsafe { std::slice::from_raw_parts_mut(area.offset(offset_1.try_into().unwrap()), CACHE_LINE_SIZE as usize) };
-    let cache_line_2 = unsafe {
-        std::slice::from_raw_parts_mut(
-            area.offset(offset_2.try_into().unwrap()),
-            CACHE_LINE_SIZE as usize,
-        )
-    };
 
     for i in 0..16 as usize{
         let val = cache_line_1[i] as u64;
@@ -895,22 +827,11 @@ fn read_data(
 fn write_data(
     borrow: &RefMut<Vec<MutableAntichain<u64>>>,
     vector: &mut Vec<u64>,
-    hc: *const HardwareCommon
+    hc: *const HardwareCommon,
+    cache_line_1: & mut[u64],
+    cache_line_2: & mut[u64]
 )
 {
-    let mut offset_1 = 0;
-    let mut offset_2 = 0;
-
-    get_offset(&mut offset_1, &mut offset_2);
-
-    let area = unsafe { (*hc).area } as *mut u64;
-    let cache_line_1 = unsafe { std::slice::from_raw_parts_mut(area.offset(offset_1.try_into().unwrap()), CACHE_LINE_SIZE as usize) };
-    let cache_line_2 = unsafe {
-        std::slice::from_raw_parts_mut(
-            area.offset(offset_2.try_into().unwrap()),
-            CACHE_LINE_SIZE as usize,
-        )
-    };
 
     let mut current_length = 0;
 
@@ -963,25 +884,11 @@ fn read_data(
     time: &u64,
     hc: *const HardwareCommon,
     ghost_indexes: &Vec<(usize, usize)>,
-    vector2: &mut Vec<u64>
+    vector2: &mut Vec<u64>,
+    cache_line_1: & mut[u64],
+    cache_line_2: & mut[u64]
 )
 {
-
-    let mut offset_1 = 0;
-    let mut offset_2 = 0;
-
-    get_offset(&mut offset_1, &mut offset_2);
-    //println!("offset1 = {}, offset2 = {}", offset_1, offset_2);
-
-
-    let area = unsafe { (*hc).area } as *mut u64;
-    let cache_line_1 = unsafe { std::slice::from_raw_parts_mut(area.offset(offset_1.try_into().unwrap()), CACHE_LINE_SIZE as usize) };
-    let cache_line_2 = unsafe {
-        std::slice::from_raw_parts_mut(
-            area.offset(offset_2.try_into().unwrap()),
-            CACHE_LINE_SIZE as usize,
-        )
-    };
 
     for i in 0..16 as usize{
         let val = cache_line_2[i] as u64;
@@ -1278,25 +1185,11 @@ fn read_data(
 fn write_data(
     borrow: &RefMut<Vec<MutableAntichain<u64>>>,
     vector: &mut Vec<u64>,
-    hc: *const HardwareCommon
+    hc: *const HardwareCommon,
+    cache_line_1: & mut[u64],
+    cache_line_2: & mut[u64]
 )
 {
-    let mut offset_1 = 0;
-    let mut offset_2 = 0;
-
-    get_offset(&mut offset_1, &mut offset_2);
-    //println!("offset1 = {}, offset2 = {}", offset_1, offset_2);
-
-
-    let area = unsafe { (*hc).area } as *mut u64;
-    let cache_line_1 = unsafe { std::slice::from_raw_parts_mut(area.offset(offset_1.try_into().unwrap()), CACHE_LINE_SIZE as usize) };
-    let cache_line_2 = unsafe {
-        std::slice::from_raw_parts_mut(
-            area.offset(offset_2.try_into().unwrap()),
-            CACHE_LINE_SIZE as usize,
-        )
-    };
-
     let mut current_length = 0;
 
     /*println!("DATA TO FPGA");
@@ -1354,25 +1247,11 @@ fn read_data(
     time: &u64,
     hc: *const HardwareCommon,
     ghost_indexes: &Vec<(usize, usize)>,
-    vector2: &mut Vec<u64>
+    vector2: &mut Vec<u64>,
+    cache_line_1: & mut[u64],
+    cache_line_2: & mut[u64]
 )
 {
-
-    let mut offset_1 = 0;
-    let mut offset_2 = 0;
-
-    get_offset(&mut offset_1, &mut offset_2);
-    //println!("offset1 = {}, offset2 = {}", offset_1, offset_2);
-
-
-    let area = unsafe { (*hc).area } as *mut u64;
-    let cache_line_1 = unsafe { std::slice::from_raw_parts_mut(area.offset(offset_1.try_into().unwrap()), CACHE_LINE_SIZE as usize) };
-    let cache_line_2 = unsafe {
-        std::slice::from_raw_parts_mut(
-            area.offset(offset_2.try_into().unwrap()),
-            CACHE_LINE_SIZE as usize,
-        )
-    };
 
     for i in 0..16 as usize{
         let val = cache_line_2[i] as u64;
@@ -1992,6 +1871,22 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
 
             let mut has_data = false;
 
+            let mut offset_1 = 0;
+            let mut offset_2 = 0;
+
+            get_offset(&mut offset_1, &mut offset_2);
+            println!("offset1 = {}, offset2 = {}", offset_1, offset_2);
+
+
+            let area = unsafe { (*hc).area } as *mut u64;
+            let cache_line_1 = unsafe { std::slice::from_raw_parts_mut(area.offset(offset_1.try_into().unwrap()), CACHE_LINE_SIZE as usize) };
+            let cache_line_2 = unsafe {
+                std::slice::from_raw_parts_mut(
+                    area.offset(offset_2.try_into().unwrap()),
+                    CACHE_LINE_SIZE as usize,
+                )
+            };
+
             //let epoch_start = Instant::now();
 
             while let Some(message) = input_wrapper.next() {
@@ -2005,9 +1900,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
                 };
                 data.swap(&mut vector);
 
-                write_data(&borrow, &mut vector, hc);
+                write_data(&borrow, &mut vector, hc, cache_line_1, cache_line_2);
 
-                read_data(progress, time, hc, &ghost_indexes, &mut vector2);
+                read_data(progress, time, hc, &ghost_indexes, &mut vector2, cache_line_1, cache_line_2);
 
                 output_wrapper.session(time).give_vec(&mut vector2);
             }
