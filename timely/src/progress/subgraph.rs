@@ -391,7 +391,7 @@ where
 
     fn schedule(&mut self) -> bool {
 
-        println!("Begin schedule");
+        //println!("Begin schedule");
         // This method performs several actions related to progress tracking
         // and child operator scheduling. The actions have been broken apart
         // into atomic actions that should be able to be safely executed in
@@ -442,7 +442,7 @@ where
         // A subgraph is incomplete if any child is incomplete, or there are outstanding messages.
         let incomplete = self.incomplete_count > 0;
         let tracking = self.pointstamp_tracker.tracking_anything();
-        println!("End schedule");
+        //println!("End schedule");
 
         incomplete || tracking
     }
