@@ -1979,6 +1979,23 @@ fn fpga_communication(
     output_arr
 }
 
+#[cfg(feature = "32op")]
+fn get_length(
+    frontier_length: &mut i32,
+    progress_length: &mut i32
+) {
+    *frontier_length = 32;
+    *progress_length = 128;
+}
+
+#[cfg(feature = "16op")]
+fn get_length(
+    frontier_length: &mut i32,
+    progress_length: &mut i32
+) {
+    *frontier_length = 16;
+    *progress_length = 64;
+}
 
 /// Wrapper to run on FPGA
 pub trait FpgaWrapperECI<S: Scope> {
@@ -1996,8 +2013,10 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
         // TODO: should get rid of ghost indexes
         let mut current_index = 0;
 
-        let mut frontier_length = 16;//(num_operators / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
-        let mut progress_length = 64;//((num_operators * 4) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+        let mut frontier_length = 0;//(num_operators / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+        let mut progress_length = 0;//((num_operators * 4) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+
+        get_length(&mut frontier_length, &mut progress_length);
 
         let max_length_in = num_data as usize + frontier_length as usize;
         let max_length_out = num_data as usize + progress_length as usize;
