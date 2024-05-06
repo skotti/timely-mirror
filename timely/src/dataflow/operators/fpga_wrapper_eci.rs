@@ -1877,6 +1877,108 @@ fn run(
     output_arr
 }
 
+/// Communicates to FPGA via cache lines using [`2fast2forward`](https://gitlab.inf.ethz.ch/PROJECT-Enzian/fpga-sources/enzian-applications/2fast2forward)
+#[cfg(feature = "32op")]
+fn fpga_communication(
+    hc: *const HardwareCommon,
+    frontiers: &[u64],
+    data: &[u64],
+    num_data: i64,
+    num_operators: i64,
+    cache_line_1: &mut[u64],
+    cache_line_2: &mut[u64]
+) -> Vec<u64>
+{
+
+    //let mut frontier_length = (((num_operators - 1) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE) as usize;
+    let mut frontier_length = 32;
+    //println!("Frontier length = {}", frontier_length);
+    //let mut progress_length = (((num_operators * 4 - 1) / CACHE_LINE_SIZE)* CACHE_LINE_SIZE + CACHE_LINE_SIZE) as usize;
+    let mut progress_length = 128;
+    //println!("Progress length = {}", progress_length);
+    let max_length_in = num_data as usize + frontier_length;
+    let max_length_out = num_data as usize + progress_length;
+    //println!("Max length in = {}", max_length_in);
+    //println!("Max length out = {}", max_length_out);
+
+    let mut output_arr= vec![0; max_length_out];
+
+    for i in 0..CACHE_LINE_SIZE as usize {
+        cache_line_1[i] = frontiers[i];
+    }
+    dmb();
+
+    for i in 0..CACHE_LINE_SIZE as usize {
+        cache_line_2[i] = frontiers[i + 16];
+    }
+    dmb();
+
+    let num_batch_lines = num_data / CACHE_LINE_SIZE;
+    for k in 0..num_batch_lines {
+        // Write data to second cache line
+        for i in 0..CACHE_LINE_SIZE as usize {
+            cache_line_1[i] = data[i + (CACHE_LINE_SIZE * k) as usize];
+        }
+        //let epoch_start = Instant::now();
+        dmb();
+
+        //let epoch_start = Instant::now();
+        // Read data out
+        for i in 0..CACHE_LINE_SIZE as usize {
+            output_arr[i + (CACHE_LINE_SIZE * k) as usize] = cache_line_2[i];
+        }
+        dmb();
+        //let epoch_end = Instant::now();
+        //let total_nanos = (epoch_end - start).as_nanos();
+        //println!("processing latency: {total_nanos}");
+
+    }
+
+    // Read summary
+    for i in 0..CACHE_LINE_SIZE as usize {
+        output_arr[i + num_data as usize ] = cache_line_1[i];
+    }
+    dmb();
+
+    for i in 0..CACHE_LINE_SIZE as usize {
+        output_arr[i + CACHE_LINE_SIZE as usize + num_data as usize ] = cache_line_2[i];
+    }
+    dmb();
+
+    for i in 0..CACHE_LINE_SIZE as usize {
+        output_arr[i + 2 * CACHE_LINE_SIZE as usize + num_data as usize ] = cache_line_1[i];
+    }
+    dmb();
+
+    for i in 0..CACHE_LINE_SIZE as usize {
+        output_arr[i + 3 * CACHE_LINE_SIZE as usize + num_data as usize ] = cache_line_2[i];
+    }
+    dmb();
+
+    // Read summary
+    for i in 0..CACHE_LINE_SIZE as usize {
+        output_arr[i + 4 * CACHE_LINE_SIZE as usize + num_data as usize ] = cache_line_1[i];
+    }
+    dmb();
+
+    for i in 0..CACHE_LINE_SIZE as usize {
+        output_arr[i + 5 * CACHE_LINE_SIZE as usize + num_data as usize ] = cache_line_2[i];
+    }
+    dmb();
+
+    for i in 0..CACHE_LINE_SIZE as usize {
+        output_arr[i + 6 * CACHE_LINE_SIZE as usize + num_data as usize ] = cache_line_1[i];
+    }
+    dmb();
+
+    for i in 0..CACHE_LINE_SIZE as usize {
+        output_arr[i + 7 * CACHE_LINE_SIZE as usize + num_data as usize ] = cache_line_2[i];
+    }
+    dmb();
+
+    output_arr
+}
+
 
 /// Wrapper to run on FPGA
 pub trait FpgaWrapperECI<S: Scope> {
