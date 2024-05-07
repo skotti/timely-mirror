@@ -223,18 +223,18 @@ fn get_offset(offset_1: &mut i64, offset_2: &mut i64) {
 
 #[cfg(feature = "4op")]
 fn get_offset(offset_1: &mut i64, offset_2: &mut i64) {
-    unsafe {
+    //unsafe {
         //println!("Original value: {}", GLOBAL_COUNTER);
-        if (GLOBAL_COUNTER % 2 == 0) {
+    //    if (GLOBAL_COUNTER % 2 == 0) {
             *offset_1 = 0;
             *offset_2 = CACHE_LINE_SIZE;
-        } else {
-            *offset_1 = CACHE_LINE_SIZE;
-            *offset_2 = 0;
-        }
-        GLOBAL_COUNTER = GLOBAL_COUNTER + 1;
+    //    } else {
+    //        *offset_1 = CACHE_LINE_SIZE;
+    //        *offset_2 = 0;
+    //    }
+    //    GLOBAL_COUNTER = GLOBAL_COUNTER + 1;
         //println!("Modified value: {}", GLOBAL_COUNTER);
-    }
+    //}
 }
 
 #[cfg(feature = "1op")]
