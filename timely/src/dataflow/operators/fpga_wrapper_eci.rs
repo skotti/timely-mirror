@@ -490,12 +490,12 @@ fn write_data(
 {
     let mut current_length = 0;
 
-    println!("DATA TO FPGA");
+   /* println!("DATA TO FPGA");
    for val in vector.iter() {
        print!("{} ", val);
    }
    println!();
-
+*/
     for i in 0..16 {
         let frontier = borrow[i].frontier();
         if frontier.len() == 0 {
@@ -547,12 +547,12 @@ fn read_data(
 
     dmb();
 
-    println!("DATA FROM FPGA");
+   /* println!("DATA FROM FPGA");
    for val in vector2.iter() {
        print!("{} ", val);
    }
    println!();
-
+*/
     let mut k = 0;
     let mut i = 0 as usize;
     let mut j = 0;
@@ -570,7 +570,7 @@ fn read_data(
         cache_line_2[i+3] as i64,
     );
 
-    println!("Index {}, progress {} {} {} {}", 0, cache_line_2[i], cache_line_2[i+1], cache_line_2[i+2], cache_line_2[i+3]);
+    //println!("Index {}, progress {} {} {} {}", 0, cache_line_2[i], cache_line_2[i+1], cache_line_2[i+2], cache_line_2[i+3]);
     j = ghost_indexes[0].1 as usize;
     cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
@@ -583,7 +583,7 @@ fn read_data(
         cache_line_2[i+2] as u64,
         cache_line_2[i+3] as i64,
     );
-    println!("Index {}, progress {} {} {} {}", 1, cache_line_2[i], cache_line_2[i+1], cache_line_2[i+2], cache_line_2[i+3]);
+    //println!("Index {}, progress {} {} {} {}", 1, cache_line_2[i], cache_line_2[i+1], cache_line_2[i+2], cache_line_2[i+3]);
 
     j = ghost_indexes[1].1 as usize;
     cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
@@ -599,7 +599,7 @@ fn read_data(
         cache_line_2[i+3] as i64,
     );
 
-    println!("Index {}, progress {} {} {} {}", 2, cache_line_2[i], cache_line_2[i+1], cache_line_2[i+2], cache_line_2[i+3]);
+    //println!("Index {}, progress {} {} {} {}", 2, cache_line_2[i], cache_line_2[i+1], cache_line_2[i+2], cache_line_2[i+3]);
 
     j = ghost_indexes[2].1 as usize;
     cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
@@ -614,7 +614,7 @@ fn read_data(
         cache_line_2[i+2] as u64,
         cache_line_2[i+3] as i64,
     );
-    println!("Index {}, progress {} {} {} {}", 3, cache_line_2[i], cache_line_2[i+1], cache_line_2[i+2], cache_line_2[i+3]);
+    //println!("Index {}, progress {} {} {} {}", 3, cache_line_2[i], cache_line_2[i+1], cache_line_2[i+2], cache_line_2[i+3]);
 
     j = ghost_indexes[3].1 as usize;
     cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
@@ -633,7 +633,7 @@ fn read_data(
         cache_line_1[i+3] as i64,
     );
 
-    println!("Index {}, progress {} {} {} {}", 4, cache_line_1[i], cache_line_1[i+1], cache_line_1[i+2], cache_line_1[i+3]);
+    //println!("Index {}, progress {} {} {} {}", 4, cache_line_1[i], cache_line_1[i+1], cache_line_1[i+2], cache_line_1[i+3]);
 
     j = ghost_indexes[4].1 as usize;
     cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
@@ -647,7 +647,7 @@ fn read_data(
         cache_line_1[i+2] as u64,
         cache_line_1[i+3] as i64,
     );
-    println!("Index {}, progress {} {} {} {}", 5, cache_line_1[i], cache_line_1[i+1], cache_line_1[i+2], cache_line_1[i+3]);
+    //println!("Index {}, progress {} {} {} {}", 5, cache_line_1[i], cache_line_1[i+1], cache_line_1[i+2], cache_line_1[i+3]);
 
     j = ghost_indexes[5].1 as usize;
     cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
@@ -663,7 +663,7 @@ fn read_data(
         cache_line_1[i+3] as i64,
     );
 
-    println!("Index {}, progress {} {} {} {}", 6, cache_line_1[i], cache_line_1[i+1], cache_line_1[i+2], cache_line_1[i+3]);
+    //println!("Index {}, progress {} {} {} {}", 6, cache_line_1[i], cache_line_1[i+1], cache_line_1[i+2], cache_line_1[i+3]);
 
     j = ghost_indexes[6].1 as usize;
     cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
@@ -679,7 +679,7 @@ fn read_data(
         cache_line_1[i+3] as i64,
     );
 
-    println!("Index {}, progress {} {} {} {}", 7, cache_line_1[i], cache_line_1[i+1], cache_line_1[i+2], cache_line_1[i+3]);
+    //println!("Index {}, progress {} {} {} {}", 7, cache_line_1[i], cache_line_1[i+1], cache_line_1[i+2], cache_line_1[i+3]);
 
     j = ghost_indexes[7].1 as usize;
     cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
@@ -698,7 +698,7 @@ fn read_data(
         cache_line_2[i+3] as i64,
     );
 
-    println!("Index {}, progress {} {} {} {}", 8, cache_line_2[i], cache_line_2[i+1], cache_line_2[i+2], cache_line_2[i+3]);
+    //println!("Index {}, progress {} {} {} {}", 8, cache_line_2[i], cache_line_2[i+1], cache_line_2[i+2], cache_line_2[i+3]);
 
     j = ghost_indexes[8].1 as usize;
     cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
@@ -713,7 +713,7 @@ fn read_data(
         cache_line_2[i+3] as i64,
     );
 
-    println!("Index {}, progress {} {} {} {}", 9, cache_line_2[i], cache_line_2[i+1], cache_line_2[i+2], cache_line_2[i+3]);
+    //println!("Index {}, progress {} {} {} {}", 9, cache_line_2[i], cache_line_2[i+1], cache_line_2[i+2], cache_line_2[i+3]);
 
     j = ghost_indexes[9].1 as usize;
     cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
@@ -729,7 +729,7 @@ fn read_data(
         cache_line_2[i+3] as i64,
     );
 
-    println!("Index {}, progress {} {} {} {}", 10, cache_line_2[i], cache_line_2[i+1], cache_line_2[i+2], cache_line_2[i+3]);
+    //println!("Index {}, progress {} {} {} {}", 10, cache_line_2[i], cache_line_2[i+1], cache_line_2[i+2], cache_line_2[i+3]);
 
     j = ghost_indexes[10].1 as usize;
     cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
@@ -745,7 +745,7 @@ fn read_data(
         cache_line_2[i+3] as i64,
     );
 
-    println!("Index {}, progress {} {} {} {}", 11, cache_line_2[i], cache_line_2[i+1], cache_line_2[i+2], cache_line_2[i+3]);
+    //println!("Index {}, progress {} {} {} {}", 11, cache_line_2[i], cache_line_2[i+1], cache_line_2[i+2], cache_line_2[i+3]);
 
     j = ghost_indexes[11].1 as usize;
     cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
@@ -764,7 +764,7 @@ fn read_data(
         cache_line_1[i+3] as i64,
     );
 
-    println!("Index {}, progress {} {} {} {}", 12, cache_line_1[i], cache_line_1[i+1], cache_line_1[i+2], cache_line_1[i+3]);
+    //println!("Index {}, progress {} {} {} {}", 12, cache_line_1[i], cache_line_1[i+1], cache_line_1[i+2], cache_line_1[i+3]);
 
     j = ghost_indexes[12].1 as usize;
     cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
@@ -779,7 +779,7 @@ fn read_data(
         cache_line_1[i+3] as i64,
     );
 
-    println!("Index {}, progress {} {} {} {}", 13, cache_line_1[i], cache_line_1[i+1], cache_line_1[i+2], cache_line_1[i+3]);
+    //println!("Index {}, progress {} {} {} {}", 13, cache_line_1[i], cache_line_1[i+1], cache_line_1[i+2], cache_line_1[i+3]);
 
     j = ghost_indexes[13].1 as usize;
     cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
@@ -795,7 +795,7 @@ fn read_data(
         cache_line_1[i+3] as i64,
     );
 
-    println!("Index {}, progress {} {} {} {}", 14, cache_line_1[i], cache_line_1[i+1], cache_line_1[i+2], cache_line_1[i+3]);
+    //println!("Index {}, progress {} {} {} {}", 14, cache_line_1[i], cache_line_1[i+1], cache_line_1[i+2], cache_line_1[i+3]);
 
     j = ghost_indexes[14].1 as usize;
     cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
@@ -810,7 +810,7 @@ fn read_data(
         cache_line_1[i+2] as u64,
         cache_line_1[i+3] as i64,
     );
-    println!("Index {}, progress {} {} {} {}", 15, cache_line_1[i], cache_line_1[i+1], cache_line_1[i+2], cache_line_1[i+3]);
+    //println!("Index {}, progress {} {} {} {}", 15, cache_line_1[i], cache_line_1[i+1], cache_line_1[i+2], cache_line_1[i+3]);
 
     j = ghost_indexes[15].1 as usize;
     cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
@@ -2107,7 +2107,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
             let mut offset_2 = 0;
 
             get_offset(&mut offset_1, &mut offset_2);
-            println!("offset1 = {}, offset2 = {}", offset_1, offset_2);
+            //println!("offset1 = {}, offset2 = {}", offset_1, offset_2);
 
 
             let area = unsafe { (*hc).area } as *mut u64;

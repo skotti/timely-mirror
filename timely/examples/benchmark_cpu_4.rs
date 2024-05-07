@@ -35,6 +35,7 @@ fn main() {
 
         let mut epoch_latencies = vec![0; num_rounds as usize];
         for round in 0..num_rounds {
+            let mut epoch_start = Instant::now();
             for _j in 0..num_data {
                 input.send(round as u64 + 21); // max = 0
             }

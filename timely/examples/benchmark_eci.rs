@@ -32,26 +32,27 @@ fn main() {
         let mut epoch_latencies = vec![0; 1000 as usize];
         let mut round2 = 0;
         for round in 0..num_rounds {
+            let mut epoch_start = Instant::now();
             for _j in 0..num_data {
                 input.send(round as u64 + 21); // max = 0
             }
             input.advance_to(round as u64 + 1);
             while probe.less_than(input.time()) {
 
-                let mut epoch_start = Instant::now();
+                //let mut epoch_start = Instant::now();
                 worker.step();
-                let epoch_end = Instant::now();
-                let epoch_nanos = (epoch_end - epoch_start).as_nanos();
-                hist.add_value(epoch_nanos as u64);
-                epoch_latencies[round as usize] = epoch_nanos as u64;
-                round2 = round2 + 1;
+                //let epoch_end = Instant::now();
+                //let epoch_nanos = (epoch_end - epoch_start).as_nanos();
+                //hist.add_value(epoch_nanos as u64);
+                //epoch_latencies[round as usize] = epoch_nanos as u64;
+                //round2 = round2 + 1;
 
             }
-            //let epoch_end = Instant::now();
-            //let epoch_nanos = (epoch_end - epoch_start).as_nanos();
-            //epoch_start = epoch_end;
-            //hist.add_value(epoch_nanos as u64);
-            //epoch_latencies[round as usize] = epoch_nanos as u64;
+            let epoch_end = Instant::now();
+            let epoch_nanos = (epoch_end - epoch_start).as_nanos();
+            epoch_start = epoch_end;
+            hist.add_value(epoch_nanos as u64);
+            epoch_latencies[round as usize] = epoch_nanos as u64;
         }
 
         let epoch_end = Instant::now();
