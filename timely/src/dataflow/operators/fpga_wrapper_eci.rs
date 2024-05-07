@@ -1860,8 +1860,10 @@ fn run(
 {
     // Only run when `no-fpga` feature is used
 
-    let mut frontier_length = 16;//(num_operators / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
-    let mut progress_length = 64;//((num_operators * 4) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+    let mut frontier_length: i64 = 0;//(num_operators / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+    let mut progress_length: i64 = 0;//((num_operators * 4) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+
+    get_length(&mut frontier_length, &mut progress_length);
 
     #[cfg(feature = "no-fpga")]
         let output_arr = generate_fpga_output(h_mem_arr, num_data, num_operators);
