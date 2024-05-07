@@ -1860,8 +1860,8 @@ fn run(
 {
     // Only run when `no-fpga` feature is used
 
-    let mut frontier_length: i64 = 0;//(num_operators / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
-    let mut progress_length: i64 = 0;//((num_operators * 4) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+    let mut frontier_length = 0;//(num_operators / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+    let mut progress_length = 0;//((num_operators * 4) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
 
     get_length(&mut frontier_length, &mut progress_length);
 
@@ -1872,7 +1872,7 @@ fn run(
     #[cfg(not(feature = "no-fpga"))]
         let output_arr = {
         let frontiers: &[u64] = &h_mem_arr[0..frontier_length as usize];
-        let data: &[u64] = &h_mem_arr[frontier_length as usize..(frontier_length + num_data) as usize];
+        let data: &[u64] = &h_mem_arr[frontier_length as usize..(frontier_length as i64 + num_data) as usize];
         fpga_communication(hc, frontiers, data, num_data, num_operators, cache_line_1, cache_line_2)
     };
 
