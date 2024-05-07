@@ -354,7 +354,6 @@ fn write_data(
 
     let mut current_length = 0;
 
-
     for i in 0..16 {
         let frontier = borrow[i].frontier();
         if frontier.len() == 0 {
@@ -365,7 +364,6 @@ fn write_data(
             //}
         }
     }
-
 
     dmb();
 
@@ -396,7 +394,6 @@ fn read_data(
     cache_line_2: & mut[u64]
 )
 {
-
     for i in 0..16 as usize{
         let val = cache_line_1[i] as u64;
         let shifted_val = val >> 1;
@@ -469,14 +466,6 @@ fn read_data(
     i = 0;
     dmb();
     //println!("DONE 4");
-
-
-    cb = ChangeBatch::new_from(time_1, cache_line_2[i] as i64 );
-    cb1 = ChangeBatch::new_from(time_1, cache_line_2[i+1] as i64 );
-    cb2 = ChangeBatch::new_from(
-        cache_line_2[i+2] as u64,
-        cache_line_2[i+3] as i64,
-    );
 }
 
 #[cfg(feature = "16op")]
@@ -875,7 +864,6 @@ fn write_data(
     }
 
     dmb();
-
 
 }
 #[cfg(feature = "20op")]
@@ -1768,7 +1756,67 @@ fn read_data(
 
 }
 
+/// Communicates to FPGA via cache lines using [`2fast2forward`](https://gitlab.inf.ethz.ch/PROJECT-Enzian/fpga-sources/enzian-applications/2fast2forward)
+#[cfg(feature = "4op")]
+fn fpga_communication(
+    hc: *const HardwareCommon,
+    frontiers: &[u64],
+    data: &[u64],
+    num_data: i64,
+    num_operators: i64,
+    cache_line_1: &mut[u64],
+    cache_line_2: &mut[u64]
+) -> Vec<u64>
+{
 
+    //let mut frontier_length = (((num_operators - 1) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE) as usize;
+    let mut frontier_length = 16;
+    //println!("Frontier length = {}", frontier_length);
+    //let mut progress_length = (((num_operators * 4 - 1) / CACHE_LINE_SIZE)* CACHE_LINE_SIZE + CACHE_LINE_SIZE) as usize;
+    let mut progress_length = 16;
+    //println!("Progress length = {}", progress_length);
+    let max_length_in = num_data as usize + frontier_length;
+    let max_length_out = num_data as usize + progress_length;
+    //println!("Max length in = {}", max_length_in);
+    //println!("Max length out = {}", max_length_out);
+
+    let mut output_arr= vec![0; max_length_out];
+
+    for i in 0..CACHE_LINE_SIZE as usize {
+        cache_line_1[i] = frontiers[i];
+    }
+    dmb();
+
+
+    let num_batch_lines = num_data / CACHE_LINE_SIZE;
+    for k in 0..num_batch_lines {
+        // Write data to second cache line
+        for i in 0..CACHE_LINE_SIZE as usize {
+            cache_line_2[i] = data[i + (CACHE_LINE_SIZE * k) as usize];
+        }
+        //let epoch_start = Instant::now();
+        dmb();
+
+        //let epoch_start = Instant::now();
+        // Read data out
+        for i in 0..CACHE_LINE_SIZE as usize {
+            output_arr[i + (CACHE_LINE_SIZE * k) as usize] = cache_line_1[i];
+        }
+        dmb();
+        //let epoch_end = Instant::now();
+        //let total_nanos = (epoch_end - start).as_nanos();
+        //println!("processing latency: {total_nanos}");
+
+    }
+
+    // Read summary
+    for i in 0..CACHE_LINE_SIZE as usize {
+        output_arr[i + num_data as usize ] = cache_line_2[i];
+    }
+    dmb();
+
+    output_arr
+}
 
 /// Communicates to FPGA via cache lines using [`2fast2forward`](https://gitlab.inf.ethz.ch/PROJECT-Enzian/fpga-sources/enzian-applications/2fast2forward)
 #[cfg(feature = "16op")]
@@ -1997,6 +2045,24 @@ fn get_length(
 ) {
     *frontier_length = 16;
     *progress_length = 64;
+}
+
+#[cfg(feature = "4op")]
+fn get_length(
+    frontier_length: &mut i32,
+    progress_length: &mut i32
+) {
+    *frontier_length = 16;
+    *progress_length = 16;
+}
+
+#[cfg(feature = "20op")]
+fn get_length(
+    frontier_length: &mut i32,
+    progress_length: &mut i32
+) {
+    *frontier_length = 32;
+    *progress_length = 80;
 }
 
 /// Wrapper to run on FPGA
