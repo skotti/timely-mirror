@@ -354,7 +354,7 @@ fn write_data(
 
     let mut current_length = 0;
 
-    for i in 0..16 {
+    for i in 0..4 {
         let frontier = borrow[i].frontier();
         if frontier.len() == 0 {
             cache_line_1[current_length] = 0;
@@ -364,6 +364,11 @@ fn write_data(
             //}
         }
     }
+
+    for i in 4..16 {
+        cache_line_1[i] = 0;
+    }
+
 
     dmb();
 
