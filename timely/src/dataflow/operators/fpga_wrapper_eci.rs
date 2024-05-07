@@ -352,11 +352,11 @@ fn write_data(
 )
 {
 
-    println!("DATA TO FPGA");
+    /*println!("DATA TO FPGA");
     for val in vector.iter() {
        print!("{} ", val);
     }
-    println!();
+    println!();*/
 
     let mut current_length = 0;
 
@@ -415,11 +415,11 @@ fn read_data(
 
     dmb();
 
-    println!("DATA FROM FPGA");
+    /*println!("DATA FROM FPGA");
     for val in vector2.iter() {
        print!("{} ", val);
     }
-    println!();
+    println!();*/
 
     let mut k = 0;
     let mut i = 0 as usize;
@@ -437,9 +437,6 @@ fn read_data(
         cache_line_2[i+2] as u64,
         cache_line_2[i+3] as i64,
     );
-
-    println!("Index {}, progress {} {} {} {}", 0, cache_line_2[i], cache_line_2[i+1], cache_line_2[i+2], cache_line_2[i+3]);
-
     j = ghost_indexes[0].1 as usize;
     cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
@@ -452,8 +449,6 @@ fn read_data(
         cache_line_2[i+2] as u64,
         cache_line_2[i+3] as i64,
     );
-
-    println!("Index {}, progress {} {} {} {}", 1, cache_line_2[i], cache_line_2[i+1], cache_line_2[i+2], cache_line_2[i+3]);
     j = ghost_indexes[1].1 as usize;
     cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
@@ -468,7 +463,6 @@ fn read_data(
         cache_line_2[i+3] as i64,
     );
 
-    println!("Index {}, progress {} {} {} {}", 1, cache_line_2[i], cache_line_2[i+1], cache_line_2[i+2], cache_line_2[i+3]);
     j = ghost_indexes[2].1 as usize;
     cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
@@ -482,14 +476,13 @@ fn read_data(
         cache_line_2[i+2] as u64,
         cache_line_2[i+3] as i64,
     );
-
-    println!("Index {}, progress {} {} {} {}", 1, cache_line_2[i], cache_line_2[i+1], cache_line_2[i+2], cache_line_2[i+3]);
     j = ghost_indexes[3].1 as usize;
     cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
     i = 0;
     dmb();
+    //println!("DONE 4");
 }
 
 #[cfg(feature = "16op")]
@@ -2197,7 +2190,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
             let mut offset_2 = 0;
 
             get_offset(&mut offset_1, &mut offset_2);
-            println!("offset1 = {}, offset2 = {}", offset_1, offset_2);
+            //println!("offset1 = {}, offset2 = {}", offset_1, offset_2);
 
 
             let area = unsafe { (*hc).area } as *mut u64;
