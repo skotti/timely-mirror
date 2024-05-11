@@ -29,32 +29,38 @@ fn main() {
         let start = Instant::now();
         let mut epoch_start = Instant::now();
         let mut hist = hdrhist::HDRHist::new();
-        
-        for round in 0..num_rounds {
-	        for _j in 0..num_data {
-                input.send(round as u64 + 21);// max = 0
-	        }
-            
-            input.advance_to(round as u64 + 1);
 
+        let mut epoch_latencies = vec![0; num_rounds as usize];
+        for round in 0..num_rounds {
+            println!("New round");
+            for _j in 0..num_data {
+                input.send(21 + round as u64 * 2); // max = 0
+            }
+            input.advance_to(round as u64 + 1);
             while probe.less_than(input.time()) {
                 worker.step();
             }
+            println!("End round");
             let epoch_end = Instant::now();
             let epoch_nanos = (epoch_end - epoch_start).as_nanos();
             epoch_start = epoch_end;
             hist.add_value(epoch_nanos as u64);
+            epoch_latencies[round as usize] = epoch_nanos as u64;
         }
 
-        //let epoch_end = Instant::now();
-
-        let total_nanos = (Instant::now() - start).as_nanos();
-        let epoch_latency = (total_nanos as f64) / (num_rounds as f64); // sec
+        let epoch_end = Instant::now();
+        let total_nanos = (epoch_end - start).as_nanos();
+        let epoch_latency = (total_nanos as f64) / 1_000_000_000f64 / (num_rounds as f64); // sec
         let epoch_throughput = (num_rounds as f64) / (total_nanos as f64) * 1_000_000_000f64; // epochs/sec
-	    println!("epoch time: {}", epoch_latency); 
-
-        println!("total time (nanos): {}, throughput: {}", total_nanos, epoch_throughput);
-        println!("epoch latency (nanos):\n{}", hist.summary_string());
+        println!("Rounds: {num_rounds}");
+        println!("Batch size: {num_data}");
+        // println!("epoch time (sec): {}", epoch_latency);
+        // println!("total time (nanos): {}", total_nanos);
+        // println!("epoch throughput (epochs/sec): {}", epoch_throughput);
+        println!("epoch latencies (nanos):");
+        for elem in epoch_latencies {
+            println!("{elem}");
+        }
 
     }).unwrap();
 	dbg!("Done");
