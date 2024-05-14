@@ -198,7 +198,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 let mut v1: Vec<u64x2> = Vec::new();
                 let mut v0: Vec<u64x2> = Vec::new();
 
-                for i in (0 .. borrow.len()).step_by(2) {
+                /*for i in (0 .. borrow.len()).step_by(2) {
                     let frontier1 = borrow[i].borrow().frontier();
                     let frontier2 = borrow[i+1].borrow().frontier();
                     /*if frontier.len() == 0 {
@@ -224,7 +224,34 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                     let x =  u64x2::from_array([0, 0]);
                     v0.push(x);
                     current_length += 2;
+                }*/
+                
+                for i in (0..13).step_by(2) {
+                    let frontier1 = borrow[i].borrow().frontier();
+                    let frontier2 = borrow[i+1].borrow().frontier();
+                    /*if frontier.len() == 0 {
+                        let x =  u64x2::from_array([0, 0]);
+                        v0.push(x);
+                        current_length += 2;
+                    } else {
+                        for val in (0..frontier.len()).step_by(2) {
+                            let x =  u64x2::from_array([(frontier[val] << 1) | 1u64, (frontier[val] << 1) | 1u64]);
+                            v0.push(x);
+                            current_length += 2;
+                        }
+                    }*/
+                    // for now we will assume that frontier has length 1, if it is not 1 , then we already might want to modify logic on the
+                    // FPGA side as well
+                    let x =  u64x2::from_array([(frontier1[0] << 1) | 1u64, (frontier2[0] << 1) | 1u64]);
+                    v0.push(x);
+                    current_length += 2;
                 }
+
+
+
+                let frontier_last = borrow[14].borrow().frontier();
+                let x =  u64x2::from_array([(frontier_last[0] << 1) | 1u64, 0]);
+                v0.push(x);
 
                 //println!("Current length = {}", current_length);
 
@@ -265,11 +292,11 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                     unsafe { *(area.offset(26 as isize) as *mut u64x2) = v0[13] };
                     unsafe { *(area.offset(28 as isize) as *mut u64x2) = v0[14] };
                     unsafe { *(area.offset(30 as isize) as *mut u64x2) = v0[15] };
-                    unsafe { *(area.offset(32 as isize) as *mut u64x2) = v0[16] };
+                    /*unsafe { *(area.offset(32 as isize) as *mut u64x2) = v0[16] };
                     unsafe { *(area.offset(34 as isize) as *mut u64x2) = v0[17] };
                     unsafe { *(area.offset(36 as isize) as *mut u64x2) = v0[18] };
                     unsafe { *(area.offset(38 as isize) as *mut u64x2) = v0[19] };
-                    dmb();
+                    */dmb();
                 }
                 let mut pc: i64x2 = i64x2::from_array([0 , 0]);
                 let mut it: i64x2 = i64x2::from_array([0 , 0]);
@@ -750,7 +777,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
 
 // ---------------------------------------------------------------------------------- get the data
-                #[cfg(not(feature = "no-fpga"))] {
+                /*#[cfg(not(feature = "no-fpga"))] {
                     //dmb();
                     unsafe { pc = *(area.offset(76 as isize) as *mut i64x2); }
                     dmb();
@@ -888,7 +915,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
                 cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
                 cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-
+*/
             }
 
             //let epoch_end = Instant::now();
@@ -908,7 +935,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 
                 let data_length = num_data;
 
-                for i in (0 .. borrow.len()).step_by(2) {
+                /*for i in (0 .. borrow.len()).step_by(2) {
                     let frontier1 = borrow[i].borrow().frontier();
                     let frontier2 = borrow[i+1].borrow().frontier();
                     /*if frontier.len() == 0 {
@@ -945,7 +972,37 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                     let x =  u64x2::from_array([0, 0]);
                     v0.push(x);
                     current_length += 2;
+                }*/
+
+                //println!("Current length = {}", current_length);
+                //
+                for i in (0..13).step_by(2) {
+                    let frontier1 = borrow[i].borrow().frontier();
+                    let frontier2 = borrow[i+1].borrow().frontier();
+                    /*if frontier.len() == 0 {
+                        let x =  u64x2::from_array([0, 0]);
+                        v0.push(x);
+                        current_length += 2;
+                    } else {
+                        for val in (0..frontier.len()).step_by(2) {
+                            let x =  u64x2::from_array([(frontier[val] << 1) | 1u64, (frontier[val] << 1) | 1u64]);
+                            v0.push(x);
+                            current_length += 2;
+                        }
+                    }*/
+                    // for now we will assume that frontier has length 1, if it is not 1 , then we already might want to modify logic on the
+                    // FPGA side as well
+                    let x =  u64x2::from_array([(frontier1[0] << 1) | 1u64, (frontier2[0] << 1) | 1u64]);
+                    v0.push(x);
+                    current_length += 2;
                 }
+
+
+
+                let frontier_last = borrow[14].borrow().frontier();
+                let x =  u64x2::from_array([(frontier_last[0] << 1) | 1u64, 0]);
+                v0.push(x);
+
                 //println!("Current length = {}", current_length);
 
                 for i in (0..16).step_by(2) {
@@ -986,11 +1043,11 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                     unsafe { *(area.offset(26 as isize) as *mut u64x2) = v0[13] };
                     unsafe { *(area.offset(28 as isize) as *mut u64x2) = v0[14] };
                     unsafe { *(area.offset(30 as isize) as *mut u64x2) = v0[15] };
-                    unsafe { *(area.offset(32 as isize) as *mut u64x2) = v0[16] };
+                    /*unsafe { *(area.offset(32 as isize) as *mut u64x2) = v0[16] };
                     unsafe { *(area.offset(34 as isize) as *mut u64x2) = v0[17] };
                     unsafe { *(area.offset(36 as isize) as *mut u64x2) = v0[18] };
                     unsafe { *(area.offset(38 as isize) as *mut u64x2) = v0[19] };
-                    dmb();
+                    */dmb();
                 }
 
 
@@ -1036,7 +1093,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 let id_wrap = ghost_indexes[ghost_indexes.len() - 1].1;
 
                 let mut cc = 0;
-                for i in (16..95).step_by(2) {
+                for i in (16..75).step_by(2) {
                     //dmb();
                     unsafe { pc[cc] = *(area.offset(i as isize) as *mut i64x2); }
                     //println!("{} {} \n", pc2[0], pc2[1]);
@@ -1348,7 +1405,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                     unsafe { it = *(area.offset(78 as isize) as *mut i64x2); }
                     dmb();*/
 // ---------------------------------------------------------------------------------- get the data
-                    cb = ChangeBatch::new_from(time_1, pc[30][0] as i64);
+                    /*cb = ChangeBatch::new_from(time_1, pc[30][0] as i64);
                     cb1 = ChangeBatch::new_from(time_1, pc[30][1] as i64);
                     cb2 = ChangeBatch::new_from(
                         pc[31][0] as u64,
@@ -1425,7 +1482,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                     j = ghost_indexes[19].1 as usize;
                     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
                     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-
+*/
                     output_wrapper
                         .session(&time_1)
                         .give_vec(&mut vector2);

@@ -590,8 +590,8 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
 
                 let param: i64 = num_data / 8; // number of 8 number chuncks
                 let param_output: i64 = num_data / 8;
-                let frontier_param = 2;//3;
-                let progress_param = 8;//10;
+                let frontier_param = 3;//2;
+                let progress_param = 10;//8;
                 let mut has_data = false;
 
                 //println!("Amount of data (fpga_wrapper) {}", num_data);

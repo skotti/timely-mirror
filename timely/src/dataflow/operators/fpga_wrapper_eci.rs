@@ -2281,10 +2281,10 @@ fn fpga_communication(
 {
 
     //let mut frontier_length = (((num_operators - 1) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE) as usize;
-    let mut frontier_length = 15;
+    let mut frontier_length = 16;
     //println!("Frontier length = {}", frontier_length);
     //let mut progress_length = (((num_operators * 4 - 1) / CACHE_LINE_SIZE)* CACHE_LINE_SIZE + CACHE_LINE_SIZE) as usize;
-    let mut progress_length = 60;
+    let mut progress_length = 64;
     //println!("Progress length = {}", progress_length);
     let max_length_in = num_data as usize + frontier_length;
     let max_length_out = num_data as usize + progress_length;
@@ -2293,7 +2293,7 @@ fn fpga_communication(
 
     let mut output_arr= vec![0; max_length_out];
 
-    for i in 0..15 as usize {
+    for i in 0..16 as usize {
         cache_line_1[i] = frontiers[i];
     }
     dmb();
@@ -2357,8 +2357,8 @@ fn run(
 {
     // Only run when `no-fpga` feature is used
 
-    let mut frontier_length = 0;//(num_operators / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
-    let mut progress_length = 0;//((num_operators * 4) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
+    let mut frontier_length = 16;
+    let mut progress_length = 60;//((num_operators * 4) / CACHE_LINE_SIZE) + CACHE_LINE_SIZE;
 
     get_length(&mut frontier_length, &mut progress_length);
 
@@ -2607,8 +2607,8 @@ fn get_length(
     frontier_length: &mut i32,
     progress_length: &mut i32
 ) {
-    *frontier_length = 15;
-    *progress_length = 60;
+    *frontier_length = 16;
+    *progress_length = 64;
 }
 
 /// Wrapper to run on FPGA

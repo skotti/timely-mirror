@@ -26,6 +26,7 @@ pci = []
 32op = []
 1op = []
 4op = []
+15op = []
 
 [dependencies]
 serde = "1.0"
