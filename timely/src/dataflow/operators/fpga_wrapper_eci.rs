@@ -1219,8 +1219,6 @@ fn write_data(
         }
     }
 
-    dmb();
-
     for i in 20..32 {
         cache_line_2[current_length] = 0;
         current_length = current_length + 1;
