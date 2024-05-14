@@ -1186,8 +1186,13 @@ fn write_data(
 )
 {
 
-    let mut current_length = 0;
+    println!("Data to FPGA");
+    for val in vector.iter() {
+        print!("{} ", val);
+    }
+    println!();
 
+    let mut current_length = 0;
 
     for i in 0..16 {
         let frontier = borrow[i].frontier();
@@ -1199,6 +1204,8 @@ fn write_data(
             //}
         }
     }
+
+    dmb();
 
     for i in 16..20 {
         let frontier = borrow[i].frontier();
@@ -1215,7 +1222,6 @@ fn write_data(
     dmb();
 
     for i in 20..32 {
-
         cache_line_2[current_length] = 0;
         current_length = current_length + 1;
     }
@@ -1234,9 +1240,7 @@ fn write_data(
             //current_length += 1;
         }
     }
-
     dmb();
-
 }
 #[cfg(feature = "20op")]
 fn read_data(
