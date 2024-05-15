@@ -1582,7 +1582,11 @@ fn read_data(
     );
 
 
+    let epoch_start = Instant::now();
     println!("Index {}, progress {} {} {} {}", 19, cache_line_1[i], cache_line_1[i+1], cache_line_1[i+2], cache_line_1[i+3]);
+    let epoch_end = Instant::now();
+    let total_nanos = (epoch_end - epoch_start).as_nanos();
+    println!("processing latency: {total_nanos}");
     j = ghost_indexes[19].1 as usize;
     cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
@@ -2772,8 +2776,8 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
             let mut offset_1 = 0;
             let mut offset_2 = 0;
 
-            get_offset(&mut offset_1, &mut offset_2);
-            println!("offset1 = {}, offset2 = {}", offset_1, offset_2);
+            //get_offset(&mut offset_1, &mut offset_2);
+            //println!("offset1 = {}, offset2 = {}", offset_1, offset_2);
 
 
             let area = unsafe { (*hc).area } as *mut u64;
