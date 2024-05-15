@@ -1244,11 +1244,9 @@ fn read_data(
 {
 
     dmb();
-    println!("Data from FPGA");
     for i in 0..16 as usize{
         let val = cache_line_2[i] as u64;
 
-        print!("{} ", val);
         let shifted_val = val >> 1;
         if val != 0 {
             vector2.push(shifted_val);
@@ -1256,12 +1254,6 @@ fn read_data(
     }
 
     dmb();
-
-    println!("Data from FPGA");
-    for val in vector2.iter() {
-        print!("{} ", val);
-    }
-    println!();
 
     let mut k = 0;
     let mut i = 0 as usize;
@@ -1273,41 +1265,12 @@ fn read_data(
     let time_1 = time.clone();
 
 
-    let mut local_vec =  vec![1i64, 16 * 5, 16*5];
-
-    for i in 0..16 {
-        local_vec[i] = cache_line_1[i] as i64;
-    }
-    dmb();
-
-    for i in 0..16 {
-        local_vec[i + 16] = cache_line_2[i] as i64;
-    }
-    dmb();
-
-    for i in 0..16 {
-        local_vec[i + 16 * 2] = cache_line_1[i] as i64;
-    }
-    dmb();
-
-    for i in 0..16 {
-        local_vec[i + 16 * 3] = cache_line_2[i] as i64;
-    }
-    dmb();
-
-    for i in 0..16 {
-        local_vec[i + 16 * 4] = cache_line_1[i] as i64;
-    }
-    dmb();
-
-
-
     //------------------------------------------------------------- first 4 operators
-    cb = ChangeBatch::new_from(time_1, local_vec[i] as i64 );
-    cb1 = ChangeBatch::new_from(time_1, local_vec[i+1] as i64 );
+    cb = ChangeBatch::new_from(time_1, cache_line_1[i] as i64 );
+    cb1 = ChangeBatch::new_from(time_1, cache_line_1[i+1] as i64 );
     cb2 = ChangeBatch::new_from(
-        local_vec[i+2] as u64,
-        local_vec[i+3] as i64,
+        cache_line_1[i+2] as u64,
+        cache_line_1[i+3] as i64,
     );
 
     //println!("Index {}, progress {} {} {} {}", 0, cache_line_1[i], cache_line_1[i+1], cache_line_1[i+2], cache_line_1[i+3]);
@@ -1317,11 +1280,11 @@ fn read_data(
     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
     i = i + 4;
 
-    cb = ChangeBatch::new_from(time_1, local_vec[i] as i64 );
-    cb1 = ChangeBatch::new_from(time_1, local_vec[i+1] as i64 );
+    cb = ChangeBatch::new_from(time_1, cache_line_1[i] as i64 );
+    cb1 = ChangeBatch::new_from(time_1, cache_line_1[i+1] as i64 );
     cb2 = ChangeBatch::new_from(
-        local_vec[i+2] as u64,
-        local_vec[i+3] as i64,
+        cache_line_1[i+2] as u64,
+        cache_line_1[i+3] as i64,
     );
 
     //println!("Index {}, progress {} {} {} {}", 1, cache_line_1[i], cache_line_1[i+1], cache_line_1[i+2], cache_line_1[i+3]);
@@ -1332,11 +1295,11 @@ fn read_data(
     i = i + 4;
 
 
-    cb = ChangeBatch::new_from(time_1, local_vec[i] as i64 );
-    cb1 = ChangeBatch::new_from(time_1, local_vec[i+1] as i64 );
+    cb = ChangeBatch::new_from(time_1, cache_line_1[i] as i64 );
+    cb1 = ChangeBatch::new_from(time_1, cache_line_1[i+1] as i64 );
     cb2 = ChangeBatch::new_from(
-        local_vec[i+2] as u64,
-        local_vec[i+3] as i64,
+        cache_line_1[i+2] as u64,
+        cache_line_1[i+3] as i64,
     );
     //println!("Index {}, progress {} {} {} {}", 2, cache_line_1[i], cache_line_1[i+1], cache_line_1[i+2], cache_line_1[i+3]);
 
@@ -1347,11 +1310,11 @@ fn read_data(
     i = i + 4;
 
 
-    cb = ChangeBatch::new_from(time_1, local_vec[i] as i64 );
-    cb1 = ChangeBatch::new_from(time_1, local_vec[i+1] as i64 );
+    cb = ChangeBatch::new_from(time_1, cache_line_1[i] as i64 );
+    cb1 = ChangeBatch::new_from(time_1, cache_line_1[i+1] as i64 );
     cb2 = ChangeBatch::new_from(
-        local_vec[i+2] as u64,
-        local_vec[i+3] as i64,
+        cache_line_1[i+2] as u64,
+        cache_line_1[i+3] as i64,
     );
 
     //println!("Index {}, progress {} {} {} {}", 3, cache_line_1[i], cache_line_1[i+1], cache_line_1[i+2], cache_line_1[i+3]);
@@ -1359,18 +1322,18 @@ fn read_data(
     cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-    i = i+4;
+    i = 0;
     dmb();
     //println!("DONE 4");
 
     //-------------------------------------------------------------------- next 4 operators
 
     dmb();
-    cb = ChangeBatch::new_from(time_1, local_vec[i] as i64 );
-    cb1 = ChangeBatch::new_from(time_1, local_vec[i+1] as i64 );
+    cb = ChangeBatch::new_from(time_1, cache_line_2[i] as i64 );
+    cb1 = ChangeBatch::new_from(time_1, cache_line_2[i+1] as i64 );
     cb2 = ChangeBatch::new_from(
-        local_vec[i+2] as u64,
-        local_vec[i+3] as i64,
+        cache_line_2[i+2] as u64,
+        cache_line_2[i+3] as i64,
     );
     //println!("Index {}, progress {} {} {} {}", 4, cache_line_2[i], cache_line_2[i+1], cache_line_2[i+2], cache_line_2[i+3]);
     j = ghost_indexes[4].1 as usize;
@@ -1379,11 +1342,11 @@ fn read_data(
     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
     i = i + 4;
 
-    cb = ChangeBatch::new_from(time_1, local_vec[i] as i64 );
-    cb1 = ChangeBatch::new_from(time_1, local_vec[i+1] as i64 );
+    cb = ChangeBatch::new_from(time_1, cache_line_2[i] as i64 );
+    cb1 = ChangeBatch::new_from(time_1, cache_line_2[i+1] as i64 );
     cb2 = ChangeBatch::new_from(
-        local_vec[i+2] as u64,
-        local_vec[i+3] as i64,
+        cache_line_2[i+2] as u64,
+        cache_line_2[i+3] as i64,
     );
     //println!("Index {}, progress {} {} {} {}", 5, cache_line_2[i], cache_line_2[i+1], cache_line_2[i+2], cache_line_2[i+3]);
     j = ghost_indexes[5].1 as usize;
@@ -1393,11 +1356,11 @@ fn read_data(
     i = i + 4;
 
 
-    cb = ChangeBatch::new_from(time_1, local_vec[i] as i64 );
-    cb1 = ChangeBatch::new_from(time_1, local_vec[i+1] as i64 );
+    cb = ChangeBatch::new_from(time_1, cache_line_2[i] as i64 );
+    cb1 = ChangeBatch::new_from(time_1, cache_line_2[i+1] as i64 );
     cb2 = ChangeBatch::new_from(
-        local_vec[i+2] as u64,
-        local_vec[i+3] as i64,
+        cache_line_2[i+2] as u64,
+        cache_line_2[i+3] as i64,
     );
 
     //println!("Index {}, progress {} {} {} {}", 6, cache_line_2[i], cache_line_2[i+1], cache_line_2[i+2], cache_line_2[i+3]);
@@ -1408,11 +1371,11 @@ fn read_data(
     i = i + 4;
 
 
-    cb = ChangeBatch::new_from(time_1, local_vec[i] as i64 );
-    cb1 = ChangeBatch::new_from(time_1, local_vec[i+1] as i64 );
+    cb = ChangeBatch::new_from(time_1, cache_line_2[i] as i64 );
+    cb1 = ChangeBatch::new_from(time_1, cache_line_2[i+1] as i64 );
     cb2 = ChangeBatch::new_from(
-        local_vec[i+2] as u64,
-        local_vec[i+3] as i64,
+        cache_line_2[i+2] as u64,
+        cache_line_2[i+3] as i64,
     );
 
     //println!("Index {}, progress {} {} {} {}", 7, cache_line_2[i], cache_line_2[i+1], cache_line_2[i+2], cache_line_2[i+3]);
@@ -1420,17 +1383,17 @@ fn read_data(
     cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-    i = i + 4;
+    i = 0;
     dmb();
     //println!("DONE 5");
 
     //-------------------------------------------------------------------------- next 4 operators
 
-    cb = ChangeBatch::new_from(time_1, local_vec[i] as i64 );
-    cb1 = ChangeBatch::new_from(time_1, local_vec[i+1] as i64 );
+    cb = ChangeBatch::new_from(time_1, cache_line_1[i] as i64 );
+    cb1 = ChangeBatch::new_from(time_1, cache_line_1[i+1] as i64 );
     cb2 = ChangeBatch::new_from(
-        local_vec[i+2] as u64,
-        local_vec[i+3] as i64,
+        cache_line_1[i+2] as u64,
+        cache_line_1[i+3] as i64,
     );
 
 
@@ -1441,11 +1404,11 @@ fn read_data(
     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
     i = i + 4;
 
-    cb = ChangeBatch::new_from(time_1, local_vec[i] as i64 );
-    cb1 = ChangeBatch::new_from(time_1, local_vec[i+1] as i64 );
+    cb = ChangeBatch::new_from(time_1, cache_line_1[i] as i64 );
+    cb1 = ChangeBatch::new_from(time_1, cache_line_1[i+1] as i64 );
     cb2 = ChangeBatch::new_from(
-        local_vec[i+2] as u64,
-        local_vec[i+3] as i64,
+        cache_line_1[i+2] as u64,
+        cache_line_1[i+3] as i64,
     );
     //println!("Index {}, progress {} {} {} {}", 9, cache_line_1[i], cache_line_1[i+1], cache_line_1[i+2], cache_line_1[i+3]);
     j = ghost_indexes[9].1 as usize;
@@ -1455,11 +1418,11 @@ fn read_data(
     i = i + 4;
 
 
-    cb = ChangeBatch::new_from(time_1, local_vec[i] as i64 );
-    cb1 = ChangeBatch::new_from(time_1, local_vec[i+1] as i64 );
+    cb = ChangeBatch::new_from(time_1, cache_line_1[i] as i64 );
+    cb1 = ChangeBatch::new_from(time_1, cache_line_1[i+1] as i64 );
     cb2 = ChangeBatch::new_from(
-        local_vec[i+2] as u64,
-        local_vec[i+3] as i64,
+        cache_line_1[i+2] as u64,
+        cache_line_1[i+3] as i64,
     );
 
     //println!("Index {}, progress {} {} {} {}", 10, cache_line_1[i], cache_line_1[i+1], cache_line_1[i+2], cache_line_1[i+3]);
@@ -1470,11 +1433,11 @@ fn read_data(
     i = i + 4;
 
 
-    cb = ChangeBatch::new_from(time_1, local_vec[i] as i64 );
-    cb1 = ChangeBatch::new_from(time_1, local_vec[i+1] as i64 );
+    cb = ChangeBatch::new_from(time_1, cache_line_1[i] as i64 );
+    cb1 = ChangeBatch::new_from(time_1, cache_line_1[i+1] as i64 );
     cb2 = ChangeBatch::new_from(
-        local_vec[i+2] as u64,
-        local_vec[i+3] as i64,
+        cache_line_1[i+2] as u64,
+        cache_line_1[i+3] as i64,
     );
 
     //println!("Index {}, progress {} {} {} {}", 11, cache_line_1[i], cache_line_1[i+1], cache_line_1[i+2], cache_line_1[i+3]);
@@ -1482,17 +1445,17 @@ fn read_data(
     cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-    i = i+4;
+    i = 0;
     dmb();
     //println!("DONE 6");
 
     //------------------------------------------------------------------------ next 4 operators
 
-    cb = ChangeBatch::new_from(time_1, local_vec[i] as i64 );
-    cb1 = ChangeBatch::new_from(time_1, local_vec[i+1] as i64 );
+    cb = ChangeBatch::new_from(time_1, cache_line_2[i] as i64 );
+    cb1 = ChangeBatch::new_from(time_1, cache_line_2[i+1] as i64 );
     cb2 = ChangeBatch::new_from(
-        local_vec[i+2] as u64,
-        local_vec[i+3] as i64,
+        cache_line_2[i+2] as u64,
+        cache_line_2[i+3] as i64,
     );
 
     //println!("Index {}, progress {} {} {} {}", 12, cache_line_2[i], cache_line_2[i+1], cache_line_2[i+2], cache_line_2[i+3]);
@@ -1502,11 +1465,11 @@ fn read_data(
     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
     i = i + 4;
 
-    cb = ChangeBatch::new_from(time_1, local_vec[i] as i64 );
-    cb1 = ChangeBatch::new_from(time_1, local_vec[i+1] as i64 );
+    cb = ChangeBatch::new_from(time_1, cache_line_2[i] as i64 );
+    cb1 = ChangeBatch::new_from(time_1, cache_line_2[i+1] as i64 );
     cb2 = ChangeBatch::new_from(
-        local_vec[i+2] as u64,
-        local_vec[i+3] as i64,
+        cache_line_2[i+2] as u64,
+        cache_line_2[i+3] as i64,
     );
 
     //println!("Index {}, progress {} {} {} {}", 13, cache_line_2[i], cache_line_2[i+1], cache_line_2[i+2], cache_line_2[i+3]);
@@ -1517,11 +1480,11 @@ fn read_data(
     i = i + 4;
 
 
-    cb = ChangeBatch::new_from(time_1, local_vec[i] as i64 );
-    cb1 = ChangeBatch::new_from(time_1, local_vec[i+1] as i64 );
+    cb = ChangeBatch::new_from(time_1, cache_line_2[i] as i64 );
+    cb1 = ChangeBatch::new_from(time_1, cache_line_2[i+1] as i64 );
     cb2 = ChangeBatch::new_from(
-        local_vec[i+2] as u64,
-        local_vec[i+3] as i64,
+        cache_line_2[i+2] as u64,
+        cache_line_2[i+3] as i64,
     );
 
     //println!("Index {}, progress {} {} {} {}", 14, cache_line_2[i], cache_line_2[i+1], cache_line_2[i+2], cache_line_2[i+3]);
@@ -1532,11 +1495,11 @@ fn read_data(
     i = i + 4;
 
 
-    cb = ChangeBatch::new_from(time_1, local_vec[i] as i64 );
-    cb1 = ChangeBatch::new_from(time_1, local_vec[i+1] as i64 );
+    cb = ChangeBatch::new_from(time_1, cache_line_2[i] as i64 );
+    cb1 = ChangeBatch::new_from(time_1, cache_line_2[i+1] as i64 );
     cb2 = ChangeBatch::new_from(
-        local_vec[i+2] as u64,
-        local_vec[i+3] as i64,
+        cache_line_2[i+2] as u64,
+        cache_line_2[i+3] as i64,
     );
 
     //println!("Index {}, progress {} {} {} {}", 15, cache_line_2[i], cache_line_2[i+1], cache_line_2[i+2], cache_line_2[i+3]);
@@ -1544,15 +1507,19 @@ fn read_data(
     cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
-    i = i+4;
+    i = 0;
     dmb();
 
+    for i in 0..16 {
+        print!("{} ", cache_line_1[i]);
+    }
+    println!();
     //------------------------------------------------------------- first 4 operators
-    cb = ChangeBatch::new_from(time_1, local_vec[i] as i64 );
-    cb1 = ChangeBatch::new_from(time_1, local_vec[i+1] as i64 );
+    cb = ChangeBatch::new_from(time_1, cache_line_1[i] as i64 );
+    cb1 = ChangeBatch::new_from(time_1, cache_line_1[i+1] as i64 );
     cb2 = ChangeBatch::new_from(
-        local_vec[i+2] as u64,
-        local_vec[i+3] as i64,
+        cache_line_1[i+2] as u64,
+        cache_line_1[i+3] as i64,
     );
 
 
@@ -1563,11 +1530,11 @@ fn read_data(
     cb2.drain_into(&mut progress.wrapper_internals.get_mut(&j).unwrap()[0]);
     i = i + 4;
 
-    cb = ChangeBatch::new_from(time_1, local_vec[i] as i64 );
-    cb1 = ChangeBatch::new_from(time_1, local_vec[i+1] as i64 );
+    cb = ChangeBatch::new_from(time_1, cache_line_1[i] as i64 );
+    cb1 = ChangeBatch::new_from(time_1, cache_line_1[i+1] as i64 );
     cb2 = ChangeBatch::new_from(
-        local_vec[i+2] as u64,
-        local_vec[i+3] as i64,
+        cache_line_1[i+2] as u64,
+        cache_line_1[i+3] as i64,
     );
 
     //println!("Index {}, progress {} {} {} {}", 17, cache_line_1[i], cache_line_1[i+1], cache_line_1[i+2], cache_line_1[i+3]);
@@ -1578,11 +1545,11 @@ fn read_data(
     i = i + 4;
 
 
-    cb = ChangeBatch::new_from(time_1, local_vec[i] as i64 );
-    cb1 = ChangeBatch::new_from(time_1, local_vec[i+1] as i64 );
+    cb = ChangeBatch::new_from(time_1, cache_line_1[i] as i64 );
+    cb1 = ChangeBatch::new_from(time_1, cache_line_1[i+1] as i64 );
     cb2 = ChangeBatch::new_from(
-        local_vec[i+2] as u64,
-        local_vec[i+3] as i64,
+        cache_line_1[i+2] as u64,
+        cache_line_1[i+3] as i64,
     );
 
     //println!("Index {}, progress {} {} {} {}", 18, cache_line_1[i], cache_line_1[i+1], cache_line_1[i+2], cache_line_1[i+3]);
@@ -1593,11 +1560,11 @@ fn read_data(
     i = i + 4;
 
 
-    cb = ChangeBatch::new_from(time_1, local_vec[i] as i64 );
-    cb1 = ChangeBatch::new_from(time_1, local_vec[i+1] as i64 );
+    cb = ChangeBatch::new_from(time_1, cache_line_1[i] as i64 );
+    cb1 = ChangeBatch::new_from(time_1, cache_line_1[i+1] as i64 );
     cb2 = ChangeBatch::new_from(
-        local_vec[i+2] as u64,
-        local_vec[i+3] as i64,
+        cache_line_1[i+2] as u64,
+        cache_line_1[i+3] as i64,
     );
 
     /*let epoch_start = Instant::now();
@@ -2598,13 +2565,13 @@ fn fpga_communication(
 
     //let epoch_start = Instant::now();
     // Read data out
-    println!("NO DATA OUT");
+    //println!("NO DATA OUT");
     for i in 0..CACHE_LINE_SIZE as usize {
-        print!("{} ", cache_line_2[i]);
+    //    print!("{} ", cache_line_2[i]);
         output_arr[i] = cache_line_2[i];
     }
     dmb();
-    println!();
+    //println!();
         //let epoch_end = Instant::now();
         //let total_nanos = (epoch_end - start).as_nanos();
         //println!("processing latency: {total_nanos}");
