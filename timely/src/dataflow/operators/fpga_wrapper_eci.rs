@@ -1185,64 +1185,51 @@ fn write_data(
     cache_line_2: & mut[u64]
 )
 {
-
-    println!("Data to FPGA");
-    for val in vector.iter() {
-        print!("{} ", val);
-    }
-    println!();
-
     let mut current_length = 0;
 
     for i in 0..16 {
         let frontier = borrow[i].frontier();
-        if frontier.len() == 0 {
-            cache_line_1[current_length] = 0;
-        } else {
+        //if frontier.len() == 0 {
+        //    cache_line_1[current_length] = 0;
+        //} else {
             //for val in frontier.iter() {
-            cache_line_1[i] = (frontier[0] << 1) | 1u64;
+        cache_line_1[i] = (frontier[0] << 1) | 1u64;
             //}
-        }
+        //}
     }
 
     dmb();
 
-    for i in 16..20 {
-        print!("{} ", current_length);
-        let frontier = borrow[i].frontier();
-        if frontier.len() == 0 {
-            cache_line_2[current_length] = 0;
-        } else {
+    for i in 0..4 {
+        let frontier = borrow[i + 16].frontier();
+        //if frontier.len() == 0 {
+        //    cache_line_2[current_length] = 0;
+        //} else {
             //for val in frontier.iter() {
-            cache_line_2[current_length] = (frontier[0] << 1) | 1u64;
-            current_length = current_length + 1;
+        cache_line_2[i] = (frontier[0] << 1) | 1u64;
             //}
-        }
+        //}
     }
 
-    for i in 20..32 {
-        print!("{} ", current_length);
-        cache_line_2[current_length] = 0;
-        current_length = current_length + 1;
-        
+    for i in 4..16 {
+        cache_line_2[i] = 0;
     }
-    println!();
 
     dmb();
 
     current_length = 0;
 
-    if vector.len() == 0 {
-        for i in 0..16 {
-            cache_line_1[i] = 0;
-        }
-    } else {
-        for i in 0..16 {
-            cache_line_1[i] = (vector[i] << 1) | 1u64;
-            //current_length += 1;
-        }
+    //if vector.len() == 0 {
+    //    for i in 0..16 {
+     //       cache_line_1[i] = 0;
+     //   }
+    //} else {
+    for i in 0..16 {
+        cache_line_1[i] = (vector[i] << 1) | 1u64;
+        //current_length += 1;
     }
-    dmb();
+//}
+    dmb();dmb();
 }
 #[cfg(feature = "20op")]
 fn read_data(
@@ -1256,6 +1243,7 @@ fn read_data(
 )
 {
 
+    dmb();
     println!("Data from FPGA");
     for i in 0..16 as usize{
         let val = cache_line_2[i] as u64;
@@ -1283,6 +1271,8 @@ fn read_data(
     let mut cb2 = ChangeBatch::new_from(0, 0);
 
     let time_1 = time.clone();
+
+
 
     //------------------------------------------------------------- first 4 operators
     cb = ChangeBatch::new_from(time_1, cache_line_1[i] as i64 );
@@ -1347,6 +1337,7 @@ fn read_data(
 
     //-------------------------------------------------------------------- next 4 operators
 
+    dmb();
     cb = ChangeBatch::new_from(time_1, cache_line_2[i] as i64 );
     cb1 = ChangeBatch::new_from(time_1, cache_line_2[i+1] as i64 );
     cb2 = ChangeBatch::new_from(
@@ -1581,12 +1572,11 @@ fn read_data(
         cache_line_1[i+3] as i64,
     );
 
-
-    let epoch_start = Instant::now();
+    /*let epoch_start = Instant::now();
     println!("Index {}, progress {} {} {} {}", 19, cache_line_1[i], cache_line_1[i+1], cache_line_1[i+2], cache_line_1[i+3]);
     let epoch_end = Instant::now();
     let total_nanos = (epoch_end - epoch_start).as_nanos();
-    println!("processing latency: {total_nanos}");
+    println!("processing latency: {total_nanos}");*/
     j = ghost_indexes[19].1 as usize;
     cb.drain_into(&mut progress.wrapper_consumeds.get_mut(&j).unwrap()[0]);
     cb1.drain_into(&mut progress.wrapper_produceds.get_mut(&j).unwrap()[0]);
