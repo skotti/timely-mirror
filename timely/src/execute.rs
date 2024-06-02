@@ -62,8 +62,8 @@ fn get_fpga_mem() -> i32 {
 fn mmap_wrapper(fd: c_int, no_cpus: c_int) -> Result<*mut c_void, std::io::Error> {
     let area = unsafe {
         libc::mmap(
-            std::ptr::null_mut(),
-            SIZE * no_cpus as usize,
+            0x100000000000 as *mut c_void,
+            0x10000000000 as usize,
             PROT_READ | PROT_WRITE,
             MAP_SHARED | MAP_FIXED,
             fd,

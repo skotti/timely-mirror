@@ -557,8 +557,8 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
         let frontier = Rc::new(RefCell::new(vec![MutableAntichain::new(); ghost_indexes.len()]));
         let mut started = false;
 
-        let mut vector = Vec::with_capacity(16000);
-        let mut vector2 = Vec::with_capacity(16000);
+        let mut vector = Vec::with_capacity(32000);
+        let mut vector2 = Vec::with_capacity(32000);
 
         let mut produced = HashMap::with_capacity(60);
         let mut consumed = HashMap::with_capacity(60);
@@ -590,8 +590,8 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperXDMA<S> for Stream<S, u64> {
 
                 let param: i64 = num_data / 8; // number of 8 number chuncks
                 let param_output: i64 = num_data / 8;
-                let frontier_param = 3;//2;
-                let progress_param = 10;//8;
+                let frontier_param = 4;//2;
+                let progress_param = 16;//8;
                 let mut has_data = false;
 
                 //println!("Amount of data (fpga_wrapper) {}", num_data);
