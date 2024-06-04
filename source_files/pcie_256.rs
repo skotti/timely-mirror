@@ -393,6 +393,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                     unsafe{*(area.offset(280 as isize) as *mut u64x2) = v0[140]};
                     unsafe{*(area.offset(282 as isize) as *mut u64x2) = v0[141]};
                     unsafe{*(area.offset(284 as isize) as *mut u64x2) = v0[142]};
+                    unsafe{*(area.offset(286 as isize) as *mut u64x2) = v0[143]};
 
                     dmb();
                 }
@@ -1717,6 +1718,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                     unsafe{*(area.offset(280 as isize) as *mut u64x2) = v0[140]};
                     unsafe{*(area.offset(282 as isize) as *mut u64x2) = v0[141]};
                     unsafe{*(area.offset(284 as isize) as *mut u64x2) = v0[142]};
+                    unsafe{*(area.offset(286 as isize) as *mut u64x2) = v0[143]};
                     dmb();
                 }
 
