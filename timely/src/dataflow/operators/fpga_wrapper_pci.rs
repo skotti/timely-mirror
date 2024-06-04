@@ -229,7 +229,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 
                 //println!("Current length = {}", current_length);
 
-                for i in (0..16).step_by(2) {
+                for i in (0..32).step_by(2) {
                     let x = u64x2::from_array([(vector[i] << 1) | 1u64, (vector[i+1] << 1) | 1u64]);
                     v0.push(x);
                 }
@@ -274,7 +274,14 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                     unsafe{*(area.offset(42 as isize) as *mut u64x2) = v0[21]};
                     unsafe{*(area.offset(44 as isize) as *mut u64x2) = v0[22]};
                     unsafe{*(area.offset(46 as isize) as *mut u64x2) = v0[23]};
-
+                    unsafe{*(area.offset(48 as isize) as *mut u64x2) = v0[24]};
+                    unsafe{*(area.offset(50 as isize) as *mut u64x2) = v0[25]};
+                    unsafe{*(area.offset(52 as isize) as *mut u64x2) = v0[26]};
+                    unsafe{*(area.offset(54 as isize) as *mut u64x2) = v0[27]};
+                    unsafe{*(area.offset(56 as isize) as *mut u64x2) = v0[28]};
+                    unsafe{*(area.offset(58 as isize) as *mut u64x2) = v0[29]};
+                    unsafe{*(area.offset(60 as isize) as *mut u64x2) = v0[30]};
+                    unsafe{*(area.offset(62 as isize) as *mut u64x2) = v0[31]};
                     dmb();
                 }
                 let mut pc: i64x2 = i64x2::from_array([0 , 0]);
@@ -333,9 +340,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 0 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 0 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 2 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 2 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -361,9 +368,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 4 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 4 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 6 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 6 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -388,9 +395,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 8 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 8 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 10 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 10 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -417,9 +424,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 12 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 12 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 14 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 14 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -445,9 +452,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe{pc = *(area.offset(16 + 16 as isize) as *mut i64x2);}
+                    unsafe{pc = *(area.offset(32 + 16 as isize) as *mut i64x2);}
                     dmb();
-                    unsafe{it = *(area.offset(16 + 18 as isize) as *mut i64x2);}
+                    unsafe{it = *(area.offset(32 + 18 as isize) as *mut i64x2);}
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -472,9 +479,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 20 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 20 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 22 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 22 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -500,9 +507,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 24 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 24 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 26 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 26 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -530,9 +537,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 28 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 28 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 30 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 30 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -559,9 +566,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 32 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 32 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 34 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 34 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -588,9 +595,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 36 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 36 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 38 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 38 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -616,9 +623,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 40 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 40 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 42 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 42 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -644,9 +651,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 44 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 44 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 46 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 46 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -673,9 +680,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 48 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 48 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 50 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 50 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -702,9 +709,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 52 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 52 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 54 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 54 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -730,9 +737,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 56 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 56 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 58 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 58 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -758,9 +765,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 60 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 60 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 62 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 62 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -785,9 +792,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 // ---------------------------------------------------------------------------------- get the
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 64 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 64 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 66 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 66 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -813,9 +820,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 68 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 68 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 70 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 70 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -841,9 +848,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 72 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 72 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 74 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 74 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -870,9 +877,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 76 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 76 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 78 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 78 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -898,9 +905,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 80 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 80 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 82 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 82 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -926,9 +933,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 84 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 84 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 86 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 86 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -954,9 +961,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 88 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 88 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 90 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 90 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -982,9 +989,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 92 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 92 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 94 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 94 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -1010,9 +1017,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 96 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 96 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 98 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 98 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -1038,9 +1045,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 100 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 100 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 102 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 102 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -1066,9 +1073,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 104 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 104 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 106 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 106 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -1094,9 +1101,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 108 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 108 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 110 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 110 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -1122,9 +1129,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 112 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 112 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 114 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 114 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -1150,9 +1157,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 116 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 116 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 118 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 118 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -1178,9 +1185,9 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 // ---------------------------------------------------------------------------------- get the data
                 #[cfg(not(feature = "no-fpga"))] {
                     //dmb();
-                    unsafe { pc = *(area.offset(16 + 120 as isize) as *mut i64x2); }
+                    unsafe { pc = *(area.offset(32 + 120 as isize) as *mut i64x2); }
                     dmb();
-                    unsafe { it = *(area.offset(16 + 122 as isize) as *mut i64x2); }
+                    unsafe { it = *(area.offset(32 + 122 as isize) as *mut i64x2); }
                     dmb();
                     //println!("{} {}", pc[0], pc[1]);
                     //println!("{} {}", it[0], it[1]);
@@ -1433,7 +1440,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 
                 //println!("Current length = {}", current_length);
 
-                for i in (0..16).step_by(2) {
+                for i in (0..32).step_by(2) {
                     let x = u64x2::from_array([0, 0]);
                     v0.push(x);
                 }
@@ -1479,6 +1486,14 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                     unsafe{*(area.offset(42 as isize) as *mut u64x2) = v0[21]};
                     unsafe{*(area.offset(44 as isize) as *mut u64x2) = v0[22]};
                     unsafe{*(area.offset(46 as isize) as *mut u64x2) = v0[23]};
+                    unsafe{*(area.offset(48 as isize) as *mut u64x2) = v0[24]};
+                    unsafe{*(area.offset(50 as isize) as *mut u64x2) = v0[25]};
+                    unsafe{*(area.offset(52 as isize) as *mut u64x2) = v0[26]};
+                    unsafe{*(area.offset(54 as isize) as *mut u64x2) = v0[27]};
+                    unsafe{*(area.offset(56 as isize) as *mut u64x2) = v0[28]};
+                    unsafe{*(area.offset(58 as isize) as *mut u64x2) = v0[29]};
+                    unsafe{*(area.offset(60 as isize) as *mut u64x2) = v0[30]};
+                    unsafe{*(area.offset(62 as isize) as *mut u64x2) = v0[31]};
                     dmb();
                 }
 
@@ -1525,7 +1540,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 let id_wrap = ghost_indexes[ghost_indexes.len() - 1].1;
 
                 let mut cc = 0;
-                for i in (16..139).step_by(2) {
+                for i in (32..155).step_by(2) {
                     //dmb();
                     unsafe { pc[cc] = *(area.offset(i as isize) as *mut i64x2); }
                     //println!("{} {} \n", pc2[0], pc2[1]);
