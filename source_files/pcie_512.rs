@@ -2021,7 +2021,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 let id_wrap = ghost_indexes[ghost_indexes.len() - 1].1;
 
                 let mut cc = 0;
-                for i in (512..139).step_by(2) {
+                for i in (512..635).step_by(2) {
                     //dmb();
                     unsafe { pc[cc] = *(area.offset(i as isize) as *mut i64x2); }
                     //println!("{} {} \n", pc2[0], pc2[1]);
