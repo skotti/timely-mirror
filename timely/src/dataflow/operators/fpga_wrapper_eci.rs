@@ -315,7 +315,7 @@ fn fpga_communication(
     }
     dmb();
 
-    println!("no data, wrote frontiers");
+    //println!("no data, wrote frontiers");
 
     let num_batch_lines = num_data / CACHE_LINE_SIZE;
     for k in 0..num_batch_lines {
@@ -338,7 +338,7 @@ fn fpga_communication(
 
     }
 
-    println!("no data, read and wrote data");
+    //println!("no data, read and wrote data");
 
 
     // Read summary
@@ -772,7 +772,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
                 }
 
                 dmb();
-                println!("Sent frontiers");
+                //println!("Sent frontiers");
                 /*let frontier = borrow[0].frontier();
 
                 if frontier.len() == 0 {
@@ -795,61 +795,40 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
                 //println!("DONE 1");
 
                 // 16
-                current_length = 0;
-                let data_length = num_data;
+                
+                let num_batch_lines = num_data / CACHE_LINE_SIZE;
+                for k in 0 .. num_batch_lines as usize {
+                    current_length = 0;
+                    let data_length = num_data;
 
-                if vector.len() == 0 {
-                    for i in 0..16 {
-                        cache_line_1[i] = 0;
+                    if vector.len() == 0 {
+                        for i in 0..16 {
+                            cache_line_1[i] = 0;
+                        }
+                    } else {
+                        for i in 0..16 {
+                            cache_line_1[i] = (vector[i + 16 * k] << 1) | 1u64;
+                            //current_length += 1;
+                        }
                     }
-                } else {
-                    for i in 0..16 {
-                        cache_line_1[i] = (vector[i] << 1) | 1u64;
-                        //current_length += 1;
+
+
+
+                    dmb();
+
+                    for i in 0..16 as usize{
+                        let val = cache_line_2[i] as u64;
+                        let shifted_val = val >> 1;
+                        if val != 0 {
+                            vector2.push(shifted_val);
+                        }
                     }
+
+                    dmb();
+
                 }
 
-
-
-                dmb();
-
-                for i in 0..16 as usize{
-                    let val = cache_line_2[i] as u64;
-                    let shifted_val = val >> 1;
-                    if val != 0 {
-                        vector2.push(shifted_val);
-                    }
-                }
-
-                dmb();
-
-                println!("read first data batch");
-
-                if vector.len() == 0 {
-                    for i in 0..16 {
-                        cache_line_1[i] = 0;
-                    }
-                } else {
-                    for i in 0..16 {
-                        cache_line_1[i] = (vector[i + 16] << 1) | 1u64;
-                        //current_length += 1;
-                    }
-                }
-
-
-                dmb();
-
-                for i in 0..16 as usize{
-                    let val = cache_line_2[i] as u64;
-                    let shifted_val = val >> 1;
-                    if val != 0 {
-                        vector2.push(shifted_val);
-                    }
-                }
-
-                dmb();
-                println!("read second data batch");
-
+                //println!("read fourth data batch");
                 //println!("DONE 3");
                 //println!("output vector = {:?}", vector2);
                 
@@ -1328,7 +1307,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperECI<S> for Stream<S, u64> {
     i = 0;
     dmb();
 
-    println!("Read progress");
+    //println!("Read progress");
                 //println!("DONE 7");
                 
             }
