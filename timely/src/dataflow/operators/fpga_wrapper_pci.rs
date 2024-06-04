@@ -202,17 +202,30 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 for i in (0..29).step_by(2) {
                     let frontier1 = borrow[i].borrow().frontier();
                     let frontier2 = borrow[i+1].borrow().frontier();
+                    if frontier1.len() == 0 {
+                        let x =  u64x2::from_array([0, 0]);
+                        v0.push(x);
+                        current_length += 2;
+                    } else {
 
-                    let x =  u64x2::from_array([(frontier1[0] << 1) | 1u64, (frontier2[0] << 1) | 1u64]);
-                    v0.push(x);
-                    current_length += 2;
+                        // for now we will assume that frontier has length 1, if it is not 1 , then we already might want to modify logic on the
+                        // FPGA side as well
+                        let x =  u64x2::from_array([(frontier1[0] << 1) | 1u64, (frontier2[0] << 1) | 1u64]);
+                        v0.push(x);
+                        current_length += 2;
+                    }
                 }
 
 
 
                 let frontier_last = borrow[30].borrow().frontier();
-                let x =  u64x2::from_array([(frontier_last[0] << 1) | 1u64, 0]);
-                v0.push(x);
+                if frontier_last.len() == 0 {
+                    let x =  u64x2::from_array([0, 0]);
+                    v0.push(x);
+                } else {
+                    let x =  u64x2::from_array([(frontier_last[0] << 1) | 1u64, 0]);
+                    v0.push(x);
+                }
 
                 //println!("Current length = {}", current_length);
 
@@ -1393,29 +1406,30 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
                 for i in (0..29).step_by(2) {
                     let frontier1 = borrow[i].borrow().frontier();
                     let frontier2 = borrow[i+1].borrow().frontier();
-                    /*if frontier.len() == 0 {
+                    if frontier1.len() == 0 {
                         let x =  u64x2::from_array([0, 0]);
                         v0.push(x);
                         current_length += 2;
                     } else {
-                        for val in (0..frontier.len()).step_by(2) {
-                            let x =  u64x2::from_array([(frontier[val] << 1) | 1u64, (frontier[val] << 1) | 1u64]);
-                            v0.push(x);
-                            current_length += 2;
-                        }
-                    }*/
-                    // for now we will assume that frontier has length 1, if it is not 1 , then we already might want to modify logic on the
-                    // FPGA side as well
-                    let x =  u64x2::from_array([(frontier1[0] << 1) | 1u64, (frontier2[0] << 1) | 1u64]);
-                    v0.push(x);
-                    current_length += 2;
+
+                        // for now we will assume that frontier has length 1, if it is not 1 , then we already might want to modify logic on the
+                        // FPGA side as well
+                        let x =  u64x2::from_array([(frontier1[0] << 1) | 1u64, (frontier2[0] << 1) | 1u64]);
+                        v0.push(x);
+                        current_length += 2;
+                    }
                 }
 
 
 
                 let frontier_last = borrow[30].borrow().frontier();
-                let x =  u64x2::from_array([(frontier_last[0] << 1) | 1u64, 0]);
-                v0.push(x);
+                if frontier_last.len() == 0 {
+                    let x =  u64x2::from_array([0, 0]);
+                    v0.push(x);
+                } else {
+                    let x =  u64x2::from_array([(frontier_last[0] << 1) | 1u64, 0]);
+                    v0.push(x);
+                }
 
                 //println!("Current length = {}", current_length);
 
