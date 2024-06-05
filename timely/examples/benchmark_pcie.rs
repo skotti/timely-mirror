@@ -26,12 +26,12 @@ fn main() {
 
         // introduce data and watch!
         let start = Instant::now();
-        let mut epoch_start = Instant::now();
         let mut hist = hdrhist::HDRHist::new();
 
         let mut epoch_latencies = vec![0; num_rounds as usize];
         for round in 0..num_rounds {
-            println!("New round");
+            //println!("New round");
+            let mut epoch_start = Instant::now();
             for _j in 0..num_data {
                 input.send(21 + round as u64 * 2); // max = 0
             }
@@ -39,7 +39,7 @@ fn main() {
             while probe.less_than(input.time()) {
                 worker.step();
             }
-            println!("End round");
+            //println!("End round");
             let epoch_end = Instant::now();
             let epoch_nanos = (epoch_end - epoch_start).as_nanos();
             epoch_start = epoch_end;
