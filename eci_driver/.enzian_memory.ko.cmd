@@ -1,0 +1,1 @@
+cmd_/scratch/aruzhans/timely_all_three/eci_driver/enzian_memory.ko := ld -r  -EL  -maarch64elf  --build-id  -T ./scripts/module-common.lds -T ./arch/arm64/kernel/module.lds -o /scratch/aruzhans/timely_all_three/eci_driver/enzian_memory.ko /scratch/aruzhans/timely_all_three/eci_driver/enzian_memory.o /scratch/aruzhans/timely_all_three/eci_driver/enzian_memory.mod.o;  true

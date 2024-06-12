@@ -156,7 +156,7 @@ impl<S: Scope<Timestamp = u64>> FpgaWrapperPCI<S> for Stream<S, u64> {
 
             //let epoch_start = Instant::now();
 
-            let mut data_length: i64 = 16;
+            let mut data_length: i64 = 32;
 
             let mut borrow = frontier.borrow_mut();
 

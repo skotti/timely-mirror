@@ -1,0 +1,3 @@
+# Copy this file to /etc/udev/rules.d/
+# And reload the udev rules: "udevadm control --reload"
+KERNEL=="fpgamem", MODE="0666"

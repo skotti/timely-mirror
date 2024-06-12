@@ -1,0 +1,1 @@
+cmd_/scratch/aruzhans/timely_all_three/xdma_driver/xdma/xdma.ko := ld -r  -EL  -maarch64elf  --build-id  -T ./scripts/module-common.lds -T ./arch/arm64/kernel/module.lds -o /scratch/aruzhans/timely_all_three/xdma_driver/xdma/xdma.ko /scratch/aruzhans/timely_all_three/xdma_driver/xdma/xdma.o /scratch/aruzhans/timely_all_three/xdma_driver/xdma/xdma.mod.o;  true

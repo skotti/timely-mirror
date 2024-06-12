@@ -1,0 +1,177 @@
+/*
+ * Enzian Memory Benchmark
+ *
+ * ETH 2022
+ * Adam Turowski
+ * adam.turowski@ethz.ch
+ *
+ * Latency and bandwidth memory benchmark using 1G hugepages
+ * Core-to-core latency benchmark
+ * To allocate huge pages in the main memory, do:
+ * echo 3 > /sys/devices/system/node/node0/hugepages/hugepages-1048576kB/nr_hugepages
+ */
+
+#define _GNU_SOURCE
+#include <unistd.h>
+#include <stdio.h>
+#include <time.h>
+#include <assert.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <sys/mman.h>
+#include <linux/mman.h>
+#include <assert.h>
+#include <pthread.h>
+#include <sys/sysinfo.h>
+#include <fcntl.h>
+#include <string.h>
+#include <linux/ioctl.h>
+
+#include <sys/ioctl.h>
+
+#define SIZE_EXP 26
+#define SIZE (1UL << SIZE_EXP)
+#define MASK ((SIZE / 8) - 1)
+#define COUNT (SIZE)
+#define STRIDE ((128) * 16)
+#define CACHELINE_SIZE 128
+
+
+unsigned first_cpu, last_cpu, use_cpu_memory, do_cache_to_cache, do_latency, do_seq_latency, do_throughput;
+
+void *area = NULL;
+double rate = 1.0;
+uint64_t itn;
+uint64_t no_cpus = 1;
+uint64_t l2_cache_size;
+uint64_t area_test_size = 0;
+
+
+static __inline__ uint64_t rdtsc(void)
+{
+#ifdef __aarch64__
+    uint64_t t;
+    __asm__ __volatile__(" isb\nmrs %0, cntvct_el0" : "=r" (t));
+    return t;
+#endif
+#ifdef __amd64__
+    uint32_t a;
+    uint32_t d;
+    __asm__ __volatile__(" lfence\nrdtsc\n" : "=a" (a), "=d" (d));
+    return ((uint64_t) a) | (((uint64_t) d) << 32);
+#endif
+}
+
+
+uint64_t now(void)
+{
+    return rdtsc();
+}
+
+
+
+const char * nice_size(unsigned int size)
+{
+    static char text[64];
+
+    if (size < 1024) {
+        snprintf(text, sizeof(text), "%9d", size);
+    } else if (size < 1048576) {
+        snprintf(text, sizeof(text), "%9dk", size / 1024);
+    } else if (size < 1048576 * 1024) {
+        snprintf(text, sizeof(text), "%9dM", size / 1024 / 1024);
+    } else {
+        snprintf(text, sizeof(text), "%9dG", size / 1024 / 1024 / 1024);
+    }
+    return text;
+}
+
+static __inline__ void dmb(void)
+{
+#ifdef __aarch64__
+	__asm__ __volatile__ ("dmb 0xF":::"memory");
+#endif
+#ifdef __amd64__
+	__asm__ __volatile__ ("dmb 0xF":::"memory");
+#endif
+
+}
+
+
+
+
+int main(int argc, char *argv[])
+{
+    int fd;
+    no_cpus = get_nprocs();
+
+    fd = open("/dev/fpgamem", O_RDWR);
+    assert(fd >= 0);
+
+    area = mmap((void *)0x100000000000UL, 0x10000000000ULL, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED, fd, 0); // map 1TB
+    assert(area != MAP_FAILED);
+
+    printf("Assert passed\n");
+    printf("Area:%p:%p Size:%s  Mask:%zd\n", area, area + (SIZE * 48), nice_size(SIZE * 48), MASK);
+
+
+    /*printf("A = %ld\n", ((uint64_t*)area)[0]);
+    printf("B = %ld\n", ((uint64_t*)area)[1]);
+    printf("C = %ld\n", ((uint64_t*)area)[2]);
+    printf("D = %ld\n", ((uint64_t*)area)[3]);
+    printf("e = %ld\n", ((uint64_t*)area)[4]);
+    printf("A = %ld\n", ((uint64_t*)area)[5]);
+    printf("B = %ld\n", ((uint64_t*)area)[6]);
+    printf("C = %ld\n", ((uint64_t*)area)[7]);
+    printf("D = %ld\n", ((uint64_t*)area)[8]);
+    printf("e = %ld\n", ((uint64_t*)area)[9]);*/
+
+    /*((uint64_t*)area)[0] = 5;
+    dmb(); 
+    ((uint64_t*)area)[16] = 6;
+    dmb();
+    ((uint64_t*)area)[0] = 7;
+    dmb();
+    ((uint64_t*)area)[16] = 8;
+    dmb();*/
+
+
+    
+    uint64_t start = rdtsc();
+
+    //dmb();
+    //for (int i = 0; i < 1000; i++) {
+	((uint64_t*)area)[0] = 10;
+        dmb();
+    	//((uint64_t*)area)[16] = i+1;
+    	//dmb();
+    //}
+
+    //dmb();
+    
+    /*int c[2000];
+    for (int i = 0; i < 1000; i++) {
+	c[i] = ((uint64_t*)area)[0];
+	//printf("%ld\n", ((uint64_t*)area)[0]);
+        dmb();
+	c[i+1] = ((uint64_t*)area)[16];
+        //printf("%ld\n", ((uint64_t*)area)[16]);
+        dmb();
+    }*/
+
+    //printf();
+
+
+    //ioctl(fd, 5, 0x10000000000ULL);
+
+    uint64_t end = rdtsc();
+    /*for (int i = 0; i < 1000; i++) {
+	printf("%d %d ", c[i], c[i+1]);
+    }
+    printf("\n");*/
+    //printf("%d \n", c);
+    printf("Time = %f\n", (end - start));/// 100000000.0);
+    munmap(area, SIZE * no_cpus);
+    printf("Bye!\n");
+    return 0;
+}
