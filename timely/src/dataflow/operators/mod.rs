@@ -19,6 +19,7 @@ pub use self::feedback::{Feedback, LoopVariable, ConnectLoop};
 pub use self::concat::{Concat, Concatenate};
 pub use self::partition::Partition;
 pub use self::map::Map;
+pub use self::bloom::Bloom;
 pub use self::inspect::Inspect;
 pub use self::filter::Filter;
 pub use self::delay::Delay;
@@ -57,6 +58,7 @@ pub mod fpga_wrapper_eci;
 pub mod fpga_wrapper_xdma;
 pub mod fpga_wrapper_pci;
 pub mod ok_err;
+pub mod bloom;
 
 pub mod aggregation;
 pub mod generic;
