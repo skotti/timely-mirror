@@ -59,6 +59,7 @@ pub mod fpga_wrapper_xdma;
 pub mod fpga_wrapper_pci;
 pub mod ok_err;
 pub mod bloom;
+pub mod bloom_hard;
 
 pub mod aggregation;
 pub mod generic;
