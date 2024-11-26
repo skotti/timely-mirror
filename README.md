@@ -7,4 +7,8 @@ Timely dataflow is a low-latency cyclic dataflow computational model, introduced
 
 This version in particular is trying to turn this engine into a fully heterogeneous system. There is a System Verilog backend part as well. 
 
+The branch where currently all the resources are is timely_all_together.
+
+There is also an async branch, that explores async execution but it is outside of the main flow for now.
+
 Key words: stream processing, FPGA, heterogeneous computing, stream processing on FPGA
