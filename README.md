@@ -13,4 +13,5 @@ There is also an async branch, that explores async execution but it is outside o
 
 Key words: stream processing, FPGA, heterogeneous computing, stream processing on FPGA
 
-[system_design.drawio.pdf](https://github.com/user-attachments/files/18058306/system_design.drawio.pdf)
+
+![system_design drawio](https://github.com/user-attachments/assets/96bf3c0a-4d3e-4919-9261-b20f3e477036)
