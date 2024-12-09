@@ -12,3 +12,5 @@ The branch where currently all the resources are is timely_all_together.
 There is also an async branch, that explores async execution but it is outside of the main flow for now.
 
 Key words: stream processing, FPGA, heterogeneous computing, stream processing on FPGA
+
+[system_design.drawio.pdf](https://github.com/user-attachments/files/18058306/system_design.drawio.pdf)
